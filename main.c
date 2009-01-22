@@ -203,16 +203,20 @@ print_if_msg(const struct if_msg *ifm)
 			reason = "Failed to renew";
 		else if (g_strcmp0(ifm->reason, "CARRIER") == 0) {
 			if (ifm->wireless) {
-				reason = "Asssociated to";
+				reason = "Asssociated with";
 				if (ifm->ssid != NULL)
 					showssid = TRUE;
 			} else
 				reason = "Cable plugged in";
 			showip = FALSE;
 		} else if (g_strcmp0(ifm->reason, "NOCARRIER") == 0) {
-			if (ifm->wireless)
-				reason = "Not associated";
-			else
+			if (ifm->wireless) {
+				if (ifm->ssid != NULL || ifm->ip.s_addr != 0) {
+					reason = "Lost association with";
+					showssid = TRUE;
+				} else
+				    reason = "Not associated";
+			} else
 				reason = "Cable unplugged";
 			showip = FALSE;
 		}
