@@ -459,11 +459,6 @@ main(int argc, char *argv[])
 	char *version = NULL;
 	GType otype;
 	
-#if defined(HAVE_GNOME) || defined(HAVE_XFCE)
-	if (!g_thread_supported())
-		g_thread_init(NULL);
-#endif
-
 	gtk_init(&argc, &argv);
 	g_set_application_name("dhcpcd Monitor");
 	status_icon = gtk_status_icon_new_from_stock(GTK_STOCK_DISCONNECT);

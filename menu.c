@@ -26,10 +26,6 @@
 
 #include <gtk/gtk.h>
 
-#ifdef HAVE_GNOME
-# include <gnome.h>
-#endif
-
 #include "config.h"
 #include "menu.h"
 
@@ -77,14 +73,13 @@ on_help(_unused GtkMenuItem *item, _unused gpointer data)
 {
 }
 
-#ifdef HAVE_GNOME
 static void
 url_show(GtkAboutDialog *dialog, const char *url)
 {
 	GdkScreen *screen;
 
 	screen = gtk_widget_get_screen(GTK_WIDGET(dialog));
-	gnome_url_show_on_screen(url, screen, NULL);
+	gtk_show_uri(screen, url, GDK_CURRENT_TIME, NULL);
 }
 
 static void
@@ -102,19 +97,13 @@ url_hook(GtkAboutDialog *dialog, const char *url, _unused gpointer p)
 {
 	url_show(dialog, url);
 }
-#endif
 
 static void
 on_about(_unused GtkMenuItem *item, _unused gpointer data)
 {
 	gtk_window_set_default_icon_name(GTK_STOCK_NETWORK);
-#ifdef HAVE_GNOME
 	gtk_about_dialog_set_email_hook(email_hook, NULL, NULL);
 	gtk_about_dialog_set_url_hook(url_hook, NULL, NULL);
-#elif HAVE_XFCE
-	gtk_about_dialog_set_email_hook(exo_url_about_dialog_hook, NULL, NULL);
-	gtk_about_dialog_set_url_hook(exo_url_about_dialog_hook, NULL, NULL);
-#endif
 	gtk_show_about_dialog(NULL,
 			      "version", VERSION,
 			      "copyright", copyright,
