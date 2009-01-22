@@ -1,6 +1,8 @@
 # Simple defaults
 
-BINDIR?=	${PREFIX}/usr/local/bin
+PREFIX?=	/usr/local
+
+BINDIR?=	${PREFIX}/bin
 BINMODE?=	0755
 NONBINMODE?=	0644
 
