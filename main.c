@@ -253,7 +253,8 @@ update_online(char **buffer)
 void
 notify_close(void)
 {
-	notify_notification_close(nn, NULL);
+	if (nn != NULL)
+		notify_notification_close(nn, NULL);
 }
 
 static void
