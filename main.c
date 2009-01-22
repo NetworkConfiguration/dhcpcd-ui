@@ -55,6 +55,8 @@ struct if_msg {
 	char *reason;
 	struct in_addr ip;
 	unsigned char cidr;
+	gboolean wireless;
+	char *ssid;
 };
 
 static DBusGProxy *bus_proxy;
@@ -102,6 +104,7 @@ free_if_msg(struct if_msg *ifm)
 {
 	g_free(ifm->name);
 	g_free(ifm->reason);
+	g_free(ifm->ssid);
 	g_free(ifm);
 }
 
@@ -150,6 +153,14 @@ make_if_msg(GHashTable *config)
 	val = g_hash_table_lookup(config, "Reason");
 	if (val)
 		ifm->reason = g_strdup(g_value_get_string(val));
+	val = g_hash_table_lookup(config, "Wireless");
+	if (val)
+		ifm->wireless = g_value_get_boolean(val);
+	if (ifm->wireless) {
+		val = g_hash_table_lookup(config, "SSID");
+		if (val)
+			ifm->ssid = g_strdup(g_value_get_string(val));
+	}
 	val = g_hash_table_lookup(config, "IPAddress");
 	if (val)
 		ifm->ip.s_addr = g_value_get_uint(val);
@@ -164,25 +175,64 @@ make_if_msg(GHashTable *config)
 	return ifm;
 }
 
+static gboolean
+if_up(const struct if_msg *ifm)
+{
+	const char *const *r;
+
+	for (r = up_reasons; *r; r++)
+		if (g_strcmp0(*r, ifm->reason) == 0)
+			return TRUE;
+	return FALSE;
+}
+
 static char *
 print_if_msg(const struct if_msg *ifm)
 {
 	char *msg, *p;
+	const char *reason = NULL;
 	size_t len;
-	gboolean showip;
-
+	gboolean showip, showssid;
+    
+	showip = TRUE;
+	showssid = FALSE;
+	if (if_up(ifm))
+		reason = "Acquired address";
+	else {
+		if (g_strcmp0(ifm->reason, "EXPIRE") == 0)
+			reason = "Failed to renew";
+		else if (g_strcmp0(ifm->reason, "CARRIER") == 0) {
+			if (ifm->wireless) {
+				reason = "Asssociated to";
+				if (ifm->ssid != NULL)
+					showssid = TRUE;
+			} else
+				reason = "Cable plugged in";
+			showip = FALSE;
+		} else if (g_strcmp0(ifm->reason, "NOCARRIER") == 0) {
+			if (ifm->wireless)
+				reason = "Not associated";
+			else
+				reason = "Cable unplugged";
+			showip = FALSE;
+		}
+	}
+	if (reason == NULL)
+		reason = ifm->reason;
+	
 	len = strlen(ifm->name) + 3;
-	len += strlen(ifm->reason) + 1;
+	len += strlen(reason) + 1;
 	if (ifm->ip.s_addr != 0) {
 		len += 16; /* 000. * 4 */
 		if (ifm->cidr != 0)
 			len += 3; /* /32 */
 	}
+	if (showssid)
+		len += strlen(ifm->ssid) + 1;
 	msg = p = g_malloc(len);
-	p += g_snprintf(msg, len, "%s: %s", ifm->name, ifm->reason);
-	showip = TRUE;
-	if (g_strcmp0(ifm->reason, "NOCARRIER") == 0)
-		showip = FALSE;
+	p += g_snprintf(msg, len, "%s: %s", ifm->name, reason);
+	if (showssid)
+		p += g_snprintf(p, len - (p - msg), " %s", ifm->ssid);
 	if (ifm->ip.s_addr != 0 && showip) {
 		p += g_snprintf(p, len - (p - msg), " %s", inet_ntoa(ifm->ip));
 		if (ifm->cidr != 0)
@@ -214,20 +264,15 @@ update_online(char **buffer)
 	gboolean ison;
 	char *msg, *msgs, *tmp;
 	const char *icon;
-	const char *const *r;
 	const GList *gl;
 	const struct if_msg *ifm;
 
 	ison = FALSE;
 	msgs = NULL;
 	for (gl = interfaces; gl; gl = gl->next) {
-		ifm = (const struct if_msg *)gl->data;		
-		for (r = up_reasons; *r; r++) {
-			if (g_strcmp0(*r, ifm->reason) == 0) {
-				ison = TRUE;
-				break;
-			}
-		}
+		ifm = (const struct if_msg *)gl->data;
+		if (if_up(ifm))
+			ison = TRUE;
 		msg = print_if_msg(ifm);
 		if (msgs) {
 			tmp = g_strconcat(msgs, "\n", msg, NULL);
@@ -317,16 +362,19 @@ dhcpcd_event(_unused DBusGProxy *proxy, GHashTable *config, _unused void *data)
 	if (ifp == NULL && !rem)
 		interfaces = g_list_prepend(interfaces, ifm);
 	interfaces = g_list_sort(interfaces, if_msg_comparer);
+	update_online(NULL);
+
+	/* We should ignore renew and stop so we don't annoy the user */
+	if (g_strcmp0(ifm->reason, "RENEW") == 0 ||
+	    g_strcmp0(ifm->reason, "STOP") == 0)
+		return;
 
 	msg = print_if_msg(ifm);
-	act = NULL;
 	title = NULL;
-	for (r = up_reasons; *r; r++) {
-		if (g_strcmp0(*r, ifm->reason) == 0) {
-			act = "Connected to ";
-			break;
-		}
-	}
+	if (if_up(ifm))
+		act = "Connected to ";
+	else
+		act = NULL;
 	for (r = down_reasons; *r; r++) {
 		if (g_strcmp0(*r, ifm->reason) == 0) {
 			act = "Disconnected from ";
@@ -344,7 +392,6 @@ dhcpcd_event(_unused DBusGProxy *proxy, GHashTable *config, _unused void *data)
 		title = g_strconcat(act, net, NULL);
 	}
 
-	update_online(NULL);
 	if (title) {
 		notify(title, msg, GTK_STOCK_NETWORK);
 		g_free(title);
