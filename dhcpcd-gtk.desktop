@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=dhcpcd Monitor
+Comment=Monitor your network connections
+Exec=dhcpcd-gtk
+Terminal=false
+Type=Application
+X-GNOME-Autostart-enabled=true

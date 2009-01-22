@@ -1,0 +1,2 @@
+DEPKGS=		libgnomeui-2.0
+DECPPFLAGS=	-DHAVE_GNOME
