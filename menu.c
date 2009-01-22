@@ -108,7 +108,7 @@ on_about(_unused GtkMenuItem *item, _unused gpointer data)
 			      "version", VERSION,
 			      "copyright", copyright,
 			      "license", license,
-			      "website-label", "dhcpcd GTK Website",
+			      "website-label", "dhcpcd Website",
 			      "website", "http://roy.marples.name/projects/dhcpcd",
 			      "authors", authors,
 			      "wrap-license", TRUE,
