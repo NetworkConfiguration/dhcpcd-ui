@@ -67,6 +67,7 @@ static DBusGProxy *bus_proxy;
 static GtkStatusIcon *status_icon;
 static GList *interfaces;
 static gboolean online;
+static gboolean carrier;
 static NotifyNotification *nn;
 
 static char **interface_order;
@@ -269,18 +270,20 @@ if_msg_comparer(gconstpointer a, gconstpointer b)
 static void
 update_online(char **buffer)
 {
-	gboolean ison;
+	gboolean ison, iscarrier;
 	char *msg, *msgs, *tmp;
 	const char *icon;
 	const GList *gl;
 	const struct if_msg *ifm;
 
-	ison = FALSE;
+	ison = iscarrier = FALSE;
 	msgs = NULL;
 	for (gl = interfaces; gl; gl = gl->next) {
 		ifm = (const struct if_msg *)gl->data;
 		if (if_up(ifm))
-			ison = TRUE;
+			ison = iscarrier = TRUE;
+		if (!iscarrier && g_strcmp0(ifm->reason, "CARRIER") == 0)
+			iscarrier = TRUE;
 		msg = print_if_msg(ifm);
 		if (msgs) {
 			tmp = g_strconcat(msgs, "\n", msg, NULL);
@@ -291,9 +294,14 @@ update_online(char **buffer)
 			msgs = msg;
 	}
 
-	if (online != ison) {
+	if (online != ison || carrier != iscarrier) {
 		online = ison;
-		icon = online ? "connect_established" : "connect_no";
+		if (ison)
+			icon = "network-transmit-receive";
+		else if (iscarrier)
+			icon = "network-transmit";
+		else
+			icon = "network-offline";
 		gtk_status_icon_set_from_icon_name(status_icon, icon);
 	}
 	gtk_status_icon_set_tooltip(status_icon, msgs);
@@ -514,10 +522,11 @@ main(int argc, char *argv[])
 	GError *error = NULL;
 	char *version = NULL;
 	GType otype;
+	int tries = 5;
 	
 	gtk_init(&argc, &argv);
 	g_set_application_name("dhcpcd Monitor");
-	status_icon = gtk_status_icon_new_from_icon_name("connect_no");
+	status_icon = gtk_status_icon_new_from_icon_name("network-offline");
 	if (status_icon == NULL)
 		status_icon = gtk_status_icon_new_from_stock(GTK_STOCK_DISCONNECT);
 	
@@ -526,6 +535,7 @@ main(int argc, char *argv[])
 
 	notify_init(PACKAGE);
 
+	g_message("connecting to dbus ...");
 	bus = dbus_g_bus_get(DBUS_BUS_SYSTEM, &error);
 	if (bus == NULL || error != NULL)
 		error_exit("could not connect to system bus", error);
@@ -533,9 +543,20 @@ main(int argc, char *argv[])
 					      DHCPCD_SERVICE,
 					      DHCPCD_PATH,
 					      DHCPCD_SERVICE);
-	if (!dbus_g_proxy_call(bus_proxy, "GetVersion", &error,
-			       G_TYPE_INVALID,
-			       G_TYPE_STRING, &version, G_TYPE_INVALID))
+
+	g_message("connecting to dhcpcd-dbus ...");
+	while (--tries > 0) {
+		if (dbus_g_proxy_call_with_timeout(bus_proxy,
+						   "GetVersion",
+						   500,
+						   &error,
+						   G_TYPE_INVALID,
+						   G_TYPE_STRING,
+						   &version,
+						   G_TYPE_INVALID))
+			break;
+	}
+	if (tries == 0)
 		error_exit("GetVersion", error);
 	g_message("Connected to dhcpcd-dbus-%s", version);
 	g_free(version);
