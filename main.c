@@ -546,6 +546,7 @@ main(int argc, char *argv[])
 
 	g_message("connecting to dhcpcd-dbus ...");
 	while (--tries > 0) {
+		g_clear_error(&error);
 		if (dbus_g_proxy_call_with_timeout(bus_proxy,
 						   "GetVersion",
 						   500,
