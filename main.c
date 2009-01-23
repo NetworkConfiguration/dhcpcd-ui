@@ -473,7 +473,7 @@ check_status(const char *status)
 	gboolean refresh;
 	GError *error = NULL;
 
-	g_message("status changed to %s", status);
+	g_message("Status changed to %s", status);
 	if (g_strcmp0(status, "down") == 0) {
 		for (gl = interfaces; gl; gl = gl->next)
 			free_if_msg((struct if_msg *)gl->data);
@@ -535,16 +535,16 @@ main(int argc, char *argv[])
 
 	notify_init(PACKAGE);
 
-	g_message("connecting to dbus ...");
+	g_message("Connecting to dbus ...");
 	bus = dbus_g_bus_get(DBUS_BUS_SYSTEM, &error);
 	if (bus == NULL || error != NULL)
-		error_exit("could not connect to system bus", error);
+		error_exit("Could not connect to system bus", error);
 	bus_proxy = dbus_g_proxy_new_for_name(bus,
 					      DHCPCD_SERVICE,
 					      DHCPCD_PATH,
 					      DHCPCD_SERVICE);
 
-	g_message("connecting to dhcpcd-dbus ...");
+	g_message("Connecting to dhcpcd-dbus ...");
 	while (--tries > 0) {
 		g_clear_error(&error);
 		if (dbus_g_proxy_call_with_timeout(bus_proxy,
