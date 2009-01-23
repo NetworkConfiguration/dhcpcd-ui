@@ -24,6 +24,10 @@
  * SUCH DAMAGE.
  */
 
+/* TODO: Animate the icon from carrier -> address
+ * maybe use network-idle -> network-transmit ->
+ * network-receive -> network-transmit-receive */
+
 #include <arpa/inet.h>
 
 #include <stdlib.h>
@@ -289,8 +293,8 @@ update_online(char **buffer)
 
 	if (online != ison) {
 		online = ison;
-		icon = online ? GTK_STOCK_CONNECT : GTK_STOCK_DISCONNECT;
-		gtk_status_icon_set_from_stock(status_icon, icon);
+		icon = online ? "connect_established" : "connect_no";
+		gtk_status_icon_set_from_icon_name(status_icon, icon);
 	}
 	gtk_status_icon_set_tooltip(status_icon, msgs);
 	if (buffer)
@@ -513,7 +517,10 @@ main(int argc, char *argv[])
 	
 	gtk_init(&argc, &argv);
 	g_set_application_name("dhcpcd Monitor");
-	status_icon = gtk_status_icon_new_from_stock(GTK_STOCK_DISCONNECT);
+	status_icon = gtk_status_icon_new_from_icon_name("connect_no");
+	if (status_icon == NULL)
+		status_icon = gtk_status_icon_new_from_stock(GTK_STOCK_DISCONNECT);
+	
 	gtk_status_icon_set_tooltip(status_icon, "Connecting to dhcpcd ...");
 	gtk_status_icon_set_visible(status_icon, TRUE);
 
