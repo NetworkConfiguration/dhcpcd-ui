@@ -33,18 +33,16 @@ static const char *authors[] = {
 	"Roy Marples <roy@marples.name>",
 	NULL
 };
-static const char *license =
-	"Licensed under the 2 clause BSD license.\n"
-	"\n"
+static const char *license[] = {
+	"Licensed under the 2 clause BSD license.\n",
 	"Redistribution and use in source and binary forms, with or without\n"
 	"modification, are permitted provided that the following conditions\n"
-	"are met:\n"
+	"are met:\n",
 	"1. Redistributions of source code must retain the above copyright\n"
-	"   notice, this list of conditions and the following disclaimer.\n"
+	"   notice, this list of conditions and the following disclaimer.\n",
 	"2. Redistributions in binary form must reproduce the above copyright\n"
 	"   notice, this list of conditions and the following disclaimer in the\n"
-	"   documentation and/or other materials provided with the distribution.\n"
-	"\n"
+	"   documentation and/or other materials provided with the distribution.\n",
 	"THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND\n"
 	"ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE\n"
 	"IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE\n"
@@ -55,7 +53,9 @@ static const char *license =
 	"HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT\n"
 	"LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY\n"
 	"OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF\n"
-	"SUCH DAMAGE.";
+	"SUCH DAMAGE.",
+	NULL
+};
 
 static void
 on_quit(_unused GtkMenuItem *item, _unused gpointer data)
@@ -96,19 +96,27 @@ url_hook(GtkAboutDialog *dialog, const char *url, _unused gpointer p)
 static void
 on_about(_unused GtkMenuItem *item, _unused gpointer data)
 {
+	char *l;
+
+	l = g_strconcat(_(license[0]), "\n",
+			_(license[1]), "\n",
+			_(license[2]), "\n",
+			_(license[3]), "\n",
+			_(license[4]), "\n",
+			NULL);
 	gtk_window_set_default_icon_name(GTK_STOCK_NETWORK);
 	gtk_about_dialog_set_email_hook(email_hook, NULL, NULL);
 	gtk_about_dialog_set_url_hook(url_hook, NULL, NULL);
 	gtk_show_about_dialog(NULL,
 			      "version", VERSION,
 			      "copyright", copyright,
-			      "license", license,
+			      "license", l,
 			      "website-label", "dhcpcd Website",
 			      "website", "http://roy.marples.name/projects/dhcpcd",
 			      "authors", authors,
-			      "wrap-license", TRUE,
 			      "logo-icon-name", GTK_STOCK_NETWORK,
 			      NULL);
+	g_free(l);
 }
 
 static void
@@ -183,7 +191,7 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 
 	menu = (GtkMenu *)gtk_menu_new();
 
-	item = gtk_image_menu_item_new_with_mnemonic("_Quit");
+	item = gtk_image_menu_item_new_with_mnemonic(_("_Quit"));
 	image = gtk_image_new_from_icon_name(GTK_STOCK_QUIT,
 					     GTK_ICON_SIZE_MENU);
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
@@ -194,7 +202,7 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 	item = gtk_separator_menu_item_new();
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 
-	item = gtk_image_menu_item_new_with_mnemonic("_Help");
+	item = gtk_image_menu_item_new_with_mnemonic(_("_Help"));
 	image = gtk_image_new_from_icon_name(GTK_STOCK_HELP,
 					     GTK_ICON_SIZE_MENU);
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
@@ -202,7 +210,7 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 			 G_CALLBACK(on_help), icon);
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 
-	item = gtk_image_menu_item_new_with_mnemonic("_About");
+	item = gtk_image_menu_item_new_with_mnemonic(_("_About"));
 	image = gtk_image_new_from_icon_name(GTK_STOCK_ABOUT,
 					     GTK_ICON_SIZE_MENU);
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);

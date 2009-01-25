@@ -28,6 +28,7 @@
  * maybe use network-idle -> network-transmit ->
  * network-receive -> network-transmit-receive */
 
+#include <locale.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -172,27 +173,27 @@ print_if_msg(const struct if_msg *ifm)
 	showip = TRUE;
 	showssid = FALSE;
 	if (if_up(ifm))
-		reason = "Acquired address";
+		reason = N_("Acquired address");
 	else {
 		if (g_strcmp0(ifm->reason, "EXPIRE") == 0)
-			reason = "Failed to renew";
+			reason = N_("Failed to renew");
 		else if (g_strcmp0(ifm->reason, "CARRIER") == 0) {
 			if (ifm->wireless) {
-				reason = "Asssociated with";
+				reason = N_("Asssociated with");
 				if (ifm->ssid != NULL)
 					showssid = TRUE;
 			} else
-				reason = "Cable plugged in";
+				reason = N_("Cable plugged in");
 			showip = FALSE;
 		} else if (g_strcmp0(ifm->reason, "NOCARRIER") == 0) {
 			if (ifm->wireless) {
 				if (ifm->ssid != NULL || ifm->ip.s_addr != 0) {
-					reason = "Lost association with";
+					reason = N_("Lost association with");
 					showssid = TRUE;
 				} else
-				    reason = "Not associated";
+				    reason = N_("Not associated");
 			} else
-				reason = "Cable unplugged";
+				reason = N_("Cable unplugged");
 			showip = FALSE;
 		}
 	}
@@ -358,23 +359,23 @@ dhcpcd_event(_unused DBusGProxy *proxy, GHashTable *config, _unused void *data)
 	msg = print_if_msg(ifm);
 	title = NULL;
 	if (if_up(ifm))
-		act = "Connected to ";
+		act = N_("Connected to ");
 	else
 		act = NULL;
 	for (r = down_reasons; *r; r++) {
 		if (g_strcmp0(*r, ifm->reason) == 0) {
-			act = "Disconnected from ";
+			act = N_("Disconnected from ");
 			break;
 		}
 	}
 	if (act && ifm->ip.s_addr) {
 		ipn = htonl(ifm->ip.s_addr);
 		if (IN_LINKLOCAL(ipn))
-			net = "private network";
+			net = N_("private network");
 		else if (IN_PRIVATE(ipn))
-			net = "LAN";
+			net = N_("LAN");
 		else
-			net = "internet";
+			net = N_("internet");
 		title = g_strconcat(act, net, NULL);
 	}
 
@@ -450,9 +451,9 @@ check_status(const char *status)
 		g_list_free(interfaces);
 		interfaces = NULL;
 		update_online(NULL);
-		msg = last? "Connection to dhcpcd lost" : "dhcpcd not running";
+		msg = N_(last? "Connection to dhcpcd lost" : "dhcpcd not running");
 		gtk_status_icon_set_tooltip(status_icon, msg);
-		notify("No network", msg, GTK_STOCK_NETWORK);
+		notify(_("No network"), msg, GTK_STOCK_NETWORK);
 	}
 
 	refresh = FALSE;
@@ -473,8 +474,8 @@ check_status(const char *status)
 	if (!dbus_g_proxy_call(dbus, "GetDhcpcdVersion", &error,
 			       G_TYPE_INVALID,
 			       G_TYPE_STRING, &version, G_TYPE_INVALID))
-		error_exit("GetDhcpcdVersion", error);
-	g_message("Connected to dhcpcd-%s", version);
+		error_exit(_("GetDhcpcdVersion"), error);
+	g_message(_("Connected to %s-%s"), "dhcpcd", version);
 	g_free(version);
 	dhcpcd_get_interfaces();
 }
@@ -493,28 +494,34 @@ main(int argc, char *argv[])
 	char *version = NULL;
 	GType otype;
 	int tries = 5;
-	
+
+		
+	setlocale(LC_ALL, "");
+	bindtextdomain(PACKAGE, NULL);
+	bind_textdomain_codeset(PACKAGE, "UTF-8");
+	textdomain(PACKAGE); 
+
 	gtk_init(&argc, &argv);
 	g_set_application_name("dhcpcd Monitor");
 	status_icon = gtk_status_icon_new_from_icon_name("network-offline");
 	if (status_icon == NULL)
 		status_icon = gtk_status_icon_new_from_stock(GTK_STOCK_DISCONNECT);
 	
-	gtk_status_icon_set_tooltip(status_icon, "Connecting to dhcpcd ...");
+	gtk_status_icon_set_tooltip(status_icon, _("Connecting to dhcpcd ..."));
 	gtk_status_icon_set_visible(status_icon, TRUE);
 
 	notify_init(PACKAGE);
 
-	g_message("Connecting to dbus ...");
+	g_message(_("Connecting to dbus ..."));
 	bus = dbus_g_bus_get(DBUS_BUS_SYSTEM, &error);
 	if (bus == NULL || error != NULL)
-		error_exit("Could not connect to system bus", error);
+		error_exit(_("Could not connect to system bus"), error);
 	dbus = dbus_g_proxy_new_for_name(bus,
 					      DHCPCD_SERVICE,
 					      DHCPCD_PATH,
 					      DHCPCD_SERVICE);
 
-	g_message("Connecting to dhcpcd-dbus ...");
+	g_message(_("Connecting to dhcpcd-dbus ..."));
 	while (--tries > 0) {
 		g_clear_error(&error);
 		if (dbus_g_proxy_call_with_timeout(dbus,
@@ -528,18 +535,18 @@ main(int argc, char *argv[])
 			break;
 	}
 	if (tries == 0)
-		error_exit("GetVersion", error);
-	g_message("Connected to dhcpcd-dbus-%s", version);
+		error_exit(_("GetVersion"), error);
+	g_message(_("Connected to %s-%s"), "dhcpcd-dbus", version);
 	g_free(version);
 
-	gtk_status_icon_set_tooltip(status_icon, "Triggering dhcpcd ...");
+	gtk_status_icon_set_tooltip(status_icon, _("Triggering dhcpcd ..."));
 	online = FALSE;
 	menu_init(status_icon);
 
 	if (!dbus_g_proxy_call(dbus, "GetStatus", &error,
 			       G_TYPE_INVALID,
 			       G_TYPE_STRING, &version, G_TYPE_INVALID))
-		error_exit("GetStatus", error);
+		error_exit(_("GetStatus"), error);
 	check_status(version);
 	g_free(version);
 

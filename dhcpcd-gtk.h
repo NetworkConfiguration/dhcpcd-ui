@@ -30,7 +30,10 @@
 #include <arpa/inet.h>
 
 #include <dbus/dbus-glib.h>
+#include <glib.h>
+#include <glib/gi18n.h>
 #include <gtk/gtk.h>
+#include <libintl.h>
 
 #include "config.h"
 
