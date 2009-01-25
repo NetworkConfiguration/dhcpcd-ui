@@ -240,7 +240,7 @@ print_if_msg(const struct if_msg *ifm)
 		} else if (g_strcmp0(ifm->reason, "NOCARRIER") == 0) {
 			if (ifm->wireless) {
 				if (ifm->ssid != NULL || ifm->ip.s_addr != 0) {
-					reason = N_("Lost association with");
+					reason = N_("Disassociated from");
 					showssid = TRUE;
 				} else
 				    reason = N_("Not associated");
