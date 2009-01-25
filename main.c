@@ -115,6 +115,56 @@ error_exit(const char *msg, GError *error)
 		exit(EXIT_FAILURE);
 }
 
+GList *
+get_scan_results(const char *iface)
+{
+	GType otype;
+	GPtrArray *array = NULL;
+	GValueArray *item;
+	GError *error = NULL;
+	GList *list = NULL;
+	struct if_ap *ifa;
+	guint i;
+	GValue *v;
+
+	/* Below code causes dbus to go belly up for some reason :/ */
+	return NULL;
+	otype = dbus_g_type_get_struct("GValueArray",
+				       G_TYPE_STRING,
+				       G_TYPE_UINT,
+				       G_TYPE_UINT,
+				       G_TYPE_STRING,
+				       G_TYPE_STRING,
+				       G_TYPE_INVALID);
+	otype = dbus_g_type_get_collection("GPtrArray", otype);
+	if (!dbus_g_proxy_call(dbus, "GetScanResults", &error,
+			       G_TYPE_STRING, &iface, G_TYPE_INVALID,
+			       otype, &array, G_TYPE_INVALID)) {
+		g_message("GetScanResults: %s\n", error->message);
+		g_clear_error(&error);
+		return NULL;
+	}
+
+	printf ("got %d\n", array->len);
+	for (i = 0; i < array->len; i++) {
+		ifa = g_malloc(sizeof(*ifa));
+		item = g_ptr_array_index(array, i);
+		v = g_value_array_get_nth(item, 0);
+		ifa->bssid = g_strdup(g_value_get_string(v));
+		v = g_value_array_get_nth(item, 1);
+		ifa->freq = g_value_get_uint(v);
+		v = g_value_array_get_nth(item, 2);
+		ifa->level = g_value_get_uint(v);
+		v = g_value_array_get_nth(item, 3);
+		ifa->flags = g_strdup(g_value_get_string(v));
+		v = g_value_array_get_nth(item, 3);
+		ifa->ssid = g_strdup(g_value_get_string(v));
+		list = g_list_append(list, ifa);
+	}
+	g_ptr_array_free(array, TRUE);
+	return list;
+}
+
 static struct if_msg *
 make_if_msg(GHashTable *config)
 {
@@ -148,6 +198,8 @@ make_if_msg(GHashTable *config)
 		g_strfreev(interface_order);
 		interface_order = g_strsplit(g_value_get_string(val), " ", 0);
 	}
+	if (ifm->wireless)
+		ifm->scan_results = get_scan_results(ifm->name);
 	return ifm;
 }
 
