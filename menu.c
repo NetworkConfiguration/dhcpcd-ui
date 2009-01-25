@@ -24,9 +24,7 @@
  * SUCH DAMAGE.
  */
 
-#include <gtk/gtk.h>
-
-#include "config.h"
+#include "dhcpcd-gtk.h"
 #include "menu.h"
 
 static const char *copyright = "Copyright (c) 2009 Roy Marples";
@@ -58,9 +56,6 @@ static const char *license =
 	"LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY\n"
 	"OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF\n"
 	"SUCH DAMAGE.";
-
-/* Should be in a header */
-void notify_close(void);
 
 static void
 on_quit(_unused GtkMenuItem *item, _unused gpointer data)
@@ -117,9 +112,66 @@ on_about(_unused GtkMenuItem *item, _unused gpointer data)
 }
 
 static void
-on_activate(_unused GtkStatusIcon *icon, _unused guint button, _unused guint32 atime, _unused gpointer data)
+add_scan_results(GtkMenu *menu, const struct if_msg *ifm)
 {
+	GList *gl;
+	const struct if_ap *ifa;
+	GtkWidget *item, *image;
+
+	for (gl = ifm->scan_results; gl; gl = gl->next) {
+		ifa = (const struct if_ap *)gl->data;
+		item = gtk_image_menu_item_new_with_label(ifa->ssid);
+		image = gtk_image_new_from_icon_name("network-wireless",
+						     GTK_ICON_SIZE_MENU);
+		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+	}
+}
+
+static void
+on_activate(GtkStatusIcon *icon, _unused guint button, guint32 atime, gpointer data)
+{
+	GtkMenu *menu, *sub;
+	GtkWidget *item, *image;
+	const struct if_msg *ifm;
+	GList *gl;
+	size_t n;
+
 	notify_close();
+
+	n = 0;
+	for (gl = interfaces; gl; gl = gl->next) {
+		ifm = (const struct if_msg *)gl->data;
+		if (ifm->wireless)
+			if (++n > 1)
+				break;
+	}
+	if (n == 0)
+		return;
+
+	menu = (GtkMenu *)gtk_menu_new();
+
+	for (gl = interfaces; gl; gl = gl->next) {
+		ifm = (const struct if_msg *)gl->data;
+		if (!ifm->wireless)
+			continue;
+		if (n == 1) {
+			add_scan_results(menu, ifm);
+			break;
+		}
+#if 0
+		item = gtk_image_menu_item_new_with_label(ifm->name);
+		image = gtk_image_new_from_icon_name("network-wireless",
+						     GTK_ICON_SIZE_MENU);
+		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
+
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+#endif
+	}
+	gtk_widget_show_all(GTK_WIDGET(menu));
+	gtk_menu_popup(GTK_MENU(menu), NULL, NULL,
+		       gtk_status_icon_position_menu, icon,
+		       1, gtk_get_current_event_time());
 }
 
 static void
@@ -161,7 +213,7 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 
 	gtk_widget_show_all(GTK_WIDGET(menu));
 	gtk_menu_popup(GTK_MENU(menu), NULL, NULL,
-			gtk_status_icon_position_menu, data, button, atime);
+		       gtk_status_icon_position_menu, data, button, atime);
 	if (button == 0)
 		gtk_menu_shell_select_first(GTK_MENU_SHELL(menu), FALSE);
 }
