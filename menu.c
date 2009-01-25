@@ -129,10 +129,9 @@ add_scan_results(GtkMenu *menu, const struct if_msg *ifm)
 }
 
 static void
-on_activate(GtkStatusIcon *icon, _unused guint button, guint32 atime, gpointer data)
+on_activate(GtkStatusIcon *icon, _unused guint button, _unused guint32 atime, _unused gpointer data)
 {
-	GtkMenu *menu, *sub;
-	GtkWidget *item, *image;
+	GtkMenu *menu;
 	const struct if_msg *ifm;
 	GList *gl;
 	size_t n;
