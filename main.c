@@ -28,48 +28,21 @@
  * maybe use network-idle -> network-transmit ->
  * network-receive -> network-transmit-receive */
 
-#include <arpa/inet.h>
-
 #include <stdlib.h>
 #include <string.h>
 
-#include <dbus/dbus-glib.h>
-#include <gtk/gtk.h>
 #include <libnotify/notify.h>
 
-#include "config.h"
+#include "dhcpcd-gtk.h"
 #include "menu.h"
 
-/* Work out if we have a private address or not
- * 10/8
- * 172.16/12
- * 192.168/16
- */
-#ifndef IN_PRIVATE
-# define IN_PRIVATE(addr) (((addr & IN_CLASSA_NET) == 0x0a000000) || \
-			   ((addr & 0xfff00000)    == 0xac100000) || \
-			   ((addr & IN_CLASSB_NET) == 0xc0a80000))
-#endif
-#ifndef IN_LINKLOCAL
-# define IN_LINKLOCAL(addr) ((addr & IN_CLASSB_NET) == 0xa9fe0000)
-#endif
+DBusGProxy *dbus = NULL;
+GList *interfaces = NULL;
 
-struct if_msg {
-	char *name;
-	char *reason;
-	struct in_addr ip;
-	unsigned char cidr;
-	gboolean wireless;
-	char *ssid;
-};
-
-static DBusGProxy *bus_proxy;
-static GtkStatusIcon *status_icon;
-static GList *interfaces;
+static GtkStatusIcon *status_icon = NULL;
+static NotifyNotification *nn;
 static gboolean online;
 static gboolean carrier;
-static NotifyNotification *nn;
-
 static char **interface_order;
 
 const char *const up_reasons[] = {
@@ -91,9 +64,6 @@ const char *const down_reasons[] = {
 	"STOP",
 	NULL
 };
-
-/* Should be in a header */
-void notify_close(void);
 
 static gboolean
 ignore_if_msg(const struct if_msg *ifm)
@@ -438,7 +408,7 @@ dhcpcd_get_interfaces()
 
 	otype = dbus_g_type_get_map("GHashTable", G_TYPE_STRING, G_TYPE_VALUE);
 	otype = dbus_g_type_get_map("GHashTable", G_TYPE_STRING, otype);
-	if (!dbus_g_proxy_call(bus_proxy, "GetInterfaces", &error,
+	if (!dbus_g_proxy_call(dbus, "GetInterfaces", &error,
 			       G_TYPE_INVALID,
 			       otype, &ifs, G_TYPE_INVALID))
 		error_exit("GetInterfaces", error);
@@ -449,7 +419,7 @@ dhcpcd_get_interfaces()
 	 * that interface was configured, so get the real order now. */
 	g_strfreev(interface_order);
 	interface_order = NULL;
-	if (!dbus_g_proxy_call(bus_proxy, "ListInterfaces", &error,
+	if (!dbus_g_proxy_call(dbus, "ListInterfaces", &error,
 			       G_TYPE_INVALID,
 			       G_TYPE_STRV, &interface_order, G_TYPE_INVALID))
 		error_exit("ListInterfaces", error);
@@ -500,7 +470,7 @@ check_status(const char *status)
 
 	if (!refresh)
 		return;
-	if (!dbus_g_proxy_call(bus_proxy, "GetDhcpcdVersion", &error,
+	if (!dbus_g_proxy_call(dbus, "GetDhcpcdVersion", &error,
 			       G_TYPE_INVALID,
 			       G_TYPE_STRING, &version, G_TYPE_INVALID))
 		error_exit("GetDhcpcdVersion", error);
@@ -539,7 +509,7 @@ main(int argc, char *argv[])
 	bus = dbus_g_bus_get(DBUS_BUS_SYSTEM, &error);
 	if (bus == NULL || error != NULL)
 		error_exit("Could not connect to system bus", error);
-	bus_proxy = dbus_g_proxy_new_for_name(bus,
+	dbus = dbus_g_proxy_new_for_name(bus,
 					      DHCPCD_SERVICE,
 					      DHCPCD_PATH,
 					      DHCPCD_SERVICE);
@@ -547,7 +517,7 @@ main(int argc, char *argv[])
 	g_message("Connecting to dhcpcd-dbus ...");
 	while (--tries > 0) {
 		g_clear_error(&error);
-		if (dbus_g_proxy_call_with_timeout(bus_proxy,
+		if (dbus_g_proxy_call_with_timeout(dbus,
 						   "GetVersion",
 						   500,
 						   &error,
@@ -566,7 +536,7 @@ main(int argc, char *argv[])
 	online = FALSE;
 	menu_init(status_icon);
 
-	if (!dbus_g_proxy_call(bus_proxy, "GetStatus", &error,
+	if (!dbus_g_proxy_call(dbus, "GetStatus", &error,
 			       G_TYPE_INVALID,
 			       G_TYPE_STRING, &version, G_TYPE_INVALID))
 		error_exit("GetStatus", error);
@@ -574,14 +544,14 @@ main(int argc, char *argv[])
 	g_free(version);
 
 	otype = dbus_g_type_get_map("GHashTable", G_TYPE_STRING, G_TYPE_VALUE);
-	dbus_g_proxy_add_signal(bus_proxy, "Event",
+	dbus_g_proxy_add_signal(dbus, "Event",
 				otype, G_TYPE_INVALID);
-	dbus_g_proxy_connect_signal(bus_proxy, "Event",
+	dbus_g_proxy_connect_signal(dbus, "Event",
 				    G_CALLBACK(dhcpcd_event),
 				    NULL, NULL);
-	dbus_g_proxy_add_signal(bus_proxy, "StatusChanged",
+	dbus_g_proxy_add_signal(dbus, "StatusChanged",
 				G_TYPE_STRING, G_TYPE_INVALID);
-	dbus_g_proxy_connect_signal(bus_proxy, "StatusChanged",
+	dbus_g_proxy_connect_signal(dbus, "StatusChanged",
 				    G_CALLBACK(dhcpcd_status),
 				    NULL, NULL);
 
