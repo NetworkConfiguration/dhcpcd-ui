@@ -40,11 +40,13 @@
 DBusGProxy *dbus = NULL;
 GList *interfaces = NULL;
 
-static GtkStatusIcon *status_icon = NULL;
-static NotifyNotification *nn;
+static GtkStatusIcon *status_icon;
+static gint ani_timer;
+static int ani_counter;
 static gboolean online;
 static gboolean carrier;
 static char **interface_order;
+static NotifyNotification *nn;
 
 const char *const up_reasons[] = {
 	"BOUND",
@@ -290,14 +292,55 @@ if_msg_comparer(gconstpointer a, gconstpointer b)
 	return 0;
 }
 
+static gboolean
+animate_carrier(_unused gpointer data)
+{
+	if (ani_timer == 0)
+		return FALSE;
+
+	switch(ani_counter++) {
+	case 0:
+		gtk_status_icon_set_from_icon_name(status_icon, "network-transmit");
+		break;
+	case 1:
+		gtk_status_icon_set_from_icon_name(status_icon, "network-receive");
+		break;
+	default:
+		gtk_status_icon_set_from_icon_name(status_icon, "network-idle");
+		ani_counter = 0;
+		break;
+	}
+	return TRUE;
+}
+
+static gboolean
+animate_online(gpointer data)
+{
+	if (ani_timer == 0)
+		return FALSE;
+
+	if (ani_counter++ > 6) {
+		ani_timer = 0;
+		ani_counter = 0;
+		return FALSE;
+	}
+
+	if (ani_counter % 2 == GPOINTER_TO_INT(data))
+		gtk_status_icon_set_from_icon_name(status_icon, "network-idle");
+	else
+		gtk_status_icon_set_from_icon_name(status_icon, "network-transmit-receive");
+	return TRUE;
+}
+
 static void
 update_online(char **buffer)
 {
 	gboolean ison, iscarrier;
 	char *msg, *msgs, *tmp;
-	const char *icon;
+	GSourceFunc ani_func;
 	const GList *gl;
 	const struct if_msg *ifm;
+	gpointer toggle;
 
 	ison = iscarrier = FALSE;
 	msgs = NULL;
@@ -319,13 +362,23 @@ update_online(char **buffer)
 
 	if (online != ison || carrier != iscarrier) {
 		online = ison;
-		if (ison)
-			icon = "network-transmit-receive";
-		else if (iscarrier)
-			icon = "network-transmit";
-		else
-			icon = "network-offline";
-		gtk_status_icon_set_from_icon_name(status_icon, icon);
+		if (ani_timer != 0) {
+			g_source_remove(ani_timer);
+			ani_timer = 0;
+			ani_counter = 0;
+		}
+		if (ison) {
+			toggle = GINT_TO_POINTER(0);
+			ani_func = animate_online;
+		} else if (iscarrier) {
+			toggle = NULL;
+			ani_func = animate_carrier;
+		} else {
+			toggle = GINT_TO_POINTER(1);
+			ani_func = animate_online;
+		}
+		ani_timer = g_timeout_add(300, ani_func, toggle);
+		ani_func(toggle);
 	}
 	gtk_status_icon_set_tooltip(status_icon, msgs);
 	if (buffer)
@@ -558,6 +611,7 @@ main(int argc, char *argv[])
 	status_icon = gtk_status_icon_new_from_icon_name("network-offline");
 	if (status_icon == NULL)
 		status_icon = gtk_status_icon_new_from_stock(GTK_STOCK_DISCONNECT);
+	//network_offline = gtk_status_icon_get_pixbuf(status_icon);
 	
 	gtk_status_icon_set_tooltip(status_icon, _("Connecting to dhcpcd ..."));
 	gtk_status_icon_set_visible(status_icon, TRUE);
