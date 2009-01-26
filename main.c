@@ -117,14 +117,14 @@ error_exit(const char *msg, GError *error)
 		exit(EXIT_FAILURE);
 }
 
-GList *
+GSList *
 get_scan_results(const char *iface)
 {
 	GType otype;
 	GPtrArray *array = NULL;
 	GValueArray *item;
 	GError *error = NULL;
-	GList *list = NULL;
+	GSList *list = NULL;
 	struct if_ap *ifa;
 	guint i;
 	GValue *v;
@@ -161,7 +161,7 @@ get_scan_results(const char *iface)
 		ifa->flags = g_strdup(g_value_get_string(v));
 		v = g_value_array_get_nth(item, 3);
 		ifa->ssid = g_strdup(g_value_get_string(v));
-		list = g_list_append(list, ifa);
+		list = g_slist_append(list, ifa);
 	}
 	g_ptr_array_free(array, TRUE);
 	return list;

@@ -89,7 +89,7 @@ on_about(_unused GtkMenuItem *item, _unused gpointer data)
 static void
 add_scan_results(GtkMenu *menu, const struct if_msg *ifm)
 {
-	GList *gl;
+	GSList *gl;
 	const struct if_ap *ifa;
 	GtkWidget *item, *image;
 

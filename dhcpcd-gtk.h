@@ -66,11 +66,12 @@ struct if_msg {
 	unsigned char cidr;
 	gboolean wireless;
 	char *ssid;
-	GList *scan_results;
+	GSList *scan_results;
 };
 
 extern DBusGProxy *dus;
 extern GList *interfaces;
 
 void notify_close(void);
+GSList *get_scan_results(const char *);
 #endif
