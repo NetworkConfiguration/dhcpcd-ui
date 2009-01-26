@@ -314,7 +314,7 @@ animate_carrier(_unused gpointer data)
 }
 
 static gboolean
-animate_online(gpointer data)
+animate_online(_unused gpointer data)
 {
 	if (ani_timer == 0)
 		return FALSE;
@@ -325,7 +325,7 @@ animate_online(gpointer data)
 		return FALSE;
 	}
 
-	if (ani_counter % 2 == GPOINTER_TO_INT(data))
+	if (ani_counter % 2 == 0)
 		gtk_status_icon_set_from_icon_name(status_icon, "network-idle");
 	else
 		gtk_status_icon_set_from_icon_name(status_icon, "network-transmit-receive");
@@ -337,10 +337,8 @@ update_online(char **buffer)
 {
 	gboolean ison, iscarrier;
 	char *msg, *msgs, *tmp;
-	GSourceFunc ani_func;
 	const GList *gl;
 	const struct if_msg *ifm;
-	gpointer toggle;
 
 	ison = iscarrier = FALSE;
 	msgs = NULL;
@@ -368,17 +366,15 @@ update_online(char **buffer)
 			ani_counter = 0;
 		}
 		if (ison) {
-			toggle = GINT_TO_POINTER(0);
-			ani_func = animate_online;
+			animate_online(NULL);
+			ani_timer = g_timeout_add(300, animate_online, NULL);
 		} else if (iscarrier) {
-			toggle = NULL;
-			ani_func = animate_carrier;
+			animate_carrier(NULL);
+			ani_timer = g_timeout_add(500, animate_carrier, NULL);
 		} else {
-			toggle = GINT_TO_POINTER(1);
-			ani_func = animate_online;
+			gtk_status_icon_set_from_icon_name(status_icon,
+							   "network-offline");
 		}
-		ani_timer = g_timeout_add(300, ani_func, toggle);
-		ani_func(toggle);
 	}
 	gtk_status_icon_set_tooltip(status_icon, msgs);
 	if (buffer)
