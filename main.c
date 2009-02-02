@@ -174,7 +174,10 @@ get_scan_results(struct if_msg *ifm)
 		ifa->bssid = g_strdup(g_value_get_string(val));
 		val = g_hash_table_lookup(config, "Frequency");
 		if (val)
-			ifa->freq = g_value_get_int(val);
+			ifa->frequency = g_value_get_int(val);
+		val = g_hash_table_lookup(config, "Quality");
+		if (val)
+			ifa->quality = g_value_get_int(val);
 		val = g_hash_table_lookup(config, "Noise");
 		if (val)
 			ifa->noise = g_value_get_int(val);

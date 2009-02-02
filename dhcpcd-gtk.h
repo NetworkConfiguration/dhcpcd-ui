@@ -53,8 +53,8 @@
 
 struct if_ap {
 	char *bssid;
-	int freq;
-	int qual;
+	int frequency;
+	int quality;
 	int noise;
 	int level;
 	char *flags;

@@ -91,21 +91,40 @@ add_scan_results(GtkMenu *menu, const struct if_msg *ifm)
 {
 	GSList *gl;
 	const struct if_ap *ifa;
-	GtkWidget *item, *image;
+	GtkWidget *item, *image, *box, *label, *bar;
+	double perc;
+	int strength;
 
 	for (gl = ifm->scan_results; gl; gl = gl->next) {
 		ifa = (const struct if_ap *)gl->data;
-		item = gtk_image_menu_item_new_with_label(ifa->ssid);
-		image = NULL;
+		item = gtk_check_menu_item_new();
+		gtk_check_menu_item_set_draw_as_radio(GTK_CHECK_MENU_ITEM(item), TRUE); 
+		box = gtk_hbox_new(FALSE, 6);
+		gtk_container_add(GTK_CONTAINER(item), box); 
+		label = gtk_label_new(ifa->ssid);
+		gtk_box_pack_start(GTK_BOX(box), label, TRUE, TRUE, 0);
+
 		if (g_strcmp0(ifm->ssid, ifa->ssid) == 0)
+			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), TRUE);
+		if (ifa->flags == NULL)
 			image = gtk_image_new_from_icon_name("network-wireless",
 							     GTK_ICON_SIZE_MENU);
-		if (!image && ifa->flags != NULL)
-			image = gtk_image_new_from_icon_name("lock",
+		else
+			image = gtk_image_new_from_icon_name("network-wireless-encrypted",
 							     GTK_ICON_SIZE_MENU);
-		if (image)
-			gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item),
-						      image);
+		gtk_box_pack_start(GTK_BOX(box), image, FALSE, FALSE, 0);
+
+		bar = gtk_progress_bar_new();
+		gtk_widget_set_size_request(bar, 100, -1);
+		gtk_box_pack_end(GTK_BOX(box), bar, FALSE, TRUE, 0);
+		strength = CLAMP(ifa->quality, 0, 100);
+		perc = strength / 100.0;
+		gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(bar), perc);
+
+		gtk_widget_show(label);
+		gtk_widget_show(bar);
+		gtk_widget_show(image);
+		gtk_widget_show(box);
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 	}
 }
