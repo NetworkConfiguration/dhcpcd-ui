@@ -146,13 +146,24 @@ error_exit(const char *msg, GError *error)
 }
 
 static GSList *
-get_scan_results(const GPtrArray *array)
+get_scan_results(struct if_msg *ifm)
 {
+	GType otype;
+	GError *error;
+	GPtrArray *array;
 	GHashTable *config;
 	GSList *list = NULL;
 	struct if_ap *ifa;
 	guint i;
 	GValue *val;
+
+	otype = dbus_g_type_get_map("GHashTable", G_TYPE_STRING, G_TYPE_VALUE);
+	otype = dbus_g_type_get_collection("GPtrArray", otype);
+
+	if (!dbus_g_proxy_call(dbus, "GetScanResults", &error,
+			       G_TYPE_STRING, ifm->name, G_TYPE_INVALID,
+			       otype, &array, G_TYPE_INVALID))
+		error_exit(_("GetScanResults"), error);
 
 	for (i = 0; i < array->len; i++) {
 		config = g_ptr_array_index(array, i);
@@ -560,7 +571,7 @@ dhcpcd_get_interfaces()
 		for (gsl = ifm->scan_results; gsl; gsl = gsl->next)
 			g_free(gsl->data);
 		g_slist_free(ifm->scan_results);
-		ifm->scan_results = get_scan_results(array);
+		ifm->scan_results = get_scan_results(ifm);
 	}
 
 	msg = NULL;
@@ -625,7 +636,7 @@ dhcpcd_status(_unused DBusGProxy *proxy, const char *status, _unused void *data)
 }
 
 static void
-dhcpcd_scan_results(_unused DBusGProxy *proxy, const char *iface, GPtrArray *array, _unused void *data)
+dhcpcd_scan_results(_unused DBusGProxy *proxy, const char *iface, _unused void *data)
 {
 	struct if_msg *ifm;
 	GSList *gl;
@@ -637,7 +648,7 @@ dhcpcd_scan_results(_unused DBusGProxy *proxy, const char *iface, GPtrArray *arr
 	for (gl = ifm->scan_results; gl; gl = gl->next)
 		free_if_ap((struct if_ap *)gl->data);
 	g_slist_free(ifm->scan_results);
-	ifm->scan_results = get_scan_results(array);
+	ifm->scan_results = get_scan_results(ifm);
 }
 
 int
