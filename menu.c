@@ -96,9 +96,16 @@ add_scan_results(GtkMenu *menu, const struct if_msg *ifm)
 	for (gl = ifm->scan_results; gl; gl = gl->next) {
 		ifa = (const struct if_ap *)gl->data;
 		item = gtk_image_menu_item_new_with_label(ifa->ssid);
-		image = gtk_image_new_from_icon_name("network-wireless",
-						     GTK_ICON_SIZE_MENU);
-		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
+		image = NULL;
+		if (g_strcmp0(ifm->ssid, ifa->ssid) == 0)
+			image = gtk_image_new_from_icon_name("network-wireless",
+							     GTK_ICON_SIZE_MENU);
+		if (!image && ifa->flags != NULL)
+			image = gtk_image_new_from_icon_name("lock",
+							     GTK_ICON_SIZE_MENU);
+		if (image)
+			gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item),
+						      image);
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 	}
 }

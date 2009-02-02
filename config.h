@@ -28,7 +28,7 @@
 #define CONFIG_H
 
 #define PACKAGE			"dhcpcd-gtk"
-#define VERSION			"0.1.4"
+#define VERSION			"0.2.0"
 
 #define DHCPCD_SERVICE		"name.marples.roy.dhcpcd"
 #define DHCPCD_PATH		"/name/marples/roy/dhcpcd"

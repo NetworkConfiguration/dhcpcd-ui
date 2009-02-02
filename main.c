@@ -77,13 +77,41 @@ ignore_if_msg(const struct if_msg *ifm)
 	return FALSE;
 }
 
+static struct if_msg *
+find_if_msg(const char *iface)
+{
+	GList *gl;
+	struct if_msg *ifm;
+
+	for (gl = interfaces; gl; gl = gl->next) {
+		ifm = (struct if_msg *)gl->data;
+		if (g_strcmp0(ifm->name, iface) == 0)
+			return ifm;
+	}
+	return NULL;
+}
+
 static void
 free_if_msg(struct if_msg *ifm)
 {
+	GSList *gl;
+
 	g_free(ifm->name);
 	g_free(ifm->reason);
 	g_free(ifm->ssid);
+	for (gl = ifm->scan_results; gl; gl = gl->next)
+		g_free(gl->data);
+	g_slist_free(ifm->scan_results);
 	g_free(ifm);
+}
+
+static void
+free_if_ap(struct if_ap *ifa)
+{
+	g_free(ifa->bssid);
+	g_free(ifa->flags);
+	g_free(ifa->ssid);
+	g_free(ifa);
 }
 
 static void
@@ -117,53 +145,39 @@ error_exit(const char *msg, GError *error)
 		exit(EXIT_FAILURE);
 }
 
-GSList *
-get_scan_results(const char *iface)
+static GSList *
+get_scan_results(const GPtrArray *array)
 {
-	GType otype;
-	GPtrArray *array = NULL;
-	GValueArray *item;
-	GError *error = NULL;
+	GHashTable *config;
 	GSList *list = NULL;
 	struct if_ap *ifa;
 	guint i;
-	GValue *v;
+	GValue *val;
 
-	/* Below code causes dbus to go belly up for some reason :/ */
-	return NULL;
-	otype = dbus_g_type_get_struct("GValueArray",
-				       G_TYPE_STRING,
-				       G_TYPE_UINT,
-				       G_TYPE_UINT,
-				       G_TYPE_STRING,
-				       G_TYPE_STRING,
-				       G_TYPE_INVALID);
-	otype = dbus_g_type_get_collection("GPtrArray", otype);
-	if (!dbus_g_proxy_call(dbus, "GetScanResults", &error,
-			       G_TYPE_STRING, &iface, G_TYPE_INVALID,
-			       otype, &array, G_TYPE_INVALID)) {
-		g_message("GetScanResults: %s\n", error->message);
-		g_clear_error(&error);
-		return NULL;
-	}
-
-	printf ("got %d\n", array->len);
 	for (i = 0; i < array->len; i++) {
-		ifa = g_malloc(sizeof(*ifa));
-		item = g_ptr_array_index(array, i);
-		v = g_value_array_get_nth(item, 0);
-		ifa->bssid = g_strdup(g_value_get_string(v));
-		v = g_value_array_get_nth(item, 1);
-		ifa->freq = g_value_get_uint(v);
-		v = g_value_array_get_nth(item, 2);
-		ifa->level = g_value_get_uint(v);
-		v = g_value_array_get_nth(item, 3);
-		ifa->flags = g_strdup(g_value_get_string(v));
-		v = g_value_array_get_nth(item, 3);
-		ifa->ssid = g_strdup(g_value_get_string(v));
+		config = g_ptr_array_index(array, i);
+		val = g_hash_table_lookup(config, "BSSID");
+		if (val == NULL)
+			continue;
+		ifa = g_malloc0(sizeof(*ifa));
+		ifa->bssid = g_strdup(g_value_get_string(val));
+		val = g_hash_table_lookup(config, "Frequency");
+		if (val)
+			ifa->freq = g_value_get_int(val);
+		val = g_hash_table_lookup(config, "Noise");
+		if (val)
+			ifa->noise = g_value_get_int(val);
+		val = g_hash_table_lookup(config, "Level");
+		if (val)
+			ifa->level = g_value_get_int(val);
+		val = g_hash_table_lookup(config, "Flags");
+		if (val)
+			ifa->flags = g_strdup(g_value_get_string(val));
+		val = g_hash_table_lookup(config, "SSID");
+		if (val)
+			ifa->ssid = g_strdup(g_value_get_string(val));
 		list = g_slist_append(list, ifa);
 	}
-	g_ptr_array_free(array, TRUE);
 	return list;
 }
 
@@ -200,8 +214,6 @@ make_if_msg(GHashTable *config)
 		g_strfreev(interface_order);
 		interface_order = g_strsplit(g_value_get_string(val), " ", 0);
 	}
-	if (ifm->wireless)
-		ifm->scan_results = get_scan_results(ifm->name);
 	return ifm;
 }
 
@@ -484,7 +496,7 @@ dhcpcd_event(_unused DBusGProxy *proxy, GHashTable *config, _unused void *data)
 		notify(title, msg, GTK_STOCK_NETWORK);
 		g_free(title);
 	} else
-		notify("Interface event", msg, GTK_STOCK_NETWORK);
+		notify(N_("Interface event"), msg, GTK_STOCK_NETWORK);
 	g_free(msg);
 }
 
@@ -507,6 +519,10 @@ dhcpcd_get_interfaces()
 	GError *error = NULL;
 	GType otype;
 	char *msg;
+	GList *gl;
+	GSList *gsl;
+	GPtrArray *array;
+	struct if_msg *ifm;
 
 	otype = dbus_g_type_get_map("GHashTable", G_TYPE_STRING, G_TYPE_VALUE);
 	otype = dbus_g_type_get_map("GHashTable", G_TYPE_STRING, otype);
@@ -526,6 +542,27 @@ dhcpcd_get_interfaces()
 			       G_TYPE_STRV, &interface_order, G_TYPE_INVALID))
 		error_exit("ListInterfaces", error);
 	interfaces = g_list_sort(interfaces, if_msg_comparer);
+
+	otype = dbus_g_type_get_map("GHashTable", G_TYPE_STRING, G_TYPE_VALUE);
+	otype = dbus_g_type_get_collection("GPtrArray", otype);
+	for (gl = interfaces; gl; gl = gl->next) {
+		ifm = (struct if_msg *)gl->data;
+		if (!ifm->wireless)
+			continue;
+		if (!dbus_g_proxy_call(dbus, "GetScanResults", &error,
+				       G_TYPE_STRING, ifm->name, G_TYPE_INVALID,
+				       otype, &array, G_TYPE_INVALID)) 
+		{
+			g_message("GetScanResults: %s", error->message);
+			g_clear_error(&error);
+			continue;
+		}
+		for (gsl = ifm->scan_results; gsl; gsl = gsl->next)
+			g_free(gsl->data);
+		g_slist_free(ifm->scan_results);
+		ifm->scan_results = get_scan_results(array);
+	}
+
 	msg = NULL;
 	update_online(&msg);
 	// GTK+ 2.16 msg = gtk_status_icon_get_tooltip_text(status_icon);
@@ -585,6 +622,22 @@ static void
 dhcpcd_status(_unused DBusGProxy *proxy, const char *status, _unused void *data)
 {
 	check_status(status);
+}
+
+static void
+dhcpcd_scan_results(_unused DBusGProxy *proxy, const char *iface, GPtrArray *array, _unused void *data)
+{
+	struct if_msg *ifm;
+	GSList *gl;
+
+	ifm = find_if_msg(iface);
+	if (ifm == NULL)
+		return;
+	g_message(_("%s: Received scan results"), ifm->name);
+	for (gl = ifm->scan_results; gl; gl = gl->next)
+		free_if_ap((struct if_ap *)gl->data);
+	g_slist_free(ifm->scan_results);
+	ifm->scan_results = get_scan_results(array);
 }
 
 int
@@ -657,12 +710,17 @@ main(int argc, char *argv[])
 				otype, G_TYPE_INVALID);
 	dbus_g_proxy_connect_signal(dbus, "Event",
 				    G_CALLBACK(dhcpcd_event),
-				    NULL, NULL);
+				    bus, NULL);
 	dbus_g_proxy_add_signal(dbus, "StatusChanged",
 				G_TYPE_STRING, G_TYPE_INVALID);
 	dbus_g_proxy_connect_signal(dbus, "StatusChanged",
 				    G_CALLBACK(dhcpcd_status),
-				    NULL, NULL);
+				    bus, NULL);
+	dbus_g_proxy_add_signal(dbus, "ScanResults",
+				G_TYPE_STRING, G_TYPE_INVALID);
+	dbus_g_proxy_connect_signal(dbus, "ScanResults",
+				    G_CALLBACK(dhcpcd_scan_results),
+				    bus, NULL);
 
 	gtk_main();
 	return 0;

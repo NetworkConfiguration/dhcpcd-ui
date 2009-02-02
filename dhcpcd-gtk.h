@@ -54,6 +54,8 @@
 struct if_ap {
 	char *bssid;
 	int freq;
+	int qual;
+	int noise;
 	int level;
 	char *flags;
 	char *ssid;
@@ -73,5 +75,4 @@ extern DBusGProxy *dus;
 extern GList *interfaces;
 
 void notify_close(void);
-GSList *get_scan_results(const char *);
 #endif
