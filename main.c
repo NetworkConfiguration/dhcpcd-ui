@@ -92,6 +92,15 @@ find_if_msg(const char *iface)
 }
 
 static void
+free_if_ap(struct if_ap *ifa)
+{
+	g_free(ifa->bssid);
+	g_free(ifa->flags);
+	g_free(ifa->ssid);
+	g_free(ifa);
+}
+
+static void
 free_if_msg(struct if_msg *ifm)
 {
 	GSList *gl;
@@ -100,18 +109,9 @@ free_if_msg(struct if_msg *ifm)
 	g_free(ifm->reason);
 	g_free(ifm->ssid);
 	for (gl = ifm->scan_results; gl; gl = gl->next)
-		g_free(gl->data);
+		free_if_ap((struct if_ap *)gl->data);
 	g_slist_free(ifm->scan_results);
 	g_free(ifm);
-}
-
-static void
-free_if_ap(struct if_ap *ifa)
-{
-	g_free(ifa->bssid);
-	g_free(ifa->flags);
-	g_free(ifa->ssid);
-	g_free(ifa);
 }
 
 static void
@@ -465,6 +465,8 @@ dhcpcd_event(_unused DBusGProxy *proxy, GHashTable *config, _unused void *data)
 	for (gl = interfaces; gl; gl = gl->next) {
 		ifp = (struct if_msg *)gl->data;
 		if (g_strcmp0(ifp->name, ifm->name) == 0) {
+			ifm->scan_results = ifp->scan_results;
+			ifp->scan_results = NULL;
 			free_if_msg(ifp);
 			if (rem)
 				interfaces = g_list_delete_link(interfaces, gl);
