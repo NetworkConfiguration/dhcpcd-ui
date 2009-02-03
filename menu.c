@@ -94,6 +94,7 @@ add_scan_results(GtkMenu *menu, const struct if_msg *ifm)
 	GtkWidget *item, *image, *box, *label, *bar;
 	double perc;
 	int strength;
+	const char *icon;
 
 	for (gl = ifm->scan_results; gl; gl = gl->next) {
 		ifa = (const struct if_ap *)gl->data;
@@ -107,11 +108,11 @@ add_scan_results(GtkMenu *menu, const struct if_msg *ifm)
 		if (g_strcmp0(ifm->ssid, ifa->ssid) == 0)
 			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), TRUE);
 		if (ifa->flags == NULL)
-			image = gtk_image_new_from_icon_name("network-wireless",
-							     GTK_ICON_SIZE_MENU);
+			icon = "network-wireless";
 		else
-			image = gtk_image_new_from_icon_name("network-wireless-encrypted",
-							     GTK_ICON_SIZE_MENU);
+			icon = "network-wireless-encrypted";
+		image = gtk_image_new_from_icon_name(icon,
+						     GTK_ICON_SIZE_MENU);
 		gtk_box_pack_start(GTK_BOX(box), image, FALSE, FALSE, 0);
 
 		bar = gtk_progress_bar_new();
