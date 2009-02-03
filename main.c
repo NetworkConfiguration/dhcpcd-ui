@@ -583,7 +583,7 @@ dhcpcd_get_interfaces()
 	update_online(&msg);
 	// GTK+ 2.16 msg = gtk_status_icon_get_tooltip_text(status_icon);
 	if (msg != NULL) {
-		notify("Interface status", msg, GTK_STOCK_NETWORK);
+		notify(N_("Interface status"), msg, GTK_STOCK_NETWORK);
 		g_free(msg);
 	}
 }
@@ -644,16 +644,41 @@ static void
 dhcpcd_scan_results(_unused DBusGProxy *proxy, const char *iface, _unused void *data)
 {
 	struct if_msg *ifm;
-	GSList *gl;
+	struct if_ap *ifa, *ifa2;
+	GSList *gl, *aps, *l;
+	char *txt, *ntxt;
 
 	ifm = find_if_msg(iface);
 	if (ifm == NULL)
 		return;
 	g_message(_("%s: Received scan results"), ifm->name);
+	aps = get_scan_results(ifm);
+	txt = NULL;
+	for (gl = aps; gl; gl = gl->next) {
+		ifa = (struct if_ap *)gl->data;
+		for (l = ifm->scan_results; l; l = l->next) {
+			ifa2 = (struct if_ap *)l->data;
+			if (g_strcmp0(ifa->ssid, ifa2->ssid) == 0)
+				break;
+		}
+		if (l == NULL) {
+			if (txt == NULL)
+				txt = g_strdup(ifa->ssid);
+			else {
+				ntxt = 	g_strconcat(txt, "\n", ifa->ssid, NULL);
+				g_free(txt);
+				txt = ntxt;
+			}
+		}
+	}
 	for (gl = ifm->scan_results; gl; gl = gl->next)
 		free_if_ap((struct if_ap *)gl->data);
 	g_slist_free(ifm->scan_results);
-	ifm->scan_results = get_scan_results(ifm);
+	ifm->scan_results = aps;
+	if (txt != NULL) {
+		notify(N_("Found new AP"), txt, GTK_STOCK_NETWORK);
+		g_free(txt);
+	}
 }
 
 int
