@@ -96,20 +96,27 @@ find_network(const char *ifname, const char *ssid)
 }
 
 static int
-configure_network(const char *ifname, int id, const char *var, const char *val)
+configure_network(const char *ifname, int id, const char *var, const char *val,
+		gboolean quote)
 {
 	GError *error;
 	char *str;
 	static gboolean warned = FALSE;
 	GtkWidget *dialog;
 
+	if (id == -1)
+		return -1;
+
 	error = NULL;
-	str = g_strconcat("\"", val, "\"", NULL);
+	if (quote)
+		str = g_strconcat("\"", val, "\"", NULL);
+	else
+		str = NULL;
 	if (!dbus_g_proxy_call(dbus, "SetNetwork", &error,
 			       G_TYPE_STRING, ifname,
 			       G_TYPE_INT, id,
 			       G_TYPE_STRING, var,
-			       G_TYPE_STRING, str,
+			       G_TYPE_STRING, quote ? str : val,
 			       G_TYPE_INVALID,
 			       G_TYPE_INVALID))
 	{
@@ -120,13 +127,13 @@ configure_network(const char *ifname, int id, const char *var, const char *val)
 	}
 	g_free(str);
 
-	if (!dbus_g_proxy_call(dbus, "SelectNetwork", &error,
+	if (!dbus_g_proxy_call(dbus, "EnableNetwork", &error,
 			       G_TYPE_STRING, ifname,
 			       G_TYPE_INT, id,
 			       G_TYPE_INVALID,
 			       G_TYPE_INVALID))
 	{
-		g_warning("SelectNetwork: %s", error->message);
+		g_warning("EnableNetwork: %s", error->message);
 		g_error_free(error);
 		return -1;
 	}
@@ -158,18 +165,15 @@ gboolean
 wpa_configure(const struct if_ap *ifa)
 {
 	GtkWidget *dialog, *label, *psk, *vbox, *hbox;
-	char *title;
-	const char *var;
-	gint result, id;
+	const char *var, *mgt;
+	gint result, id, retval;
 
-	title = g_strdup_printf(_("Configuration for %s"), ifa->ssid);
-	dialog = gtk_dialog_new_with_buttons(title,
+	dialog = gtk_dialog_new_with_buttons(ifa->ssid,
 		NULL,
 		GTK_DIALOG_MODAL,
 		GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
 		GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
 		NULL);
-	g_free(title);
 	gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
 	gtk_window_set_icon_name(GTK_WINDOW(dialog), "config-users");
 	vbox = GTK_DIALOG(dialog)->vbox;
@@ -186,16 +190,23 @@ wpa_configure(const struct if_ap *ifa)
 	result = gtk_dialog_run(GTK_DIALOG(dialog));
 	
 	id = -1;
+	retval = -1;
 	if (result == GTK_RESPONSE_ACCEPT) {
 		id = find_network(ifa->ifname, ifa->ssid);
-		if (g_strcmp0(ifa->flags, "[WEP]") == 0)
+		if (g_strcmp0(ifa->flags, "[WEP]") == 0) {
+			mgt = "NONE";
 			var = "wep_key0";
-		else
+		} else {
+			mgt = "WPA-PSK";
 			var = "psk";
-		if (id != -1)
-			id = configure_network(ifa->ifname, id, var,
-					       gtk_entry_get_text(GTK_ENTRY(psk)));
+		}
+		if (id != -1) {
+			retval = configure_network(ifa->ifname, id, "key_mgmt", 
+					       mgt, FALSE);
+			retval |= configure_network(ifa->ifname, id, var,
+					       gtk_entry_get_text(GTK_ENTRY(psk)), TRUE);
+		}
 	}
 	gtk_widget_destroy(dialog);
-	return id == -1 ? FALSE : TRUE;
+	return retval == -1 ? FALSE : TRUE;
 }
