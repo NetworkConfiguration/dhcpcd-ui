@@ -48,11 +48,11 @@ find_network(const char *ifname, const char *ssid)
 			G_TYPE_INVALID);
 	otype = dbus_g_type_get_collection("GPtrArray", otype);
 	error = NULL;
-	if (!dbus_g_proxy_call(dbus, "GetNetworks", &error,
+	if (!dbus_g_proxy_call(dbus, "ListNetworks", &error,
 			       G_TYPE_STRING, ifname, G_TYPE_INVALID,
 			       otype, &array, G_TYPE_INVALID))
 	{
-		g_warning("GetNetworks: %s", error->message);
+		g_warning("ListNetworks: %s", error->message);
 		g_error_free(error);
 		return -1;
 	}
@@ -77,7 +77,7 @@ find_network(const char *ifname, const char *ssid)
 	}
 
 	nssid = g_strconcat("\"", ssid, "\"", NULL);
-	if (!dbus_g_proxy_call(dbus, "SetNetworkParameter", &error,
+	if (!dbus_g_proxy_call(dbus, "SetNetwork", &error,
 			       G_TYPE_STRING, ifname,
 			       G_TYPE_INT, id,
 			       G_TYPE_STRING, "ssid",
@@ -85,7 +85,7 @@ find_network(const char *ifname, const char *ssid)
 			       G_TYPE_INVALID,
 			       G_TYPE_INVALID))
 	{
-		g_warning("SetNetworkParameter: %s", error->message);
+		g_warning("SetNetwork: %s", error->message);
 		g_free(nssid);
 		g_error_free(error);
 		return -1;
@@ -100,10 +100,12 @@ configure_network(const char *ifname, int id, const char *var, const char *val)
 {
 	GError *error;
 	char *str;
+	static gboolean warned = FALSE;
+	GtkWidget *dialog;
 
 	error = NULL;
 	str = g_strconcat("\"", val, "\"", NULL);
-	if (!dbus_g_proxy_call(dbus, "SetNetworkParameter", &error,
+	if (!dbus_g_proxy_call(dbus, "SetNetwork", &error,
 			       G_TYPE_STRING, ifname,
 			       G_TYPE_INT, id,
 			       G_TYPE_STRING, var,
@@ -111,7 +113,7 @@ configure_network(const char *ifname, int id, const char *var, const char *val)
 			       G_TYPE_INVALID,
 			       G_TYPE_INVALID))
 	{
-		g_warning("SetNetworkParameter: %s", error->message);
+		g_warning("SetNetwork: %s", error->message);
 		g_free(str);
 		g_error_free(error);
 		return -1;
@@ -129,19 +131,38 @@ configure_network(const char *ifname, int id, const char *var, const char *val)
 		return -1;
 	}
 
+	if (!dbus_g_proxy_call(dbus, "SaveConfig", &error,
+			       G_TYPE_STRING, ifname,
+			       G_TYPE_INVALID,
+			       G_TYPE_INVALID))
+	{
+		g_warning("SaveConfig: %s", error->message);
+		if (!warned) {
+			warned = TRUE;
+			dialog = gtk_message_dialog_new(NULL,
+							GTK_DIALOG_MODAL,
+							GTK_MESSAGE_ERROR,
+							GTK_BUTTONS_OK,
+							_("Failed to save wpa_supplicant configuration.\n\nYou should add update_config=1 to /etc/wpa_supplicant.conf.\nThis warning will not appear again until program restarted."));
+			gtk_window_set_title(GTK_WINDOW(dialog),
+					     _("Error saving configuration"));
+			gtk_dialog_run(GTK_DIALOG(dialog));
+			gtk_widget_destroy(dialog);
+		}
+		g_error_free(error);
+	}
 	return 0;
 }
 
 gboolean
-wpa_configure(const char *ssid)
+wpa_configure(const struct if_ap *ifa)
 {
 	GtkWidget *dialog, *label, *psk, *vbox, *hbox;
 	char *title;
+	const char *var;
 	gint result, id;
 
-	const char *ifname = "iwi0";
-
-	title = g_strdup_printf(_("Configuration for %s"), ssid);
+	title = g_strdup_printf(_("Configuration for %s"), ifa->ssid);
 	dialog = gtk_dialog_new_with_buttons(title,
 		NULL,
 		GTK_DIALOG_MODAL,
@@ -149,10 +170,12 @@ wpa_configure(const char *ssid)
 		GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
 		NULL);
 	g_free(title);
+	gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
+	gtk_window_set_icon_name(GTK_WINDOW(dialog), "config-users");
 	vbox = GTK_DIALOG(dialog)->vbox;
 
 	hbox = gtk_hbox_new(FALSE, 2);
-	label = gtk_label_new("Pre Shared Key:");
+	label = gtk_label_new(_("Pre Shared Key:"));
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 	psk = gtk_entry_new();
 	gtk_entry_set_max_length(GTK_ENTRY(psk), 130);
@@ -164,10 +187,14 @@ wpa_configure(const char *ssid)
 	
 	id = -1;
 	if (result == GTK_RESPONSE_ACCEPT) {
-		id = find_network(ifname, ssid);
+		id = find_network(ifa->ifname, ifa->ssid);
+		if (g_strcmp0(ifa->flags, "[WEP]") == 0)
+			var = "wep_key0";
+		else
+			var = "psk";
 		if (id != -1)
-			id = configure_network(ifname, id, "psk",
-					gtk_entry_get_text(GTK_ENTRY(psk)));
+			id = configure_network(ifa->ifname, id, var,
+					       gtk_entry_get_text(GTK_ENTRY(psk)));
 	}
 	gtk_widget_destroy(dialog);
 	return id == -1 ? FALSE : TRUE;

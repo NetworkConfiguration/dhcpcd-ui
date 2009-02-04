@@ -52,6 +52,7 @@
 #endif
 
 struct if_ap {
+	char *ifname;
 	char *bssid;
 	int frequency;
 	int quality;
@@ -62,7 +63,7 @@ struct if_ap {
 };
 
 struct if_msg {
-	char *name;
+	char *ifname;
 	char *reason;
 	struct in_addr ip;
 	unsigned char cidr;

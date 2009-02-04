@@ -27,6 +27,8 @@
 #ifndef WPA_H
 #define WPA_H
 
-gboolean wpa_configure(const char *ssid);
+#include "dhcpcd-gtk.h"
+
+gboolean wpa_configure(const struct if_ap *);
 
 #endif

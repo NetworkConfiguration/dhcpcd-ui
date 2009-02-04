@@ -74,7 +74,7 @@ url_hook(GtkAboutDialog *dialog, const char *url, _unused gpointer p)
 static void
 ssid_hook(_unused GtkMenuItem *item, gpointer data)
 {
-	wpa_configure((const char *)data);
+	wpa_configure((const struct if_ap *)data);
 }
 
 static void
@@ -134,7 +134,7 @@ add_scan_results(GtkMenu *menu, const struct if_msg *ifm)
 		gtk_widget_show(image);
 		gtk_widget_show(box);
 		g_signal_connect(G_OBJECT(item), "activate",
-				G_CALLBACK(ssid_hook), ifa->ssid);
+				G_CALLBACK(ssid_hook), gl->data);
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 	}
 }

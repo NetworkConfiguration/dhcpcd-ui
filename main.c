@@ -85,7 +85,7 @@ find_if_msg(const char *iface)
 
 	for (gl = interfaces; gl; gl = gl->next) {
 		ifm = (struct if_msg *)gl->data;
-		if (g_strcmp0(ifm->name, iface) == 0)
+		if (g_strcmp0(ifm->ifname, iface) == 0)
 			return ifm;
 	}
 	return NULL;
@@ -94,6 +94,7 @@ find_if_msg(const char *iface)
 static void
 free_if_ap(struct if_ap *ifa)
 {
+	g_free(ifa->ifname);
 	g_free(ifa->bssid);
 	g_free(ifa->flags);
 	g_free(ifa->ssid);
@@ -105,7 +106,7 @@ free_if_msg(struct if_msg *ifm)
 {
 	GSList *gl;
 
-	g_free(ifm->name);
+	g_free(ifm->ifname);
 	g_free(ifm->reason);
 	g_free(ifm->ssid);
 	for (gl = ifm->scan_results; gl; gl = gl->next)
@@ -160,10 +161,10 @@ get_scan_results(struct if_msg *ifm)
 	otype = dbus_g_type_get_map("GHashTable", G_TYPE_STRING, G_TYPE_VALUE);
 	otype = dbus_g_type_get_collection("GPtrArray", otype);
 
-	if (!dbus_g_proxy_call(dbus, "GetScanResults", &error,
-			       G_TYPE_STRING, ifm->name, G_TYPE_INVALID,
+	if (!dbus_g_proxy_call(dbus, "ScanResults", &error,
+			       G_TYPE_STRING, ifm->ifname, G_TYPE_INVALID,
 			       otype, &array, G_TYPE_INVALID))
-		error_exit(_("GetScanResults"), error);
+		error_exit(_("ScanResults"), error);
 
 	for (i = 0; i < array->len; i++) {
 		config = g_ptr_array_index(array, i);
@@ -171,6 +172,7 @@ get_scan_results(struct if_msg *ifm)
 		if (val == NULL)
 			continue;
 		ifa = g_malloc0(sizeof(*ifa));
+		ifa->ifname = g_strdup(ifm->ifname);
 		ifa->bssid = g_strdup(g_value_get_string(val));
 		val = g_hash_table_lookup(config, "Frequency");
 		if (val)
@@ -205,7 +207,7 @@ make_if_msg(GHashTable *config)
 	if (val == NULL)
 		return NULL;
 	ifm = g_malloc0(sizeof(*ifm));
-	ifm->name = g_strdup(g_value_get_string(val));
+	ifm->ifname = g_strdup(g_value_get_string(val));
 	val = g_hash_table_lookup(config, "Reason");
 	if (val)
 		ifm->reason = g_strdup(g_value_get_string(val));
@@ -280,7 +282,7 @@ print_if_msg(const struct if_msg *ifm)
 	if (reason == NULL)
 		reason = ifm->reason;
 	
-	len = strlen(ifm->name) + 3;
+	len = strlen(ifm->ifname) + 3;
 	len += strlen(reason) + 1;
 	if (ifm->ip.s_addr != 0) {
 		len += 16; /* 000. * 4 */
@@ -290,7 +292,7 @@ print_if_msg(const struct if_msg *ifm)
 	if (showssid)
 		len += strlen(ifm->ssid) + 1;
 	msg = p = g_malloc(len);
-	p += g_snprintf(msg, len, "%s: %s", ifm->name, reason);
+	p += g_snprintf(msg, len, "%s: %s", ifm->ifname, reason);
 	if (showssid)
 		p += g_snprintf(p, len - (p - msg), " %s", ifm->ssid);
 	if (ifm->ip.s_addr != 0 && showip) {
@@ -310,9 +312,9 @@ if_msg_comparer(gconstpointer a, gconstpointer b)
 	ifa = (const struct if_msg *)a;
 	ifb = (const struct if_msg *)b;
 	for (order = (const char *const *)interface_order; *order; order++) {
-		if (g_strcmp0(*order, ifa->name) == 0)
+		if (g_strcmp0(*order, ifa->ifname) == 0)
 			return -1;
-		if (g_strcmp0(*order, ifb->name) == 0)
+		if (g_strcmp0(*order, ifb->ifname) == 0)
 			return 1;
 	}
 	return 0;
@@ -464,7 +466,7 @@ dhcpcd_event(_unused DBusGProxy *proxy, GHashTable *config, _unused void *data)
 	ifp = NULL;
 	for (gl = interfaces; gl; gl = gl->next) {
 		ifp = (struct if_msg *)gl->data;
-		if (g_strcmp0(ifp->name, ifm->name) == 0) {
+		if (g_strcmp0(ifp->ifname, ifm->ifname) == 0) {
 			ifm->scan_results = ifp->scan_results;
 			ifp->scan_results = NULL;
 			free_if_msg(ifp);
@@ -565,11 +567,11 @@ dhcpcd_get_interfaces()
 		ifm = (struct if_msg *)gl->data;
 		if (!ifm->wireless)
 			continue;
-		if (!dbus_g_proxy_call(dbus, "GetScanResults", &error,
-				       G_TYPE_STRING, ifm->name, G_TYPE_INVALID,
+		if (!dbus_g_proxy_call(dbus, "ScanResults", &error,
+				       G_TYPE_STRING, ifm->ifname, G_TYPE_INVALID,
 				       otype, &array, G_TYPE_INVALID)) 
 		{
-			g_message("GetScanResults: %s", error->message);
+			g_message("ScanResults: %s", error->message);
 			g_clear_error(&error);
 			continue;
 		}
@@ -651,7 +653,7 @@ dhcpcd_scan_results(_unused DBusGProxy *proxy, const char *iface, _unused void *
 	ifm = find_if_msg(iface);
 	if (ifm == NULL)
 		return;
-	g_message(_("%s: Received scan results"), ifm->name);
+	g_message(_("%s: Received scan results"), ifm->ifname);
 	aps = get_scan_results(ifm);
 	txt = NULL;
 	for (gl = aps; gl; gl = gl->next) {
