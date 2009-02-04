@@ -198,6 +198,12 @@ configure_network(const char *ifname, int id, const char *mgmt,
 	return 0;
 }
 
+static void
+onEnter(GtkWidget *widget, gpointer *data)
+{
+	gtk_dialog_response(GTK_DIALOG(data), GTK_RESPONSE_ACCEPT);
+}
+
 gboolean
 wpa_configure(const struct if_ap *ifa)
 {
@@ -213,6 +219,8 @@ wpa_configure(const struct if_ap *ifa)
 		NULL);
 	gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
 	gtk_window_set_icon_name(GTK_WINDOW(dialog), "config-users");
+	gtk_dialog_set_default_response(GTK_DIALOG(dialog),
+					GTK_RESPONSE_ACCEPT);
 	vbox = GTK_DIALOG(dialog)->vbox;
 
 	hbox = gtk_hbox_new(FALSE, 2);
@@ -220,6 +228,7 @@ wpa_configure(const struct if_ap *ifa)
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 	psk = gtk_entry_new();
 	gtk_entry_set_max_length(GTK_ENTRY(psk), 130);
+	g_signal_connect(G_OBJECT(psk), "activate", G_CALLBACK(onEnter), dialog);
 	gtk_box_pack_start(GTK_BOX(hbox), psk, TRUE, TRUE, 0);
 	gtk_container_add(GTK_CONTAINER(vbox), hbox);
 
