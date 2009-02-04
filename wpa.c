@@ -96,7 +96,8 @@ find_network(const char *ifname, const char *ssid)
 }
 
 static int
-configure_network(const char *ifname, int id, const char *var, const char *val,
+configure_network(const char *ifname, int id, const char *mgmt,
+		const char *var, const char *val,
 		gboolean quote)
 {
 	GError *error;
@@ -106,6 +107,14 @@ configure_network(const char *ifname, int id, const char *var, const char *val,
 
 	if (id == -1)
 		return -1;
+
+	dbus_g_proxy_call(dbus, "SetNetwork", &error,
+			       G_TYPE_STRING, ifname,
+			       G_TYPE_INT, id,
+			       G_TYPE_STRING, "key_mgmt",
+			       G_TYPE_STRING, mgmt,
+			       G_TYPE_INVALID,
+			       G_TYPE_INVALID);
 
 	error = NULL;
 	if (quote)
@@ -123,6 +132,15 @@ configure_network(const char *ifname, int id, const char *var, const char *val,
 		g_warning("SetNetwork: %s", error->message);
 		g_free(str);
 		g_error_free(error);
+		dialog = gtk_message_dialog_new(NULL,
+				GTK_DIALOG_MODAL,
+				GTK_MESSAGE_ERROR,
+				GTK_BUTTONS_OK,
+				_("Failed to set password, probably too short."));
+		gtk_window_set_title(GTK_WINDOW(dialog),
+				_("Error setting password"));
+		gtk_dialog_run(GTK_DIALOG(dialog));
+		gtk_widget_destroy(dialog);
 		return -1;
 	}
 	g_free(str);
@@ -158,6 +176,25 @@ configure_network(const char *ifname, int id, const char *var, const char *val,
 		}
 		g_error_free(error);
 	}
+/*
+	if (!dbus_g_proxy_call(dbus, "Disconnect", &error,
+			       G_TYPE_STRING, ifname,
+			       G_TYPE_INVALID,
+			       G_TYPE_INVALID))
+	{
+		g_warning("Disconnect: %s", error->message);
+		g_error_free(error);
+	}
+*/
+	if (!dbus_g_proxy_call(dbus, "Reassociate", &error,
+			       G_TYPE_STRING, ifname,
+			       G_TYPE_INVALID,
+			       G_TYPE_INVALID))
+	{
+		g_warning("Reassociate: %s", error->message);
+		g_error_free(error);
+	}
+	
 	return 0;
 }
 
@@ -201,10 +238,8 @@ wpa_configure(const struct if_ap *ifa)
 			var = "psk";
 		}
 		if (id != -1) {
-			retval = configure_network(ifa->ifname, id, "key_mgmt", 
-					       mgt, FALSE);
-			retval |= configure_network(ifa->ifname, id, var,
-					       gtk_entry_get_text(GTK_ENTRY(psk)), TRUE);
+			retval = configure_network(ifa->ifname, id, mgt, var,
+					gtk_entry_get_text(GTK_ENTRY(psk)), TRUE);
 		}
 	}
 	gtk_widget_destroy(dialog);
