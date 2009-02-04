@@ -26,6 +26,7 @@
 
 #include "dhcpcd-gtk.h"
 #include "menu.h"
+#include "wpa.h"
 
 static const char *copyright = "Copyright (c) 2009 Roy Marples";
 
@@ -68,6 +69,12 @@ static void
 url_hook(GtkAboutDialog *dialog, const char *url, _unused gpointer p)
 {
 	url_show(dialog, url);
+}
+
+static void
+ssid_hook(_unused GtkMenuItem *item, gpointer data)
+{
+	wpa_configure((const char *)data);
 }
 
 static void
@@ -126,6 +133,8 @@ add_scan_results(GtkMenu *menu, const struct if_msg *ifm)
 		gtk_widget_show(bar);
 		gtk_widget_show(image);
 		gtk_widget_show(box);
+		g_signal_connect(G_OBJECT(item), "activate",
+				G_CALLBACK(ssid_hook), ifa->ssid);
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 	}
 }

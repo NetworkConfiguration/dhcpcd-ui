@@ -24,55 +24,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef DHCPCD_GTK_H
-#define DHCPCD_GTK_H
+#ifndef WPA_H
+#define WPA_H
 
-#include <arpa/inet.h>
+gboolean wpa_configure(const char *ssid);
 
-#include <dbus/dbus-glib.h>
-#include <glib.h>
-#include <glib/gi18n.h>
-#include <gtk/gtk.h>
-#include <libintl.h>
-
-#include "config.h"
-
-/* Work out if we have a private address or not
- * 10/8
- * 172.16/12
- * 192.168/16
- */
-#ifndef IN_PRIVATE
-# define IN_PRIVATE(addr) (((addr & IN_CLASSA_NET) == 0x0a000000) || \
-			   ((addr & 0xfff00000)    == 0xac100000) || \
-			   ((addr & IN_CLASSB_NET) == 0xc0a80000))
-#endif
-#ifndef IN_LINKLOCAL
-# define IN_LINKLOCAL(addr) ((addr & IN_CLASSB_NET) == 0xa9fe0000)
-#endif
-
-struct if_ap {
-	char *bssid;
-	int frequency;
-	int quality;
-	int noise;
-	int level;
-	char *flags;
-	char *ssid;
-};
-
-struct if_msg {
-	char *name;
-	char *reason;
-	struct in_addr ip;
-	unsigned char cidr;
-	gboolean wireless;
-	char *ssid;
-	GSList *scan_results;
-};
-
-extern DBusGProxy *dbus;
-extern GList *interfaces;
-
-void notify_close(void);
 #endif
