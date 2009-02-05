@@ -199,7 +199,7 @@ configure_network(const char *ifname, int id, const char *mgmt,
 }
 
 static void
-onEnter(GtkWidget *widget, gpointer *data)
+onEnter(_unused GtkWidget *widget, gpointer *data)
 {
 	gtk_dialog_response(GTK_DIALOG(data), GTK_RESPONSE_ACCEPT);
 }
