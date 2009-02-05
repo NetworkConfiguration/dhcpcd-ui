@@ -102,6 +102,7 @@ add_scan_results(GtkMenu *menu, const struct if_msg *ifm)
 	double perc;
 	int strength;
 	const char *icon;
+	char *tip;
 
 	for (gl = ifm->scan_results; gl; gl = gl->next) {
 		ifa = (const struct if_ap *)gl->data;
@@ -128,6 +129,10 @@ add_scan_results(GtkMenu *menu, const struct if_msg *ifm)
 		strength = CLAMP(ifa->quality, 0, 100);
 		perc = strength / 100.0;
 		gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(bar), perc);
+
+		tip = g_strconcat(ifa->bssid, " ", ifa->flags, NULL);
+		gtk_widget_set_tooltip_text(item, tip);
+		g_free(tip);
 
 		gtk_widget_show(label);
 		gtk_widget_show(bar);
