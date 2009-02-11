@@ -361,7 +361,7 @@ animate_online(_unused gpointer data)
 }
 
 static void
-update_online(char **buffer)
+update_online(void)
 {
 	gboolean ison, iscarrier;
 	char *msg, *msgs, *tmp;
@@ -405,10 +405,7 @@ update_online(char **buffer)
 		}
 	}
 	gtk_status_icon_set_tooltip(status_icon, msgs);
-	if (buffer)
-		*buffer = msgs;
-	else
-		g_free(msgs);
+	g_free(msgs);
 }
 
 void
@@ -480,7 +477,7 @@ dhcpcd_event(_unused DBusGProxy *proxy, GHashTable *config, _unused void *data)
 	if (ifp == NULL && !rem)
 		interfaces = g_list_prepend(interfaces, ifm);
 	interfaces = g_list_sort(interfaces, if_msg_comparer);
-	update_online(NULL);
+	update_online();
 
 	/* We should ignore renew and stop so we don't annoy the user */
 	if (g_strcmp0(ifm->reason, "RENEW") == 0 ||
@@ -536,7 +533,6 @@ dhcpcd_get_interfaces()
 	GHashTable *ifs;
 	GError *error = NULL;
 	GType otype;
-	char *msg;
 	GList *gl;
 	GSList *gsl;
 	GPtrArray *array;
@@ -581,13 +577,7 @@ dhcpcd_get_interfaces()
 		ifm->scan_results = get_scan_results(ifm);
 	}
 
-	msg = NULL;
-	update_online(&msg);
-	// GTK+ 2.16 msg = gtk_status_icon_get_tooltip_text(status_icon);
-	if (msg != NULL) {
-		notify(N_("Interface status"), msg, GTK_STOCK_NETWORK);
-		g_free(msg);
-	}
+	update_online();
 }
 
 static void
@@ -606,7 +596,7 @@ check_status(const char *status)
 			free_if_msg((struct if_msg *)gl->data);
 		g_list_free(interfaces);
 		interfaces = NULL;
-		update_online(NULL);
+		update_online();
 		msg = N_(last? "Connection to dhcpcd lost" : "dhcpcd not running");
 		gtk_status_icon_set_tooltip(status_icon, msg);
 		notify(_("No network"), msg, GTK_STOCK_NETWORK);
