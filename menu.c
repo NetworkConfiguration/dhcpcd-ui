@@ -30,10 +30,7 @@
 
 static const char *copyright = "Copyright (c) 2009 Roy Marples";
 
-static const char *authors[] = {
-	"Roy Marples <roy@marples.name>",
-	NULL
-};
+static const char *authors[] = { "Roy Marples <roy@marples.name>", NULL };
 
 static void
 on_quit(_unused GtkMenuItem *item, _unused gpointer data)
@@ -84,13 +81,13 @@ on_about(_unused GtkMenuItem *item, _unused gpointer data)
 	gtk_about_dialog_set_email_hook(email_hook, NULL, NULL);
 	gtk_about_dialog_set_url_hook(url_hook, NULL, NULL);
 	gtk_show_about_dialog(NULL,
-			      "version", VERSION,
-			      "copyright", copyright,
-			      "website-label", "dhcpcd Website",
-			      "website", "http://roy.marples.name/projects/dhcpcd",
-			      "authors", authors,
-			      "logo-icon-name", GTK_STOCK_NETWORK,
-			      NULL);
+	    "version", VERSION,
+	    "copyright", copyright,
+	    "website-label", "dhcpcd Website",
+	    "website", "http://roy.marples.name/projects/dhcpcd",
+	    "authors", authors,
+	    "logo-icon-name", GTK_STOCK_NETWORK,
+	    NULL);
 }
 
 static void
@@ -120,7 +117,7 @@ add_scan_results(GtkMenu *menu, const struct if_msg *ifm)
 		else
 			icon = "network-wireless-encrypted";
 		image = gtk_image_new_from_icon_name(icon,
-						     GTK_ICON_SIZE_MENU);
+		    GTK_ICON_SIZE_MENU);
 		gtk_box_pack_start(GTK_BOX(box), image, FALSE, FALSE, 0);
 
 		bar = gtk_progress_bar_new();
@@ -139,7 +136,7 @@ add_scan_results(GtkMenu *menu, const struct if_msg *ifm)
 		gtk_widget_show(image);
 		gtk_widget_show(box);
 		g_signal_connect(G_OBJECT(item), "activate",
-				G_CALLBACK(ssid_hook), gl->data);
+		    G_CALLBACK(ssid_hook), gl->data);
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 	}
 }
@@ -180,7 +177,7 @@ on_activate(GtkStatusIcon *icon, _unused guint button, _unused guint32 atime, _u
 #if 0
 		item = gtk_image_menu_item_new_with_label(ifm->name);
 		image = gtk_image_new_from_icon_name("network-wireless",
-						     GTK_ICON_SIZE_MENU);
+		    GTK_ICON_SIZE_MENU);
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
 
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
@@ -188,8 +185,8 @@ on_activate(GtkStatusIcon *icon, _unused guint button, _unused guint32 atime, _u
 	}
 	gtk_widget_show_all(GTK_WIDGET(menu));
 	gtk_menu_popup(GTK_MENU(menu), NULL, NULL,
-		       gtk_status_icon_position_menu, icon,
-		       1, gtk_get_current_event_time());
+	    gtk_status_icon_position_menu, icon,
+	    1, gtk_get_current_event_time());
 }
 
 static void
@@ -204,10 +201,10 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 
 	item = gtk_image_menu_item_new_with_mnemonic(_("_Quit"));
 	image = gtk_image_new_from_icon_name(GTK_STOCK_QUIT,
-					     GTK_ICON_SIZE_MENU);
+	    GTK_ICON_SIZE_MENU);
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
 	g_signal_connect(G_OBJECT(item), "activate",
-			 G_CALLBACK(on_quit), icon);
+	    G_CALLBACK(on_quit), icon);
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 
 	item = gtk_separator_menu_item_new();
@@ -215,23 +212,23 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 
 	item = gtk_image_menu_item_new_with_mnemonic(_("_Help"));
 	image = gtk_image_new_from_icon_name(GTK_STOCK_HELP,
-					     GTK_ICON_SIZE_MENU);
+	    GTK_ICON_SIZE_MENU);
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
 	g_signal_connect(G_OBJECT(item), "activate",
-			 G_CALLBACK(on_help), icon);
+	    G_CALLBACK(on_help), icon);
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 
 	item = gtk_image_menu_item_new_with_mnemonic(_("_About"));
 	image = gtk_image_new_from_icon_name(GTK_STOCK_ABOUT,
-					     GTK_ICON_SIZE_MENU);
+	    GTK_ICON_SIZE_MENU);
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
 	g_signal_connect(G_OBJECT(item), "activate",
-			 G_CALLBACK(on_about), icon);
+	    G_CALLBACK(on_about), icon);
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 
 	gtk_widget_show_all(GTK_WIDGET(menu));
 	gtk_menu_popup(GTK_MENU(menu), NULL, NULL,
-		       gtk_status_icon_position_menu, data, button, atime);
+	    gtk_status_icon_position_menu, data, button, atime);
 	if (button == 0)
 		gtk_menu_shell_select_first(GTK_MENU_SHELL(menu), FALSE);
 }
@@ -240,7 +237,7 @@ void
 menu_init(GtkStatusIcon *icon)
 {
 	g_signal_connect_object(G_OBJECT(icon), "activate",
-				G_CALLBACK(on_activate), icon, 0);
+	    G_CALLBACK(on_activate), icon, 0);
 	g_signal_connect_object(G_OBJECT(icon), "popup_menu",
-				G_CALLBACK(on_popup), icon, 0);
+	    G_CALLBACK(on_popup), icon, 0);
 }

@@ -41,16 +41,16 @@ find_network(const char *ifname, const char *ssid)
 	char *nssid;
 
 	otype = dbus_g_type_get_struct("GValueArray",
-			G_TYPE_INT,
-			G_TYPE_STRING,
-			G_TYPE_STRING,
-			G_TYPE_STRING,
-			G_TYPE_INVALID);
+	    G_TYPE_INT,
+	    G_TYPE_STRING,
+	    G_TYPE_STRING,
+	    G_TYPE_STRING,
+	    G_TYPE_INVALID);
 	otype = dbus_g_type_get_collection("GPtrArray", otype);
 	error = NULL;
 	if (!dbus_g_proxy_call(dbus, "ListNetworks", &error,
-			       G_TYPE_STRING, ifname, G_TYPE_INVALID,
-			       otype, &array, G_TYPE_INVALID))
+		G_TYPE_STRING, ifname, G_TYPE_INVALID,
+		otype, &array, G_TYPE_INVALID))
 	{
 		g_warning("ListNetworks: %s", error->message);
 		g_error_free(error);
@@ -68,8 +68,8 @@ find_network(const char *ifname, const char *ssid)
 	}
 
 	if (!dbus_g_proxy_call(dbus, "AddNetwork", &error,
-			       G_TYPE_STRING, ifname, G_TYPE_INVALID,
-			       G_TYPE_INT, &id, G_TYPE_INVALID))
+		G_TYPE_STRING, ifname, G_TYPE_INVALID,
+		G_TYPE_INT, &id, G_TYPE_INVALID))
 	{
 		g_warning("AddNetwork: %s", error->message);
 		g_error_free(error);
@@ -78,12 +78,12 @@ find_network(const char *ifname, const char *ssid)
 
 	nssid = g_strconcat("\"", ssid, "\"", NULL);
 	if (!dbus_g_proxy_call(dbus, "SetNetwork", &error,
-			       G_TYPE_STRING, ifname,
-			       G_TYPE_INT, id,
-			       G_TYPE_STRING, "ssid",
-			       G_TYPE_STRING, nssid,
-			       G_TYPE_INVALID,
-			       G_TYPE_INVALID))
+		G_TYPE_STRING, ifname,
+		G_TYPE_INT, id,
+		G_TYPE_STRING, "ssid",
+		G_TYPE_STRING, nssid,
+		G_TYPE_INVALID,
+		G_TYPE_INVALID))
 	{
 		g_warning("SetNetwork: %s", error->message);
 		g_free(nssid);
@@ -97,8 +97,8 @@ find_network(const char *ifname, const char *ssid)
 
 static int
 configure_network(const char *ifname, int id, const char *mgmt,
-		const char *var, const char *val,
-		gboolean quote)
+    const char *var, const char *val,
+    gboolean quote)
 {
 	GError *error;
 	char *str;
@@ -109,12 +109,12 @@ configure_network(const char *ifname, int id, const char *mgmt,
 		return -1;
 
 	dbus_g_proxy_call(dbus, "SetNetwork", &error,
-			       G_TYPE_STRING, ifname,
-			       G_TYPE_INT, id,
-			       G_TYPE_STRING, "key_mgmt",
-			       G_TYPE_STRING, mgmt,
-			       G_TYPE_INVALID,
-			       G_TYPE_INVALID);
+	    G_TYPE_STRING, ifname,
+	    G_TYPE_INT, id,
+	    G_TYPE_STRING, "key_mgmt",
+	    G_TYPE_STRING, mgmt,
+	    G_TYPE_INVALID,
+	    G_TYPE_INVALID);
 
 	error = NULL;
 	if (quote)
@@ -122,23 +122,23 @@ configure_network(const char *ifname, int id, const char *mgmt,
 	else
 		str = NULL;
 	if (!dbus_g_proxy_call(dbus, "SetNetwork", &error,
-			       G_TYPE_STRING, ifname,
-			       G_TYPE_INT, id,
-			       G_TYPE_STRING, var,
-			       G_TYPE_STRING, quote ? str : val,
-			       G_TYPE_INVALID,
-			       G_TYPE_INVALID))
+		G_TYPE_STRING, ifname,
+		G_TYPE_INT, id,
+		G_TYPE_STRING, var,
+		G_TYPE_STRING, quote ? str : val,
+		G_TYPE_INVALID,
+		G_TYPE_INVALID))
 	{
 		g_warning("SetNetwork: %s", error->message);
 		g_free(str);
 		g_error_free(error);
 		dialog = gtk_message_dialog_new(NULL,
-				GTK_DIALOG_MODAL,
-				GTK_MESSAGE_ERROR,
-				GTK_BUTTONS_OK,
-				_("Failed to set password, probably too short."));
+		    GTK_DIALOG_MODAL,
+		    GTK_MESSAGE_ERROR,
+		    GTK_BUTTONS_OK,
+		    _("Failed to set password, probably too short."));
 		gtk_window_set_title(GTK_WINDOW(dialog),
-				_("Error setting password"));
+		    _("Error setting password"));
 		gtk_dialog_run(GTK_DIALOG(dialog));
 		gtk_widget_destroy(dialog);
 		return -1;
@@ -146,10 +146,10 @@ configure_network(const char *ifname, int id, const char *mgmt,
 	g_free(str);
 
 	if (!dbus_g_proxy_call(dbus, "EnableNetwork", &error,
-			       G_TYPE_STRING, ifname,
-			       G_TYPE_INT, id,
-			       G_TYPE_INVALID,
-			       G_TYPE_INVALID))
+		G_TYPE_STRING, ifname,
+		G_TYPE_INT, id,
+		G_TYPE_INVALID,
+		G_TYPE_INVALID))
 	{
 		g_warning("EnableNetwork: %s", error->message);
 		g_error_free(error);
@@ -157,39 +157,39 @@ configure_network(const char *ifname, int id, const char *mgmt,
 	}
 
 	if (!dbus_g_proxy_call(dbus, "SaveConfig", &error,
-			       G_TYPE_STRING, ifname,
-			       G_TYPE_INVALID,
-			       G_TYPE_INVALID))
+		G_TYPE_STRING, ifname,
+		G_TYPE_INVALID,
+		G_TYPE_INVALID))
 	{
 		g_warning("SaveConfig: %s", error->message);
 		if (!warned) {
 			warned = TRUE;
 			dialog = gtk_message_dialog_new(NULL,
-							GTK_DIALOG_MODAL,
-							GTK_MESSAGE_ERROR,
-							GTK_BUTTONS_OK,
-							_("Failed to save wpa_supplicant configuration.\n\nYou should add update_config=1 to /etc/wpa_supplicant.conf.\nThis warning will not appear again until program restarted."));
+			    GTK_DIALOG_MODAL,
+			    GTK_MESSAGE_ERROR,
+			    GTK_BUTTONS_OK,
+			    _("Failed to save wpa_supplicant configuration.\n\nYou should add update_config=1 to /etc/wpa_supplicant.conf.\nThis warning will not appear again until program restarted."));
 			gtk_window_set_title(GTK_WINDOW(dialog),
-					     _("Error saving configuration"));
+			    _("Error saving configuration"));
 			gtk_dialog_run(GTK_DIALOG(dialog));
 			gtk_widget_destroy(dialog);
 		}
 		g_error_free(error);
 	}
 /*
-	if (!dbus_g_proxy_call(dbus, "Disconnect", &error,
-			       G_TYPE_STRING, ifname,
-			       G_TYPE_INVALID,
-			       G_TYPE_INVALID))
-	{
-		g_warning("Disconnect: %s", error->message);
-		g_error_free(error);
-	}
+  if (!dbus_g_proxy_call(dbus, "Disconnect", &error,
+  G_TYPE_STRING, ifname,
+  G_TYPE_INVALID,
+  G_TYPE_INVALID))
+  {
+  g_warning("Disconnect: %s", error->message);
+  g_error_free(error);
+  }
 */
 	if (!dbus_g_proxy_call(dbus, "Reassociate", &error,
-			       G_TYPE_STRING, ifname,
-			       G_TYPE_INVALID,
-			       G_TYPE_INVALID))
+		G_TYPE_STRING, ifname,
+		G_TYPE_INVALID,
+		G_TYPE_INVALID))
 	{
 		g_warning("Reassociate: %s", error->message);
 		g_error_free(error);
@@ -212,15 +212,15 @@ wpa_configure(const struct if_ap *ifa)
 	gint result, id, retval;
 
 	dialog = gtk_dialog_new_with_buttons(ifa->ssid,
-		NULL,
-		GTK_DIALOG_MODAL,
-		GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
-		GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
-		NULL);
+	    NULL,
+	    GTK_DIALOG_MODAL,
+	    GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
+	    GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
+	    NULL);
 	gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
 	gtk_window_set_icon_name(GTK_WINDOW(dialog), "config-users");
 	gtk_dialog_set_default_response(GTK_DIALOG(dialog),
-					GTK_RESPONSE_ACCEPT);
+	    GTK_RESPONSE_ACCEPT);
 	vbox = GTK_DIALOG(dialog)->vbox;
 
 	hbox = gtk_hbox_new(FALSE, 2);
@@ -248,7 +248,7 @@ wpa_configure(const struct if_ap *ifa)
 		}
 		if (id != -1) {
 			retval = configure_network(ifa->ifname, id, mgt, var,
-					gtk_entry_get_text(GTK_ENTRY(psk)), TRUE);
+			    gtk_entry_get_text(GTK_ENTRY(psk)), TRUE);
 		}
 	}
 	gtk_widget_destroy(dialog);
