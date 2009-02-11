@@ -150,18 +150,21 @@ on_activate(GtkStatusIcon *icon, _unused guint button, _unused guint32 atime, _u
 	GtkMenu *menu;
 	const struct if_msg *ifm;
 	GList *gl;
-	size_t n;
+	size_t n, na;
 
 	notify_close();
 
-	n = 0;
+	n = na =0;
 	for (gl = interfaces; gl; gl = gl->next) {
 		ifm = (const struct if_msg *)gl->data;
-		if (ifm->wireless)
-			if (++n > 1)
+		if (ifm->wireless) {
+			if (ifm->scan_results != NULL)
+				++na;
+			if (++n > 1 && na != 0)
 				break;
+		}
 	}
-	if (n == 0)
+	if (n == 0 || (n == 1 && na == 0))
 		return;
 
 	menu = (GtkMenu *)gtk_menu_new();
