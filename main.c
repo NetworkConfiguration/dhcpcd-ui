@@ -1,28 +1,28 @@
-=/*
-  * dhcpcd-gtk
-  * Copyright 2009 Roy Marples <roy@marples.name>
-  *
-  * Redistribution and use in source and binary forms, with or without
-  * modification, are permitted provided that the following conditions
-  * are met:
-  * 1. Redistributions of source code must retain the above copyright
-  *    notice, this list of conditions and the following disclaimer.
-  * 2. Redistributions in binary form must reproduce the above copyright
-  *    notice, this list of conditions and the following disclaimer in the
-  *    documentation and/or other materials provided with the distribution.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-  * SUCH DAMAGE.
-  */
+/*
+ * dhcpcd-gtk
+ * Copyright 2009 Roy Marples <roy@marples.name>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 /* TODO: Animate the icon from carrier -> address
  * maybe use network-idle -> network-transmit ->
@@ -122,21 +122,13 @@ error_exit(const char *msg, GError *error)
 
 	if (error) {
 		g_critical("%s: %s", msg, error->message);
-		dialog = gtk_message_dialog_new(NULL,
-		    0,
-		    GTK_MESSAGE_ERROR,
-		    GTK_BUTTONS_CLOSE,
-		    "%s: %s",
-		    msg,
-		    error->message);
+		dialog = gtk_message_dialog_new(NULL, 0,
+		    GTK_MESSAGE_ERROR, GTK_BUTTONS_CLOSE,
+		    "%s: %s", msg, error->message);
 	} else {
 		g_critical("%s", msg);
-		dialog = gtk_message_dialog_new(NULL,
-		    0,
-		    GTK_MESSAGE_ERROR,
-		    GTK_BUTTONS_CLOSE,
-		    "%s",
-		    msg);
+		dialog = gtk_message_dialog_new(NULL, 0,
+		    GTK_MESSAGE_ERROR, GTK_BUTTONS_CLOSE, "%s", msg);
 	}
 	gtk_dialog_run(GTK_DIALOG(dialog));
 	gtk_widget_destroy(dialog);
@@ -323,27 +315,32 @@ if_msg_comparer(gconstpointer a, gconstpointer b)
 static gboolean
 animate_carrier(_unused gpointer data)
 {
+	const char *icon;
+	
 	if (ani_timer == 0)
 		return FALSE;
 
 	switch(ani_counter++) {
 	case 0:
-		gtk_status_icon_set_from_icon_name(status_icon, "network-transmit");
+		icon = "network-transmit";
 		break;
 	case 1:
-		gtk_status_icon_set_from_icon_name(status_icon, "network-receive");
+		icon = "network-receive";
 		break;
 	default:
-		gtk_status_icon_set_from_icon_name(status_icon, "network-idle");
+		icon = "network-idle";
 		ani_counter = 0;
 		break;
 	}
+	gtk_status_icon_set_from_icon_name(status_icon, icon);
 	return TRUE;
 }
 
 static gboolean
 animate_online(_unused gpointer data)
 {
+	const char *icon;
+	
 	if (ani_timer == 0)
 		return FALSE;
 
@@ -354,9 +351,10 @@ animate_online(_unused gpointer data)
 	}
 
 	if (ani_counter % 2 == 0)
-		gtk_status_icon_set_from_icon_name(status_icon, "network-idle");
+		icon = "network-idle";
 	else
-		gtk_status_icon_set_from_icon_name(status_icon, "network-transmit-receive");
+		icon = "network-transmit-receice";
+	gtk_status_icon_set_from_icon_name(status_icon, icon);
 	return TRUE;
 }
 
@@ -434,9 +432,7 @@ notify(const char *title, const char *msg, const char *icon)
 		notify_notification_close(nn, NULL);
 	if (gtk_status_icon_get_visible(status_icon))
 		nn = notify_notification_new_with_status_icon(title,
-		    msg,
-		    icon,
-		    status_icon);
+		    msg, icon, status_icon);
 	else
 		nn = notify_notification_new(title, msg, icon, NULL);
 	notify_notification_set_timeout(nn, 5000);
@@ -468,7 +464,8 @@ dhcpcd_event(_unused DBusGProxy *proxy, GHashTable *config, _unused void *data)
 			ifp->scan_results = NULL;
 			free_if_msg(ifp);
 			if (rem)
-				interfaces = g_list_delete_link(interfaces, gl);
+				interfaces =
+					g_list_delete_link(interfaces, gl);
 			else
 				gl->data = ifm;
 			break;
@@ -597,7 +594,8 @@ check_status(const char *status)
 		g_list_free(interfaces);
 		interfaces = NULL;
 		update_online();
-		msg = N_(last? "Connection to dhcpcd lost" : "dhcpcd not running");
+		msg = N_(last ?
+		    "Connection to dhcpcd lost" : "dhcpcd not running");
 		gtk_status_icon_set_tooltip(status_icon, msg);
 		notify(_("No network"), msg, GTK_STOCK_NETWORK);
 	}
@@ -627,13 +625,15 @@ check_status(const char *status)
 }
 
 static void
-dhcpcd_status(_unused DBusGProxy *proxy, const char *status, _unused void *data)
+dhcpcd_status(_unused DBusGProxy *proxy, const char *status,
+    _unused void *data)
 {
 	check_status(status);
 }
 
 static void
-dhcpcd_scan_results(_unused DBusGProxy *proxy, const char *iface, _unused void *data)
+dhcpcd_scan_results(_unused DBusGProxy *proxy, const char *iface,
+    _unused void *data)
 {
 	struct if_msg *ifm;
 	struct if_ap *ifa, *ifa2;
@@ -657,7 +657,7 @@ dhcpcd_scan_results(_unused DBusGProxy *proxy, const char *iface, _unused void *
 			if (txt == NULL)
 				txt = g_strdup(ifa->ssid);
 			else {
-				ntxt = 	g_strconcat(txt, "\n", ifa->ssid, NULL);
+				ntxt = g_strconcat(txt, "\n", ifa->ssid, NULL);
 				g_free(txt);
 				txt = ntxt;
 			}
@@ -692,10 +692,12 @@ main(int argc, char *argv[])
 	g_set_application_name("dhcpcd Monitor");
 	status_icon = gtk_status_icon_new_from_icon_name("network-offline");
 	if (status_icon == NULL)
-		status_icon = gtk_status_icon_new_from_stock(GTK_STOCK_DISCONNECT);
+		status_icon =
+			gtk_status_icon_new_from_stock(GTK_STOCK_DISCONNECT);
 	//network_offline = gtk_status_icon_get_pixbuf(status_icon);
 	
-	gtk_status_icon_set_tooltip(status_icon, _("Connecting to dhcpcd ..."));
+	gtk_status_icon_set_tooltip(status_icon,
+	    _("Connecting to dhcpcd ..."));
 	gtk_status_icon_set_visible(status_icon, TRUE);
 
 	notify_init(PACKAGE);
@@ -712,14 +714,9 @@ main(int argc, char *argv[])
 	g_message(_("Connecting to dhcpcd-dbus ..."));
 	while (--tries > 0) {
 		g_clear_error(&error);
-		if (dbus_g_proxy_call_with_timeout(dbus,
-			"GetVersion",
-			500,
-			&error,
-			G_TYPE_INVALID,
-			G_TYPE_STRING,
-			&version,
-			G_TYPE_INVALID))
+		if (dbus_g_proxy_call_with_timeout(dbus, "GetVersion", 500,
+			&error, G_TYPE_INVALID,
+			G_TYPE_STRING, &version, G_TYPE_INVALID))
 			break;
 	}
 	if (tries == 0)
@@ -742,18 +739,15 @@ main(int argc, char *argv[])
 	dbus_g_proxy_add_signal(dbus, "Event",
 	    otype, G_TYPE_INVALID);
 	dbus_g_proxy_connect_signal(dbus, "Event",
-	    G_CALLBACK(dhcpcd_event),
-	    bus, NULL);
+	    G_CALLBACK(dhcpcd_event), bus, NULL);
 	dbus_g_proxy_add_signal(dbus, "StatusChanged",
 	    G_TYPE_STRING, G_TYPE_INVALID);
 	dbus_g_proxy_connect_signal(dbus, "StatusChanged",
-	    G_CALLBACK(dhcpcd_status),
-	    bus, NULL);
+	    G_CALLBACK(dhcpcd_status), bus, NULL);
 	dbus_g_proxy_add_signal(dbus, "ScanResults",
 	    G_TYPE_STRING, G_TYPE_INVALID);
 	dbus_g_proxy_connect_signal(dbus, "ScanResults",
-	    G_CALLBACK(dhcpcd_scan_results),
-	    bus, NULL);
+	    G_CALLBACK(dhcpcd_scan_results), bus, NULL);
 
 	gtk_main();
 	return 0;
