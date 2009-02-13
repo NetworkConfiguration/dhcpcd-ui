@@ -353,7 +353,7 @@ animate_online(_unused gpointer data)
 	if (ani_counter % 2 == 0)
 		icon = "network-idle";
 	else
-		icon = "network-transmit-receice";
+		icon = "network-transmit-receive";
 	gtk_status_icon_set_from_icon_name(status_icon, icon);
 	return TRUE;
 }
