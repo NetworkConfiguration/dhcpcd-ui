@@ -26,11 +26,19 @@
 
 #include "dhcpcd-gtk.h"
 #include "menu.h"
+#include "prefs.h"
 #include "wpa.h"
 
 static const char *copyright = "Copyright (c) 2009 Roy Marples";
 
 static const char *authors[] = { "Roy Marples <roy@marples.name>", NULL };
+
+static void
+on_pref(_unused GtkMenuItem *item, _unused gpointer data)
+{
+	dhcpcd_prefs();
+}
+
 
 static void
 on_quit(_unused GtkMenuItem *item, _unused gpointer data)
@@ -146,14 +154,14 @@ on_activate(GtkStatusIcon *icon, _unused guint button, _unused guint32 atime, _u
 {
 	GtkMenu *menu;
 	const struct if_msg *ifm;
-	GList *gl;
+	GSList *l;
 	size_t n, na;
 
 	notify_close();
 
 	n = na =0;
-	for (gl = interfaces; gl; gl = gl->next) {
-		ifm = (const struct if_msg *)gl->data;
+	for (l = interfaces; l; l = l->next) {
+		ifm = (const struct if_msg *)l->data;
 		if (ifm->wireless) {
 			if (ifm->scan_results != NULL)
 				++na;
@@ -166,8 +174,8 @@ on_activate(GtkStatusIcon *icon, _unused guint button, _unused guint32 atime, _u
 
 	menu = (GtkMenu *)gtk_menu_new();
 
-	for (gl = interfaces; gl; gl = gl->next) {
-		ifm = (const struct if_msg *)gl->data;
+	for (l = interfaces; l; l = l->next) {
+		ifm = (const struct if_msg *)l->data;
 		if (!ifm->wireless)
 			continue;
 		if (n == 1) {
@@ -198,6 +206,14 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 	notify_close();
 
 	menu = (GtkMenu *)gtk_menu_new();
+
+	item = gtk_image_menu_item_new_with_mnemonic(_("_Preferences"));
+	image = gtk_image_new_from_icon_name(GTK_STOCK_PREFERENCES,
+	    GTK_ICON_SIZE_MENU);
+	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
+	g_signal_connect(G_OBJECT(item), "activate",
+	    G_CALLBACK(on_pref), icon);
+	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 
 	item = gtk_image_menu_item_new_with_mnemonic(_("_Quit"));
 	image = gtk_image_new_from_icon_name(GTK_STOCK_QUIT,

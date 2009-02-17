@@ -38,7 +38,7 @@
 #include "menu.h"
 
 DBusGProxy *dbus = NULL;
-GList *interfaces = NULL;
+GSList *interfaces = NULL;
 
 static GtkStatusIcon *status_icon;
 static gint ani_timer;
@@ -80,7 +80,7 @@ ignore_if_msg(const struct if_msg *ifm)
 static struct if_msg *
 find_if_msg(const char *iface)
 {
-	GList *gl;
+	GSList *gl;
 	struct if_msg *ifm;
 
 	for (gl = interfaces; gl; gl = gl->next) {
@@ -363,7 +363,7 @@ update_online(void)
 {
 	gboolean ison, iscarrier;
 	char *msg, *msgs, *tmp;
-	const GList *gl;
+	const GSList *gl;
 	const struct if_msg *ifm;
 
 	ison = iscarrier = FALSE;
@@ -445,7 +445,7 @@ dhcpcd_event(_unused DBusGProxy *proxy, GHashTable *config, _unused void *data)
 {
 	struct if_msg *ifm, *ifp;
 	gboolean rem;
-	GList *gl;
+	GSList *gl;
 	char *msg, *title;
 	const char *act, *net;
 	const char *const *r;
@@ -465,15 +465,15 @@ dhcpcd_event(_unused DBusGProxy *proxy, GHashTable *config, _unused void *data)
 			free_if_msg(ifp);
 			if (rem)
 				interfaces =
-					g_list_delete_link(interfaces, gl);
+					g_slist_delete_link(interfaces, gl);
 			else
 				gl->data = ifm;
 			break;
 		}
 	}
 	if (ifp == NULL && !rem)
-		interfaces = g_list_prepend(interfaces, ifm);
-	interfaces = g_list_sort(interfaces, if_msg_comparer);
+		interfaces = g_slist_prepend(interfaces, ifm);
+	interfaces = g_slist_sort(interfaces, if_msg_comparer);
 	update_online();
 
 	/* We should ignore renew and stop so we don't annoy the user */
@@ -521,7 +521,7 @@ foreach_make_ifm(_unused gpointer key, gpointer value, _unused gpointer data)
 	if (ignore_if_msg(ifm))
 		g_free(ifm);
 	else if (ifm)
-		interfaces = g_list_prepend(interfaces, ifm);
+		interfaces = g_slist_prepend(interfaces, ifm);
 }
 
 static void
@@ -530,8 +530,7 @@ dhcpcd_get_interfaces()
 	GHashTable *ifs;
 	GError *error = NULL;
 	GType otype;
-	GList *gl;
-	GSList *gsl;
+	GSList *gl, *gsl;
 	GPtrArray *array;
 	struct if_msg *ifm;
 
@@ -552,7 +551,7 @@ dhcpcd_get_interfaces()
 		G_TYPE_INVALID,
 		G_TYPE_STRV, &interface_order, G_TYPE_INVALID))
 		error_exit("ListInterfaces", error);
-	interfaces = g_list_sort(interfaces, if_msg_comparer);
+	interfaces = g_slist_sort(interfaces, if_msg_comparer);
 
 	otype = dbus_g_type_get_map("GHashTable", G_TYPE_STRING, G_TYPE_VALUE);
 	otype = dbus_g_type_get_collection("GPtrArray", otype);
@@ -581,7 +580,7 @@ static void
 check_status(const char *status)
 {
 	static char *last = NULL;
-	GList *gl;
+	GSList *gl;
 	char *version;
 	const char *msg;
 	gboolean refresh;
@@ -591,7 +590,7 @@ check_status(const char *status)
 	if (g_strcmp0(status, "down") == 0) {
 		for (gl = interfaces; gl; gl = gl->next)
 			free_if_msg((struct if_msg *)gl->data);
-		g_list_free(interfaces);
+		g_slist_free(interfaces);
 		interfaces = NULL;
 		update_online();
 		msg = N_(last ?
@@ -681,7 +680,6 @@ main(int argc, char *argv[])
 	char *version = NULL;
 	GType otype;
 	int tries = 5;
-
 		
 	setlocale(LC_ALL, "");
 	bindtextdomain(PACKAGE, NULL);
