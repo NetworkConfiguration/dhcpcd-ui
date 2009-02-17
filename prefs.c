@@ -30,7 +30,7 @@
 #include "prefs.h"
 
 static GPtrArray *config;
-static GtkWidget *blocks, *names, *controls;
+static GtkWidget *dialog, *blocks, *names, *controls;
 static GtkWidget *hostname, *fqdn, *clientid, *duid, *arp, *ipv4ll;
 
 static void
@@ -136,6 +136,9 @@ set_check(GtkToggleButton *button,
 	if (get_config(conf, name, &val)) {
 		has = TRUE;
 		incons = FALSE;
+	} else if (global == NULL) {
+		incons = FALSE;
+		has = FALSE;
 	} else {
 		has = get_config(global, name, &val);
 		incons = TRUE;
@@ -335,11 +338,40 @@ on_toggle(GtkWidget *widget, gpointer data)
 	gtk_widget_set_sensitive(GTK_WIDGET((GtkWidget *)data), active);
 }
 
-gboolean
-dhcpcd_prefs(void)
+static void
+on_destroy(void)
 {
-	GtkWidget *dialog, *hbox, *vbox, *label;
-	gint result;
+	free_config(&config);
+	dialog = NULL;
+}
+
+void
+dhcpcd_prefs_close(void)
+{
+	if (dialog) {
+		gtk_widget_destroy(dialog);
+		dialog = NULL;
+	}
+}
+
+static void
+on_delete(void)
+{
+	char *block, *name;
+
+	//delete_config();
+	//save_config();
+	block = combo_active_text(blocks);
+	name = combo_active_text(names);
+	show_config(name ? block : NULL, name);
+	g_free(block);
+	g_free(name);
+}
+
+void
+dhcpcd_prefs_show(void)
+{
+	GtkWidget *dialog_vbox, *hbox, *vbox, *label;
 	GtkListStore *store;
 	GtkTreeIter iter;
 	GtkCellRenderer *rend;
@@ -347,19 +379,26 @@ dhcpcd_prefs(void)
 	GtkIconTheme *it;
 	GdkPixbuf *pb;
 	
-	dialog = gtk_dialog_new_with_buttons("dhcpcd preferences",
-	    NULL,
-	    GTK_DIALOG_MODAL,
-	    GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
-	    GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
-	    NULL);
+	if (dialog) {
+		gtk_window_present(GTK_WINDOW(dialog));
+		return;
+	}
+
+	dialog = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	gtk_signal_connect(GTK_OBJECT(dialog), "destroy", on_destroy, NULL);
+
+	gtk_window_set_title(GTK_WINDOW(dialog), _("dhcpcd preferences"));
 	gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
 	gtk_window_set_icon_name(GTK_WINDOW(dialog), "config-users");
-	gtk_dialog_set_default_response(GTK_DIALOG(dialog),
-	    GTK_RESPONSE_ACCEPT);
+	gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER);
+	gtk_window_set_type_hint(GTK_WINDOW(dialog),
+				 GDK_WINDOW_TYPE_HINT_DIALOG);
+
+	dialog_vbox = gtk_vbox_new(FALSE, 3);
+	gtk_container_add(GTK_CONTAINER(dialog), dialog_vbox);
 
 	hbox = gtk_hbox_new(FALSE, 10);
-	gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), hbox);
+	gtk_box_pack_start(GTK_BOX(dialog_vbox), hbox, FALSE, FALSE, 3);
 	label = gtk_label_new("Configuration block:");
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 3);
 	store = gtk_list_store_new(2, GDK_TYPE_PIXBUF, G_TYPE_STRING);
@@ -409,11 +448,10 @@ dhcpcd_prefs(void)
 	gtk_signal_connect(GTK_OBJECT(names), "changed",
 	    G_CALLBACK(names_on_change), NULL);
 	
-	vbox = GTK_DIALOG(dialog)->vbox;
 	label = gtk_hseparator_new();
-	gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, FALSE, 3);
+	gtk_box_pack_start(GTK_BOX(dialog_vbox), label, TRUE, FALSE, 3);
 	controls = gtk_hbox_new(FALSE, 10);
-	gtk_box_pack_start(GTK_BOX(vbox), controls, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(dialog_vbox), controls, TRUE, TRUE, 0);
 	vbox = gtk_vbox_new(FALSE, 3);
 	gtk_box_pack_start(GTK_BOX(controls), vbox, FALSE, FALSE, 0);
 	hostname = gtk_check_button_new_with_label(_("Send Hostname"));
@@ -441,11 +479,16 @@ dhcpcd_prefs(void)
 	gtk_signal_connect(GTK_OBJECT(ipv4ll), "toggled",
 	    G_CALLBACK(on_toggle), NULL);
 
+	hbox = gtk_hbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(dialog_vbox), hbox, TRUE, TRUE, 3);
+	label = gtk_button_new_from_stock(GTK_STOCK_DELETE);
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+	gtk_signal_connect(GTK_OBJECT(label), "clicked", on_delete, NULL);
+	label = gtk_button_new_from_stock(GTK_STOCK_CLOSE);
+	gtk_box_pack_end(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+	gtk_signal_connect(GTK_OBJECT(label), "clicked",
+			   dhcpcd_prefs_close, NULL);
+
 	show_config(NULL, NULL);
 	gtk_widget_show_all(dialog);
-	result = gtk_dialog_run(GTK_DIALOG(dialog));
-	
-	gtk_widget_destroy(dialog);
-	free_config(&config);
-	return TRUE;
 }

@@ -27,8 +27,7 @@
 #ifndef PREFS_H
 #define PREFS_H
 
-#include "dhcpcd-gtk.h"
-
-gboolean dhcpcd_prefs(void);
+void dhcpcd_prefs_show(void);
+void dhcpcd_prefs_close(void);
 
 #endif

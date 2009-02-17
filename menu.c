@@ -30,13 +30,12 @@
 #include "wpa.h"
 
 static const char *copyright = "Copyright (c) 2009 Roy Marples";
-
 static const char *authors[] = { "Roy Marples <roy@marples.name>", NULL };
 
 static void
 on_pref(_unused GtkMenuItem *item, _unused gpointer data)
 {
-	dhcpcd_prefs();
+	dhcpcd_prefs_show();
 }
 
 
