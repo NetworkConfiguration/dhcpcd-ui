@@ -73,6 +73,25 @@ read_config(const char *block, const char *name)
 	return array;
 }
 
+static void
+save_config(const char *block, const char *name)
+{
+	GType otype;
+	GError *error;
+
+	error = NULL;
+	otype = dbus_g_type_get_struct("GValueArray",
+	    G_TYPE_STRING, G_TYPE_STRING, G_TYPE_INVALID);
+	otype = dbus_g_type_get_collection("GPtrArray", otype);
+	if (!dbus_g_proxy_call(dbus, "SetConfig", &error,
+		G_TYPE_STRING, block, G_TYPE_STRING, name,
+		otype, config, G_TYPE_INVALID, G_TYPE_INVALID))
+	{
+		g_critical("SetConfig: %s", error->message);
+		g_clear_error(&error);
+	}
+}
+
 static gboolean
 get_config(GPtrArray *array, const char *option, const char **value)
 {
@@ -355,14 +374,41 @@ dhcpcd_prefs_close(void)
 }
 
 static void
-on_delete(void)
+on_redo(void)
 {
 	char *block, *name;
+	GValueArray *array;
+	GValue val;
 
-	//delete_config();
-	//save_config();
 	block = combo_active_text(blocks);
 	name = combo_active_text(names);
+	free_config(&config);
+	if (g_strcmp0(block, "global") == 0) {
+		config = g_ptr_array_sized_new(3);
+		memset(&val, 0, sizeof(val));
+		g_value_init(&val, G_TYPE_STRING);
+		array = g_value_array_new(2);
+		g_value_set_static_string(&val, "hostname");
+		array = g_value_array_append(array, &val);
+		g_value_set_static_string(&val, "");
+		array = g_value_array_append(array, &val);
+		g_ptr_array_add(config, array);
+		array = g_value_array_new(2);
+		g_value_set_static_string(&val, "option");
+		array = g_value_array_append(array, &val);
+		g_value_set_static_string(&val, "domain_name_servers, "
+		    "domain_name, domain_search, host_name");
+		array = g_value_array_append(array, &val);
+		g_ptr_array_add(config, array);
+		array = g_value_array_new(2);
+		g_value_set_static_string(&val, "option");
+		array = g_value_array_append(array, &val);
+		g_value_set_static_string(&val, "ntp_servers");
+		array = g_value_array_append(array, &val);
+		g_ptr_array_add(config, array);
+	} else
+		config = g_ptr_array_new();
+	save_config(name ? block : NULL, name);
 	show_config(name ? block : NULL, name);
 	g_free(block);
 	g_free(name);
@@ -481,9 +527,9 @@ dhcpcd_prefs_show(void)
 
 	hbox = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(dialog_vbox), hbox, TRUE, TRUE, 3);
-	label = gtk_button_new_from_stock(GTK_STOCK_DELETE);
+	label = gtk_button_new_from_stock(GTK_STOCK_REDO);
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-	gtk_signal_connect(GTK_OBJECT(label), "clicked", on_delete, NULL);
+	gtk_signal_connect(GTK_OBJECT(label), "clicked", on_redo, NULL);
 	label = gtk_button_new_from_stock(GTK_STOCK_CLOSE);
 	gtk_box_pack_end(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 	gtk_signal_connect(GTK_OBJECT(label), "clicked",

@@ -214,14 +214,6 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 	    G_CALLBACK(on_pref), icon);
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 
-	item = gtk_image_menu_item_new_with_mnemonic(_("_Quit"));
-	image = gtk_image_new_from_icon_name(GTK_STOCK_QUIT,
-	    GTK_ICON_SIZE_MENU);
-	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
-	g_signal_connect(G_OBJECT(item), "activate",
-	    G_CALLBACK(on_quit), icon);
-	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-
 	item = gtk_separator_menu_item_new();
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 
@@ -239,6 +231,14 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
 	g_signal_connect(G_OBJECT(item), "activate",
 	    G_CALLBACK(on_about), icon);
+	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+
+	item = gtk_image_menu_item_new_with_mnemonic(_("_Quit"));
+	image = gtk_image_new_from_icon_name(GTK_STOCK_QUIT,
+	    GTK_ICON_SIZE_MENU);
+	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
+	g_signal_connect(G_OBJECT(item), "activate",
+	    G_CALLBACK(on_quit), icon);
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 
 	gtk_widget_show_all(GTK_WIDGET(menu));
