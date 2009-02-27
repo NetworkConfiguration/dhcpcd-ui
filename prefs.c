@@ -32,6 +32,7 @@
 static GPtrArray *config;
 static GtkWidget *dialog, *blocks, *names, *controls;
 static GtkWidget *hostname, *fqdn, *clientid, *duid, *arp, *ipv4ll;
+static gboolean ignore_change;
 
 static void
 free_config(GPtrArray **array)
@@ -73,25 +74,6 @@ read_config(const char *block, const char *name)
 	return array;
 }
 
-static void
-save_config(const char *block, const char *name)
-{
-	GType otype;
-	GError *error;
-
-	error = NULL;
-	otype = dbus_g_type_get_struct("GValueArray",
-	    G_TYPE_STRING, G_TYPE_STRING, G_TYPE_INVALID);
-	otype = dbus_g_type_get_collection("GPtrArray", otype);
-	if (!dbus_g_proxy_call(dbus, "SetConfig", &error,
-		G_TYPE_STRING, block, G_TYPE_STRING, name,
-		otype, config, G_TYPE_INVALID, G_TYPE_INVALID))
-	{
-		g_critical("SetConfig: %s", error->message);
-		g_clear_error(&error);
-	}
-}
-
 static gboolean
 get_config(GPtrArray *array, const char *option, const char **value)
 {
@@ -121,6 +103,102 @@ get_config(GPtrArray *array, const char *option, const char **value)
 	if (value != NULL)
 		*value = NULL;
 	return FALSE;
+}
+
+static char *
+combo_active_text(GtkWidget *widget)
+{
+	GtkListStore *store;
+	GtkTreeIter iter;
+	GValue val;
+	char *text;
+
+	store = GTK_LIST_STORE(gtk_combo_box_get_model(GTK_COMBO_BOX(widget)));
+	if (!gtk_combo_box_get_active_iter(GTK_COMBO_BOX(widget), &iter))
+		return NULL;
+	memset(&val, 0, sizeof(val));
+	gtk_tree_model_get_value(GTK_TREE_MODEL(store), &iter, 1, &val);
+	text = g_strdup(g_value_get_string(&val));
+	g_value_unset(&val);
+	return text;
+}
+
+static void
+set_name_active_icon(const char *iname)
+{
+	GtkListStore *store;
+	GtkTreeIter iter;
+	GtkIconTheme *it;
+	GtkTreePath *path;
+	GdkPixbuf *pb;
+
+	store = GTK_LIST_STORE(gtk_combo_box_get_model(GTK_COMBO_BOX(names)));
+	if (!gtk_combo_box_get_active_iter(GTK_COMBO_BOX(names), &iter))
+		return;
+	it = gtk_icon_theme_get_default();
+	pb = gtk_icon_theme_load_icon(it, iname,
+	    GTK_ICON_SIZE_MENU, 0, NULL);
+	if (pb) {
+		path = gtk_tree_model_get_path(GTK_TREE_MODEL(store), &iter);
+		gtk_list_store_set(store, &iter, 0, pb, -1);
+		g_object_unref(pb);
+		gtk_tree_model_row_changed(GTK_TREE_MODEL(store), path, &iter);
+		gtk_tree_path_free(path);
+	}
+}
+
+static gboolean
+set_option(const char *option, const char *value)
+{
+	GError *error;
+	char *name, *block;
+	gboolean retval;
+
+	block = combo_active_text(blocks);
+	name = combo_active_text(names);
+	error = NULL;
+	if (!dbus_g_proxy_call(dbus, "SetConfigValue", &error,
+		G_TYPE_STRING, name ? block : "",
+		G_TYPE_STRING, name ? name : "",
+		G_TYPE_STRING, option, G_TYPE_STRING, value,
+		G_TYPE_INVALID, G_TYPE_INVALID))
+	{
+		g_critical("SetConfigValue: %s", error->message);
+		g_clear_error(&error);
+		retval = FALSE;
+	} else
+		retval = TRUE;
+	g_free(block);
+	g_free(name);
+	set_name_active_icon("document-save");
+	return retval;
+}
+
+static gboolean
+unset_option(const char *option)
+{
+	GError *error;
+	char *name, *block;
+	gboolean retval;
+
+	block = combo_active_text(blocks);
+	name = combo_active_text(names);
+	error = NULL;
+	if (!dbus_g_proxy_call(dbus, "RemoveConfigOption", &error,
+		G_TYPE_STRING, name ? block : "" ,
+		G_TYPE_STRING, name ? name : "",
+		G_TYPE_STRING, option,
+		G_TYPE_INVALID, G_TYPE_INVALID))
+	{
+		g_critical("RemoveConfigOption: %s", error->message);
+		g_clear_error(&error);
+		retval = FALSE;
+	} else
+		retval = TRUE;
+	g_free(block);
+	g_free(name);
+	set_name_active_icon("document-save");
+	return retval;
 }
 
 static gboolean
@@ -171,6 +249,7 @@ show_config(const char *block, const char *name)
 {
 	GPtrArray *global;
 
+	ignore_change = TRUE;
 	if (block || name)
 		global = read_config(NULL, NULL);
 	else
@@ -195,24 +274,7 @@ show_config(const char *block, const char *name)
 	gtk_widget_set_sensitive(ipv4ll,
 	    gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(arp)));
 	free_config(&global);
-}
-
-static char *
-combo_active_text(GtkWidget *widget)
-{
-	GtkListStore *store;
-	GtkTreeIter iter;
-	GValue val;
-	char *text;
-
-	store = GTK_LIST_STORE(gtk_combo_box_get_model(GTK_COMBO_BOX(widget)));
-	if (!gtk_combo_box_get_active_iter(GTK_COMBO_BOX(widget), &iter))
-		return NULL;
-	memset(&val, 0, sizeof(val));
-	gtk_tree_model_get_value(GTK_TREE_MODEL(store), &iter, 1, &val);
-	text = g_strdup(g_value_get_string(&val));
-	g_value_unset(&val);
-	return text;
+	ignore_change = FALSE;
 }
 
 static GSList *
@@ -346,13 +408,40 @@ names_on_change(GtkWidget *widget, _unused gpointer data)
 }
 
 static void
-on_toggle(GtkWidget *widget, gpointer data)
+_on_toggle_set(GtkWidget *widget, gpointer data, gboolean set)
+{
+	gboolean active, result;
+
+	if (ignore_change)
+		return;
+	gtk_toggle_button_set_inconsistent(GTK_TOGGLE_BUTTON(widget), FALSE);
+	active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+	if ((active && set) || (!active && !set))
+		result = set_option((const char *)data, "");
+	else
+		result = unset_option((const char *)data);
+	if (!result)
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget),
+		    !(active && set));
+}
+
+static void
+on_toggle_set(GtkWidget *widget, gpointer data)
+{
+	_on_toggle_set(widget, data, TRUE);
+}
+
+static void
+on_toggle_unset(GtkWidget *widget, gpointer data)
+{
+	_on_toggle_set(widget, data, FALSE);
+}
+
+static void
+on_toggle_set_sens(GtkWidget *widget, gpointer data)
 {
 	gboolean active;
 
-	gtk_toggle_button_set_inconsistent(GTK_TOGGLE_BUTTON(widget), FALSE);
-	if (data == NULL)
-		return;
 	active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 	gtk_widget_set_sensitive(GTK_WIDGET((GtkWidget *)data), active);
 }
@@ -377,38 +466,21 @@ static void
 on_redo(void)
 {
 	char *block, *name;
-	GValueArray *array;
-	GValue val;
+	GError *error;
 
 	block = combo_active_text(blocks);
 	name = combo_active_text(names);
-	free_config(&config);
-	if (g_strcmp0(block, "global") == 0) {
-		config = g_ptr_array_sized_new(3);
-		memset(&val, 0, sizeof(val));
-		g_value_init(&val, G_TYPE_STRING);
-		array = g_value_array_new(2);
-		g_value_set_static_string(&val, "hostname");
-		array = g_value_array_append(array, &val);
-		g_value_set_static_string(&val, "");
-		array = g_value_array_append(array, &val);
-		g_ptr_array_add(config, array);
-		array = g_value_array_new(2);
-		g_value_set_static_string(&val, "option");
-		array = g_value_array_append(array, &val);
-		g_value_set_static_string(&val, "domain_name_servers, "
-		    "domain_name, domain_search, host_name");
-		array = g_value_array_append(array, &val);
-		g_ptr_array_add(config, array);
-		array = g_value_array_new(2);
-		g_value_set_static_string(&val, "option");
-		array = g_value_array_append(array, &val);
-		g_value_set_static_string(&val, "ntp_servers");
-		array = g_value_array_append(array, &val);
-		g_ptr_array_add(config, array);
-	} else
-		config = g_ptr_array_new();
-	save_config(name ? block : NULL, name);
+	error = NULL;
+	if (!dbus_g_proxy_call(dbus, "SetDefaultConfig", &error,
+		G_TYPE_STRING, name ? block : "",
+		G_TYPE_STRING, name ? name : "",
+		G_TYPE_INVALID,
+		G_TYPE_INVALID))
+	{
+		g_critical("SetDefaultConfig: %s", error->message);
+		g_clear_error(&error);
+	}
+	set_name_active_icon("document-new");
 	show_config(name ? block : NULL, name);
 	g_free(block);
 	g_free(name);
@@ -502,28 +574,32 @@ dhcpcd_prefs_show(void)
 	gtk_box_pack_start(GTK_BOX(controls), vbox, FALSE, FALSE, 0);
 	hostname = gtk_check_button_new_with_label(_("Send Hostname"));
 	gtk_signal_connect(GTK_OBJECT(hostname), "toggled",
-	    G_CALLBACK(on_toggle), NULL);
+	    G_CALLBACK(on_toggle_set), UNCONST("hostname"));
 	gtk_box_pack_start(GTK_BOX(vbox), hostname, FALSE, FALSE, 3);
 	fqdn = gtk_check_button_new_with_label(_("Send FQDN"));
 	gtk_signal_connect(GTK_OBJECT(fqdn), "toggled",
-	    G_CALLBACK(on_toggle), NULL);
+	    G_CALLBACK(on_toggle_set), UNCONST("fqdn"));
 	gtk_box_pack_start(GTK_BOX(vbox), fqdn, FALSE, FALSE, 3);
 	clientid = gtk_check_button_new_with_label(_("Send ClientID"));
+	gtk_signal_connect(GTK_OBJECT(clientid), "toggled",
+	    G_CALLBACK(on_toggle_set), UNCONST("clientid"));
 	gtk_box_pack_start(GTK_BOX(vbox), clientid, FALSE, FALSE, 3);
 	duid = gtk_check_button_new_with_label(_("Send DUID"));
-	gtk_signal_connect(GTK_OBJECT(clientid), "toggled",
-	    G_CALLBACK(on_toggle), duid);
 	gtk_signal_connect(GTK_OBJECT(duid), "toggled",
-	    G_CALLBACK(on_toggle), NULL);
+	    G_CALLBACK(on_toggle_set), UNCONST("duid"));
+	gtk_signal_connect_after(GTK_OBJECT(clientid), "toggled",
+	    G_CALLBACK(on_toggle_set_sens), duid);
 	gtk_box_pack_start(GTK_BOX(vbox), duid, FALSE, FALSE, 3);
 	arp = gtk_check_button_new_with_label(_("Enable ARP checking"));
+	gtk_signal_connect(GTK_OBJECT(arp), "toggled",
+	    G_CALLBACK(on_toggle_unset), UNCONST("noarp"));
 	gtk_box_pack_start(GTK_BOX(vbox), arp, FALSE, FALSE, 3);
 	ipv4ll = gtk_check_button_new_with_label(_("Enable Zeroconf"));
 	gtk_box_pack_start(GTK_BOX(vbox), ipv4ll, FALSE, FALSE, 3);
-	gtk_signal_connect(GTK_OBJECT(arp), "toggled",
-	    G_CALLBACK(on_toggle), ipv4ll);
 	gtk_signal_connect(GTK_OBJECT(ipv4ll), "toggled",
-	    G_CALLBACK(on_toggle), NULL);
+	    G_CALLBACK(on_toggle_unset), UNCONST("noipv4ll"));
+	gtk_signal_connect_after(GTK_OBJECT(arp), "toggled",
+	    G_CALLBACK(on_toggle_set_sens), ipv4ll);
 
 	hbox = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(dialog_vbox), hbox, TRUE, TRUE, 3);

@@ -51,6 +51,8 @@
 # define IN_LINKLOCAL(addr) ((addr & IN_CLASSB_NET) == 0xa9fe0000)
 #endif
 
+#define UNCONST(a)              ((void *)(unsigned long)(const void *)(a))
+
 struct if_ap {
 	char *ifname;
 	char *bssid;
