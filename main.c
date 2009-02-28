@@ -153,6 +153,7 @@ get_scan_results(struct if_msg *ifm)
 	otype = dbus_g_type_get_map("GHashTable", G_TYPE_STRING, G_TYPE_VALUE);
 	otype = dbus_g_type_get_collection("GPtrArray", otype);
 
+	error = NULL;
 	if (!dbus_g_proxy_call(dbus, "ScanResults", &error,
 		G_TYPE_STRING, ifm->ifname, G_TYPE_INVALID,
 		otype, &array, G_TYPE_INVALID))
