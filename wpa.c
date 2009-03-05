@@ -27,12 +27,12 @@
 #include "dhcpcd-gtk.h"
 #include "wpa.h"
 
-static gint
+static int
 find_network(const char *ifname, const char *ssid)
 {
 	GType otype;
 	GError *error;
-	gint id;
+	int id;
 	size_t i;
 	GPtrArray *array;
 	GValueArray *varray;
@@ -98,11 +98,11 @@ find_network(const char *ifname, const char *ssid)
 static int
 configure_network(const char *ifname, int id, const char *mgmt,
     const char *var, const char *val,
-    gboolean quote)
+    bool quote)
 {
 	GError *error;
 	char *str;
-	static gboolean warned = FALSE;
+	static bool warned = false;
 	GtkWidget *dialog;
 
 	if (id == -1)
@@ -163,7 +163,7 @@ configure_network(const char *ifname, int id, const char *mgmt,
 	{
 		g_warning("SaveConfig: %s", error->message);
 		if (!warned) {
-			warned = TRUE;
+			warned = true;
 			dialog = gtk_message_dialog_new(NULL,
 			    GTK_DIALOG_MODAL,
 			    GTK_MESSAGE_ERROR,
@@ -204,12 +204,12 @@ onEnter(_unused GtkWidget *widget, gpointer *data)
 	gtk_dialog_response(GTK_DIALOG(data), GTK_RESPONSE_ACCEPT);
 }
 
-gboolean
+bool
 wpa_configure(const struct if_ap *ifa)
 {
 	GtkWidget *dialog, *label, *psk, *vbox, *hbox;
 	const char *var, *mgt;
-	gint result, id, retval;
+	int result, id, retval;
 
 	dialog = gtk_dialog_new_with_buttons(ifa->ssid,
 	    NULL,
@@ -217,19 +217,19 @@ wpa_configure(const struct if_ap *ifa)
 	    GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
 	    GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
 	    NULL);
-	gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
+	gtk_window_set_resizable(GTK_WINDOW(dialog), false);
 	gtk_window_set_icon_name(GTK_WINDOW(dialog), "config-users");
 	gtk_dialog_set_default_response(GTK_DIALOG(dialog),
 	    GTK_RESPONSE_ACCEPT);
 	vbox = GTK_DIALOG(dialog)->vbox;
 
-	hbox = gtk_hbox_new(FALSE, 2);
+	hbox = gtk_hbox_new(false, 2);
 	label = gtk_label_new(_("Pre Shared Key:"));
-	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(hbox), label, false, false, 0);
 	psk = gtk_entry_new();
 	gtk_entry_set_max_length(GTK_ENTRY(psk), 130);
 	g_signal_connect(G_OBJECT(psk), "activate", G_CALLBACK(onEnter), dialog);
-	gtk_box_pack_start(GTK_BOX(hbox), psk, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(hbox), psk, true, true, 0);
 	gtk_container_add(GTK_CONTAINER(vbox), hbox);
 
 	gtk_widget_show_all(dialog);
@@ -248,9 +248,9 @@ wpa_configure(const struct if_ap *ifa)
 		}
 		if (id != -1) {
 			retval = configure_network(ifa->ifname, id, mgt, var,
-			    gtk_entry_get_text(GTK_ENTRY(psk)), TRUE);
+			    gtk_entry_get_text(GTK_ENTRY(psk)), true);
 		}
 	}
 	gtk_widget_destroy(dialog);
-	return retval == -1 ? FALSE : TRUE;
+	return retval == -1 ? false : true;
 }

@@ -41,10 +41,10 @@ DBusGProxy *dbus = NULL;
 GSList *interfaces = NULL;
 
 static GtkStatusIcon *status_icon;
-static gint ani_timer;
+static int ani_timer;
 static int ani_counter;
-static gboolean online;
-static gboolean carrier;
+static bool online;
+static bool carrier;
 static char **interface_order;
 static NotifyNotification *nn;
 
@@ -55,6 +55,7 @@ const char *const up_reasons[] = {
 	"REBOOT",
 	"IPV4LL",
 	"INFORM",
+	"STATIC",
 	"TIMEOUT",
 	NULL
 };
@@ -68,13 +69,13 @@ const char *const down_reasons[] = {
 	NULL
 };
 
-static gboolean
+static bool
 ignore_if_msg(const struct if_msg *ifm)
 {
 	if (g_strcmp0(ifm->reason, "STOP") == 0 ||
 	    g_strcmp0(ifm->reason, "RELEASE") == 0)
-		return TRUE;
-	return FALSE;
+		return true;
+	return false;
 }
 
 static struct if_msg *
@@ -226,15 +227,15 @@ make_if_msg(GHashTable *config)
 	return ifm;
 }
 
-static gboolean
+static bool
 if_up(const struct if_msg *ifm)
 {
 	const char *const *r;
 
 	for (r = up_reasons; *r; r++)
 		if (g_strcmp0(*r, ifm->reason) == 0)
-			return TRUE;
-	return FALSE;
+			return true;
+	return false;
 }
 
 static char *
@@ -243,10 +244,10 @@ print_if_msg(const struct if_msg *ifm)
 	char *msg, *p;
 	const char *reason = NULL;
 	size_t len;
-	gboolean showip, showssid;
+	bool showip, showssid;
     
-	showip = TRUE;
-	showssid = FALSE;
+	showip = true;
+	showssid = false;
 	if (if_up(ifm))
 		reason = N_("Acquired address");
 	else {
@@ -256,20 +257,20 @@ print_if_msg(const struct if_msg *ifm)
 			if (ifm->wireless) {
 				reason = N_("Asssociated with");
 				if (ifm->ssid != NULL)
-					showssid = TRUE;
+					showssid = true;
 			} else
 				reason = N_("Cable plugged in");
-			showip = FALSE;
+			showip = false;
 		} else if (g_strcmp0(ifm->reason, "NOCARRIER") == 0) {
 			if (ifm->wireless) {
 				if (ifm->ssid != NULL || ifm->ip.s_addr != 0) {
 					reason = N_("Disassociated from");
-					showssid = TRUE;
+					showssid = true;
 				} else
 					reason = N_("Not associated");
 			} else
 				reason = N_("Cable unplugged");
-			showip = FALSE;
+			showip = false;
 		}
 	}
 	if (reason == NULL)
@@ -296,7 +297,7 @@ print_if_msg(const struct if_msg *ifm)
 	return msg;
 }
 
-static gint
+static int
 if_msg_comparer(gconstpointer a, gconstpointer b)
 {
 	const struct if_msg *ifa, *ifb;
@@ -319,7 +320,7 @@ animate_carrier(_unused gpointer data)
 	const char *icon;
 	
 	if (ani_timer == 0)
-		return FALSE;
+		return false;
 
 	switch(ani_counter++) {
 	case 0:
@@ -334,7 +335,7 @@ animate_carrier(_unused gpointer data)
 		break;
 	}
 	gtk_status_icon_set_from_icon_name(status_icon, icon);
-	return TRUE;
+	return true;
 }
 
 static gboolean
@@ -343,12 +344,12 @@ animate_online(_unused gpointer data)
 	const char *icon;
 	
 	if (ani_timer == 0)
-		return FALSE;
+		return false;
 
 	if (ani_counter++ > 6) {
 		ani_timer = 0;
 		ani_counter = 0;
-		return FALSE;
+		return false;
 	}
 
 	if (ani_counter % 2 == 0)
@@ -356,25 +357,25 @@ animate_online(_unused gpointer data)
 	else
 		icon = "network-transmit-receive";
 	gtk_status_icon_set_from_icon_name(status_icon, icon);
-	return TRUE;
+	return true;
 }
 
 static void
 update_online(void)
 {
-	gboolean ison, iscarrier;
+	bool ison, iscarrier;
 	char *msg, *msgs, *tmp;
 	const GSList *gl;
 	const struct if_msg *ifm;
 
-	ison = iscarrier = FALSE;
+	ison = iscarrier = false;
 	msgs = NULL;
 	for (gl = interfaces; gl; gl = gl->next) {
 		ifm = (const struct if_msg *)gl->data;
 		if (if_up(ifm))
-			ison = iscarrier = TRUE;
+			ison = iscarrier = true;
 		if (!iscarrier && g_strcmp0(ifm->reason, "CARRIER") == 0)
-			iscarrier = TRUE;
+			iscarrier = true;
 		msg = print_if_msg(ifm);
 		if (msgs) {
 			tmp = g_strconcat(msgs, "\n", msg, NULL);
@@ -445,7 +446,7 @@ static void
 dhcpcd_event(_unused DBusGProxy *proxy, GHashTable *config, _unused void *data)
 {
 	struct if_msg *ifm, *ifp;
-	gboolean rem;
+	bool rem;
 	GSList *gl;
 	char *msg, *title;
 	const char *act, *net;
@@ -466,7 +467,7 @@ dhcpcd_event(_unused DBusGProxy *proxy, GHashTable *config, _unused void *data)
 			free_if_msg(ifp);
 			if (rem)
 				interfaces =
-					g_slist_delete_link(interfaces, gl);
+				    g_slist_delete_link(interfaces, gl);
 			else
 				gl->data = ifm;
 			break;
@@ -584,7 +585,7 @@ check_status(const char *status)
 	GSList *gl;
 	char *version;
 	const char *msg;
-	gboolean refresh;
+	bool refresh;
 	GError *error = NULL;
 
 	g_message("Status changed to %s", status);
@@ -600,15 +601,15 @@ check_status(const char *status)
 		notify(_("No network"), msg, GTK_STOCK_NETWORK);
 	}
 
-	refresh = FALSE;
+	refresh = false;
 	if (last == NULL) {
 		if (g_strcmp0(status, "down") != 0)
-			refresh = TRUE;
+			refresh = true;
 	} else {
 		if (g_strcmp0(status, last) == 0)
 			return;
 		if (g_strcmp0(last, "down") == 0)
-			refresh = TRUE;
+			refresh = true;
 		g_free(last);
 	}
 	last = g_strdup(status);
@@ -692,12 +693,12 @@ main(int argc, char *argv[])
 	status_icon = gtk_status_icon_new_from_icon_name("network-offline");
 	if (status_icon == NULL)
 		status_icon =
-			gtk_status_icon_new_from_stock(GTK_STOCK_DISCONNECT);
+		    gtk_status_icon_new_from_stock(GTK_STOCK_DISCONNECT);
 	//network_offline = gtk_status_icon_get_pixbuf(status_icon);
 	
 	gtk_status_icon_set_tooltip(status_icon,
 	    _("Connecting to dhcpcd ..."));
-	gtk_status_icon_set_visible(status_icon, TRUE);
+	gtk_status_icon_set_visible(status_icon, true);
 
 	notify_init(PACKAGE);
 
@@ -724,7 +725,7 @@ main(int argc, char *argv[])
 	g_free(version);
 
 	gtk_status_icon_set_tooltip(status_icon, _("Triggering dhcpcd ..."));
-	online = FALSE;
+	online = false;
 	menu_init(status_icon);
 
 	if (!dbus_g_proxy_call(dbus, "GetStatus", &error,

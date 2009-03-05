@@ -27,8 +27,10 @@
 #ifndef WPA_H
 #define WPA_H
 
+#include <stdbool.h>
+
 #include "dhcpcd-gtk.h"
 
-gboolean wpa_configure(const struct if_ap *);
+bool wpa_configure(const struct if_ap *);
 
 #endif

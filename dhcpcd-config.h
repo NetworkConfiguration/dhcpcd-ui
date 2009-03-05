@@ -32,11 +32,10 @@
 #include <glib.h>
 
 void free_config(GPtrArray **);
-GPtrArray *read_config(const char *, const char *);
-int get_config(GPtrArray *, int, const char *, const char **);
-int get_static_config(GPtrArray *, const char *, const char **);
-GPtrArray *save_config(const char *, const char *, GPtrArray *);
-GPtrArray *load_config(const char *, const char *, GPtrArray *);
+GPtrArray *load_config(const char *, const char *);
+int get_config(GPtrArray *, const char *, const char **);
+int get_config_static(GPtrArray *, const char *, const char **);
 void set_option(GPtrArray *, bool, const char *, const char *);
+bool save_config(const char *, const char *, GPtrArray *);
 
 #endif

@@ -30,12 +30,10 @@
 #include "dhcpcd-gtk.h"
 #include "prefs.h"
 
-static GtkWidget *dialog, *blocks, *names, *controls;
+static GtkWidget *dialog, *blocks, *names, *controls, *clear, *rebind;
 static GtkWidget *autoconf, *address, *router, *dns_servers, *dns_search;
-static GtkWidget *ntp_servers;
 static GPtrArray *config;
 static char *block, *name;
-static bool ignore_change;
 
 static void
 show_config(GPtrArray *array)
@@ -43,24 +41,20 @@ show_config(GPtrArray *array)
 	const char *val;
 	bool autocnf;
 
-	ignore_change = TRUE;
-	if (get_static_config(array, "ip_address=", &val) != -1)
+	if (get_config_static(array, "ip_address=", &val) != -1)
 		autocnf = false;
 	else {
-		get_config(array, 0, "inform", &val);
+		get_config(array, "inform", &val);
 		autocnf = true;
 	}
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(autoconf), autocnf);
 	gtk_entry_set_text(GTK_ENTRY(address), val ? val : "");
-	get_static_config(array, "routers=", &val);
+	get_config_static(array, "routers=", &val);
 	gtk_entry_set_text(GTK_ENTRY(router), val ? val : "");
-	get_static_config(array, "domain_name_servers=", &val);
+	get_config_static(array, "domain_name_servers=", &val);
 	gtk_entry_set_text(GTK_ENTRY(dns_servers), val ? val : "");
-	get_static_config(array, "domain_name_search=", &val);
+	get_config_static(array, "domain_search=", &val);
 	gtk_entry_set_text(GTK_ENTRY(dns_search), val ? val : "");
-	get_static_config(array, "ntp_servers=", &val);
-	gtk_entry_set_text(GTK_ENTRY(ntp_servers), val ? val : "");
-	ignore_change = FALSE;
 }
 
 static char *
@@ -107,12 +101,7 @@ make_config(GPtrArray *array)
 	val = gtk_entry_get_text(GTK_ENTRY(dns_search));
 	if (a && *val == '\0')
 		val = NULL;
-	set_option(array, true, "domain_name_search=", val);
-	
-	val = gtk_entry_get_text(GTK_ENTRY(ntp_servers));
-	if (a && *val == '\0')
-		val = NULL;
-	set_option(array, true, "ntp_servers=", val);
+	set_option(array, true, "domain_search=", val);
 }
 
 static void
@@ -194,6 +183,8 @@ blocks_on_change(GtkWidget *widget)
 	if (name) {
 		make_config(config);
 		save_config(block, name, config);
+		free_config(&config);
+		show_config(config);
 		g_free(block);
 		g_free(name);
 		name = NULL;
@@ -249,7 +240,6 @@ blocks_on_change(GtkWidget *widget)
 		n++;
 	}
 	gtk_widget_set_sensitive(names, n);
-	gtk_widget_set_sensitive(controls, FALSE);
 	g_slist_free(new_names);
 	g_strfreev(list);
 }
@@ -263,10 +253,13 @@ names_on_change(void)
 		save_config(block, name, config);
 		g_free(name);
 	}
-	gtk_widget_set_sensitive(controls, TRUE);
 	name = combo_active_text(names);
-	config = load_config(block, name, config);
+	free_config(&config);
+	config = load_config(block, name);
 	show_config(config);
+	gtk_widget_set_sensitive(controls, name ? true : false);
+	gtk_widget_set_sensitive(clear, name ? true : false);
+	gtk_widget_set_sensitive(rebind, name ? true : false);
 }
 
 static bool
@@ -343,9 +336,52 @@ on_clear(void)
 }
 
 static void
+rebind_interface(const char *iface)
+{
+	GError *error;
+	
+	error = NULL;
+	if (!dbus_g_proxy_call(dbus, "Rebind", &error,
+		G_TYPE_STRING, iface, G_TYPE_INVALID, G_TYPE_INVALID))
+	{
+		g_critical("Rebind: %s: %s", iface, error->message);
+		g_clear_error(&error);
+	}
+}
+
+static void
+on_rebind(void)
+{
+	GSList *l;
+	const struct if_msg *ifm;
+
+	make_config(config);
+	if (save_config(block, name, config)) {
+		set_name_active_icon("document-save");
+		show_config(config);
+		if (g_strcmp0(block, "interface") == 0)
+			rebind_interface(name);
+		else {
+			for (l = interfaces; l; l = l->next) {
+				ifm = (const struct if_msg *)l->data;
+				if (g_strcmp0(ifm->ssid, name) == 0)
+					rebind_interface(ifm->ifname);
+			}
+		}
+	}
+}
+
+static void
 on_destroy(void)
 {
 	
+	if (name != NULL) {
+		make_config(config);
+		save_config(block, name, config);
+		g_free(block);
+		g_free(name);
+		block = name = NULL;
+	}
 	free_config(&config);
 	dialog = NULL;
 }
@@ -355,10 +391,6 @@ dhcpcd_prefs_close(void)
 {
 	
 	if (dialog != NULL) {
-		if (name != NULL) {
-			make_config(config);
-			save_config(block, name, config);
-		}
 		gtk_widget_destroy(dialog);
 		dialog = NULL;
 	}
@@ -384,20 +416,20 @@ dhcpcd_prefs_show(void)
 	g_signal_connect(G_OBJECT(dialog), "destroy", on_destroy, NULL);
 
 	gtk_window_set_title(GTK_WINDOW(dialog), _("dhcpcd preferences"));
-	gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
+	gtk_window_set_resizable(GTK_WINDOW(dialog), false);
 	gtk_window_set_icon_name(GTK_WINDOW(dialog), "config-users");
 	gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER);
 	gtk_window_set_type_hint(GTK_WINDOW(dialog),
-				 GDK_WINDOW_TYPE_HINT_DIALOG);
+	    GDK_WINDOW_TYPE_HINT_DIALOG);
 
-	dialog_vbox = gtk_vbox_new(FALSE, 10);
+	dialog_vbox = gtk_vbox_new(false, 10);
 	gtk_container_set_border_width(GTK_CONTAINER(dialog), 10);
 	gtk_container_add(GTK_CONTAINER(dialog), dialog_vbox);
 
-	hbox = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(dialog_vbox), hbox, FALSE, FALSE, 3);
+	hbox = gtk_hbox_new(false, 0);
+	gtk_box_pack_start(GTK_BOX(dialog_vbox), hbox, false, false, 3);
 	w = gtk_label_new("Configure:");
-	gtk_box_pack_start(GTK_BOX(hbox), w, FALSE, FALSE, 3);
+	gtk_box_pack_start(GTK_BOX(hbox), w, false, false, 3);
 	store = gtk_list_store_new(2, GDK_TYPE_PIXBUF, G_TYPE_STRING);
 	it = gtk_icon_theme_get_default();
 	error = NULL;
@@ -413,42 +445,43 @@ dhcpcd_prefs_show(void)
 	g_object_unref(pb);
 	blocks = gtk_combo_box_new_with_model(GTK_TREE_MODEL(store));
 	rend = gtk_cell_renderer_pixbuf_new();
-	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(blocks), rend, FALSE);
+	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(blocks), rend, false);
 	gtk_cell_layout_add_attribute(GTK_CELL_LAYOUT(blocks),
 	    rend, "pixbuf", 0);
 	rend = gtk_cell_renderer_text_new();
-	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(blocks), rend, TRUE);
+	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(blocks), rend, true);
 	gtk_cell_layout_add_attribute(GTK_CELL_LAYOUT(blocks),
 	    rend, "text", 1);
 	gtk_combo_box_set_active(GTK_COMBO_BOX(blocks), 0);
-	gtk_box_pack_start(GTK_BOX(hbox), blocks, FALSE, FALSE, 3);
+	gtk_box_pack_start(GTK_BOX(hbox), blocks, false, false, 3);
 	store = gtk_list_store_new(2, GDK_TYPE_PIXBUF, G_TYPE_STRING);
 	names = gtk_combo_box_new_with_model(GTK_TREE_MODEL(store));
 	rend = gtk_cell_renderer_pixbuf_new();
-	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(names), rend, FALSE);
+	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(names), rend, false);
 	gtk_cell_layout_add_attribute(GTK_CELL_LAYOUT(names),
 	    rend, "pixbuf", 0);
 	rend = gtk_cell_renderer_text_new();
-	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(names), rend, TRUE);
+	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(names), rend, true);
 	gtk_cell_layout_add_attribute(GTK_CELL_LAYOUT(names), rend, "text", 1);
-	gtk_widget_set_sensitive(names, FALSE);
-	gtk_box_pack_start(GTK_BOX(hbox), names, FALSE, FALSE, 3);
+	gtk_widget_set_sensitive(names, false);
+	gtk_box_pack_start(GTK_BOX(hbox), names, false, false, 3);
 	g_signal_connect(G_OBJECT(blocks), "changed",
 	    G_CALLBACK(blocks_on_change), NULL);
 	g_signal_connect(G_OBJECT(names), "changed",
 	    G_CALLBACK(names_on_change), NULL);
 	
 	w = gtk_hseparator_new();
-	gtk_box_pack_start(GTK_BOX(dialog_vbox), w, TRUE, FALSE, 3);
-	controls = gtk_vbox_new(FALSE, 10);
-	gtk_box_pack_start(GTK_BOX(dialog_vbox), controls, TRUE, TRUE, 0);
-	vbox = gtk_vbox_new(FALSE, 3);
-	gtk_box_pack_start(GTK_BOX(controls), vbox, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(dialog_vbox), w, true, false, 3);
+	controls = gtk_vbox_new(false, 10);
+	gtk_widget_set_sensitive(controls, false);
+	gtk_box_pack_start(GTK_BOX(dialog_vbox), controls, true, true, 0);
+	vbox = gtk_vbox_new(false, 3);
+	gtk_box_pack_start(GTK_BOX(controls), vbox, false, false, 0);
 	autoconf = gtk_check_button_new_with_label(
 		_("Automatically configure empty options"));
-	gtk_box_pack_start(GTK_BOX(vbox), autoconf, FALSE, FALSE, 3);
-	table = gtk_table_new(6, 2, FALSE);
-	gtk_box_pack_start(GTK_BOX(controls), table, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), autoconf, false, false, 3);
+	table = gtk_table_new(6, 2, false);
+	gtk_box_pack_start(GTK_BOX(controls), table, false, false, 0);
 
 #define attach_label(a, b, c, d, e)					      \
 	do {								      \
@@ -459,7 +492,7 @@ dhcpcd_prefs_show(void)
 #define attach_entry(a, b, c, d, e)					      \
 	gtk_table_attach(GTK_TABLE(table), a, b, c, d, e,		      \
 	    GTK_EXPAND | GTK_FILL | GTK_SHRINK, GTK_FILL | GTK_SHRINK, 3, 3); \
-	
+									      \
 	w = gtk_label_new(_("IP Address:"));
 	address = gtk_entry_new();
 	gtk_entry_set_max_length(GTK_ENTRY(address), 15);
@@ -488,20 +521,21 @@ dhcpcd_prefs_show(void)
 	attach_label(w, 0, 1, 4, 5);
 	attach_entry(dns_search, 1, 2, 4, 5);
 
-	w = gtk_label_new(_("NTP Servers:"));
-	ntp_servers = gtk_entry_new();
-	g_signal_connect(G_OBJECT(ntp_servers), "focus-out-event",
-	    G_CALLBACK(entry_lost_focus), NULL);
-	attach_label(w, 0, 1, 5, 6);
-	attach_entry(ntp_servers, 1, 2, 5, 6);
-
-	hbox = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(dialog_vbox), hbox, TRUE, TRUE, 3);
-	w = gtk_button_new_from_stock(GTK_STOCK_CLEAR);
-	gtk_box_pack_start(GTK_BOX(hbox), w, FALSE, FALSE, 0);
-	g_signal_connect(G_OBJECT(w), "clicked", on_clear, NULL);
+	hbox = gtk_hbox_new(false, 10);
+	gtk_box_pack_start(GTK_BOX(dialog_vbox), hbox, true, true, 3);
+	clear = gtk_button_new_from_stock(GTK_STOCK_CLEAR);
+	gtk_widget_set_sensitive(clear, false);
+	gtk_box_pack_start(GTK_BOX(hbox), clear, false, false, 0);
+	g_signal_connect(G_OBJECT(clear), "clicked", on_clear, NULL);
+	rebind = gtk_button_new_with_mnemonic(_("_Rebind"));
+	gtk_widget_set_sensitive(rebind, false);
+	w = gtk_image_new_from_stock(GTK_STOCK_EXECUTE,
+	    GTK_ICON_SIZE_BUTTON);
+	gtk_button_set_image(GTK_BUTTON(rebind), w);
+	gtk_box_pack_start(GTK_BOX(hbox), rebind, false, false, 0);
+	g_signal_connect(G_OBJECT(rebind), "clicked", on_rebind, NULL);
 	w = gtk_button_new_from_stock(GTK_STOCK_CLOSE);
-	gtk_box_pack_end(GTK_BOX(hbox), w, FALSE, FALSE, 0);
+	gtk_box_pack_end(GTK_BOX(hbox), w, false, false, 0);
 	g_signal_connect(G_OBJECT(w), "clicked",
 	    dhcpcd_prefs_close, NULL);
 	
