@@ -218,7 +218,7 @@ wpa_configure(const struct if_ap *ifa)
 	    GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
 	    NULL);
 	gtk_window_set_resizable(GTK_WINDOW(dialog), false);
-	gtk_window_set_icon_name(GTK_WINDOW(dialog), "config-users");
+	gtk_window_set_icon_name(GTK_WINDOW(dialog), "network-wireless-encrypted");
 	gtk_dialog_set_default_response(GTK_DIALOG(dialog),
 	    GTK_RESPONSE_ACCEPT);
 	vbox = GTK_DIALOG(dialog)->vbox;
