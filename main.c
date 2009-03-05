@@ -252,7 +252,7 @@ print_if_msg(const struct if_msg *ifm)
 		reason = N_("Acquired address");
 	else {
 		if (g_strcmp0(ifm->reason, "EXPIRE") == 0)
-			reason = N_("Failed to renew");
+			reason = N_("Expired");
 		else if (g_strcmp0(ifm->reason, "CARRIER") == 0) {
 			if (ifm->wireless) {
 				reason = N_("Associated with");
