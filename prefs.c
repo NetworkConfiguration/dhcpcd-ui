@@ -357,7 +357,8 @@ on_rebind(void)
 
 	make_config(config);
 	if (save_config(block, name, config)) {
-		set_name_active_icon("document-save");
+		set_name_active_icon(config->len == 0 ?
+		    "document-new" : "document-save");
 		show_config(config);
 		if (g_strcmp0(block, "interface") == 0)
 			rebind_interface(name);
@@ -491,8 +492,8 @@ dhcpcd_prefs_show(void)
 	} while (0)
 #define attach_entry(a, b, c, d, e)					      \
 	gtk_table_attach(GTK_TABLE(table), a, b, c, d, e,		      \
-	    GTK_EXPAND | GTK_FILL | GTK_SHRINK, GTK_FILL | GTK_SHRINK, 3, 3); \
-									      \
+	    GTK_EXPAND | GTK_FILL | GTK_SHRINK, GTK_FILL | GTK_SHRINK, 3, 3);
+	
 	w = gtk_label_new(_("IP Address:"));
 	address = gtk_entry_new();
 	gtk_entry_set_max_length(GTK_ENTRY(address), 15);
