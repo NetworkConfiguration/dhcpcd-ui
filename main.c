@@ -689,7 +689,7 @@ main(int argc, char *argv[])
 	textdomain(PACKAGE); 
 
 	gtk_init(&argc, &argv);
-	g_set_application_name("dhcpcd Monitor");
+	g_set_application_name("Network Configurator");
 	status_icon = gtk_status_icon_new_from_icon_name("network-offline");
 	if (status_icon == NULL)
 		status_icon =
