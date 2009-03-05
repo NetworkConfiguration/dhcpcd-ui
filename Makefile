@@ -3,7 +3,7 @@
 # Copyright 2008 Roy Marples <roy@marples.name>
 
 PROG=		dhcpcd-gtk
-SRCS=		main.c menu.c prefs.c wpa.c
+SRCS=		main.c menu.c dhcpcd-config.c prefs.c wpa.c
 
 SYSCONFDIR?=	${PREFIX}/etc/xdg/autostart
 FILESDIR?=	${SYSCONFDIR}
