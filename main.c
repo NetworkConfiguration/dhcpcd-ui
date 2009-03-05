@@ -255,7 +255,7 @@ print_if_msg(const struct if_msg *ifm)
 			reason = N_("Failed to renew");
 		else if (g_strcmp0(ifm->reason, "CARRIER") == 0) {
 			if (ifm->wireless) {
-				reason = N_("Asssociated with");
+				reason = N_("Associated with");
 				if (ifm->ssid != NULL)
 					showssid = true;
 			} else
