@@ -416,7 +416,7 @@ dhcpcd_prefs_show(void)
 	dialog = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	g_signal_connect(G_OBJECT(dialog), "destroy", on_destroy, NULL);
 
-	gtk_window_set_title(GTK_WINDOW(dialog), _("dhcpcd preferences"));
+	gtk_window_set_title(GTK_WINDOW(dialog), _("Network Preferences"));
 	gtk_window_set_resizable(GTK_WINDOW(dialog), false);
 	gtk_window_set_icon_name(GTK_WINDOW(dialog), "config-users");
 	gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER);
