@@ -1,6 +1,6 @@
 [Desktop Entry]
-Name=dhcpcd Monitor
-Comment=Monitor your network connections
+Name=Network Configurator
+Comment=Configure and monitor your network connections
 Exec=dhcpcd-gtk
 Terminal=false
 Type=Application
