@@ -33,21 +33,16 @@ static const char *copyright = "Copyright (c) 2009 Roy Marples";
 static const char *authors[] = { "Roy Marples <roy@marples.name>", NULL };
 
 static void
-on_pref(_unused GtkMenuItem *item, _unused gpointer data)
+on_pref(void)
 {
 	dhcpcd_prefs_show();
 }
 
 
 static void
-on_quit(_unused GtkMenuItem *item, _unused gpointer data)
+on_quit(void)
 {
 	gtk_main_quit();
-}
-
-static void
-on_help(_unused GtkMenuItem *item, _unused gpointer data)
-{
 }
 
 static void
@@ -60,7 +55,7 @@ url_show(GtkAboutDialog *dialog, const char *url)
 }
 
 static void
-email_hook(GtkAboutDialog *dialog, const char *url, _unused gpointer p)
+email_hook(GtkAboutDialog *dialog, const char *url, _unused gpointer data)
 {
 	char *address;
 
@@ -70,7 +65,7 @@ email_hook(GtkAboutDialog *dialog, const char *url, _unused gpointer p)
 }
 
 static void
-url_hook(GtkAboutDialog *dialog, const char *url, _unused gpointer p)
+url_hook(GtkAboutDialog *dialog, const char *url, _unused gpointer data)
 {
 	url_show(dialog, url);
 }
@@ -82,9 +77,9 @@ ssid_hook(_unused GtkMenuItem *item, gpointer data)
 }
 
 static void
-on_about(_unused GtkMenuItem *item, _unused gpointer data)
+on_about(_unused GtkMenuItem *item)
 {
-	gtk_window_set_default_icon_name(GTK_STOCK_NETWORK);
+	gtk_window_set_default_icon_name("network-transmit-receive");
 	gtk_about_dialog_set_email_hook(email_hook, NULL, NULL);
 	gtk_about_dialog_set_url_hook(url_hook, NULL, NULL);
 	gtk_show_about_dialog(NULL,
@@ -93,7 +88,8 @@ on_about(_unused GtkMenuItem *item, _unused gpointer data)
 	    "website-label", "dhcpcd Website",
 	    "website", "http://roy.marples.name/projects/dhcpcd",
 	    "authors", authors,
-	    "logo-icon-name", GTK_STOCK_NETWORK,
+	    "logo-icon-name", "network-transmit-receive",
+	    "comments", "Part of the dhcpcd project",
 	    NULL);
 }
 
@@ -149,7 +145,7 @@ add_scan_results(GtkMenu *menu, const struct if_msg *ifm)
 }
 
 static void
-on_activate(GtkStatusIcon *icon, _unused guint button, _unused guint32 atime, _unused gpointer data)
+on_activate(GtkStatusIcon *icon)
 {
 	GtkMenu *menu;
 	const struct if_msg *ifm;
@@ -215,14 +211,6 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 
 	item = gtk_separator_menu_item_new();
-	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-
-	item = gtk_image_menu_item_new_with_mnemonic(_("_Help"));
-	image = gtk_image_new_from_icon_name(GTK_STOCK_HELP,
-	    GTK_ICON_SIZE_MENU);
-	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
-	g_signal_connect(G_OBJECT(item), "activate",
-	    G_CALLBACK(on_help), icon);
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 
 	item = gtk_image_menu_item_new_with_mnemonic(_("_About"));

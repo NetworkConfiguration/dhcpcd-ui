@@ -448,10 +448,9 @@ dhcpcd_event(_unused DBusGProxy *proxy, GHashTable *config, _unused void *data)
 	struct if_msg *ifm, *ifp;
 	bool rem;
 	GSList *gl;
-	char *msg, *title;
-	const char *act, *net;
+	char *msg;
+	const char *icon;
 	const char *const *r;
-	in_addr_t ipn;
 
 	ifm = make_if_msg(config);
 	if (ifm == NULL)
@@ -484,33 +483,17 @@ dhcpcd_event(_unused DBusGProxy *proxy, GHashTable *config, _unused void *data)
 		return;
 
 	msg = print_if_msg(ifm);
-	title = NULL;
 	if (if_up(ifm))
-		act = N_("Connected to ");
+		icon = "network-transmit-receive";
 	else
-		act = NULL;
+		icon = "network-transmit";
 	for (r = down_reasons; *r; r++) {
 		if (g_strcmp0(*r, ifm->reason) == 0) {
-			act = N_("Disconnected from ");
+			icon = "network-offline";
 			break;
 		}
-	}
-	if (act && ifm->ip.s_addr) {
-		ipn = htonl(ifm->ip.s_addr);
-		if (IN_LINKLOCAL(ipn))
-			net = N_("private network");
-		else if (IN_PRIVATE(ipn))
-			net = N_("LAN");
-		else
-			net = N_("internet");
-		title = g_strconcat(act, net, NULL);
-	}
-
-	if (title) {
-		notify(title, msg, GTK_STOCK_NETWORK);
-		g_free(title);
-	} else
-		notify(N_("Interface event"), msg, GTK_STOCK_NETWORK);
+ 	}
+	notify(_("Network event"), msg, icon);
 	g_free(msg);
 }
 
@@ -598,7 +581,7 @@ check_status(const char *status)
 		msg = N_(last ?
 		    "Connection to dhcpcd lost" : "dhcpcd not running");
 		gtk_status_icon_set_tooltip(status_icon, msg);
-		notify(_("No network"), msg, GTK_STOCK_NETWORK);
+		notify(_("No network"), msg, "network-offline");
 	}
 
 	refresh = false;
@@ -669,7 +652,7 @@ dhcpcd_scan_results(_unused DBusGProxy *proxy, const char *iface,
 	g_slist_free(ifm->scan_results);
 	ifm->scan_results = aps;
 	if (txt != NULL) {
-		notify(N_("Found new AP"), txt, GTK_STOCK_NETWORK);
+		notify(N_("New Access Points"), txt, "network-wireless");
 		g_free(txt);
 	}
 }
