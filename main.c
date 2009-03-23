@@ -250,29 +250,31 @@ print_if_msg(const struct if_msg *ifm)
 	showssid = false;
 	if (if_up(ifm))
 		reason = N_("Acquired address");
-	else {
-		if (g_strcmp0(ifm->reason, "EXPIRE") == 0)
-			reason = N_("Expired");
-		else if (g_strcmp0(ifm->reason, "CARRIER") == 0) {
-			if (ifm->wireless) {
-				reason = N_("Associated with");
-				if (ifm->ssid != NULL)
-					showssid = true;
+	else if (g_strcmp0(ifm->reason, "EXPIRE") == 0)
+		reason = N_("Expired");
+	else if (g_strcmp0(ifm->reason, "CARRIER") == 0) {
+		if (ifm->wireless) {
+			reason = N_("Associated with");
+			if (ifm->ssid != NULL)
+				showssid = true;
+		} else
+			reason = N_("Cable plugged in");
+		showip = false;
+	} else if (g_strcmp0(ifm->reason, "NOCARRIER") == 0) {
+		if (ifm->wireless) {
+			if (ifm->ssid != NULL || ifm->ip.s_addr != 0) {
+				reason = N_("Disassociated from");
+				showssid = true;
 			} else
-				reason = N_("Cable plugged in");
-			showip = false;
-		} else if (g_strcmp0(ifm->reason, "NOCARRIER") == 0) {
-			if (ifm->wireless) {
-				if (ifm->ssid != NULL || ifm->ip.s_addr != 0) {
-					reason = N_("Disassociated from");
-					showssid = true;
-				} else
-					reason = N_("Not associated");
-			} else
-				reason = N_("Cable unplugged");
-			showip = false;
-		}
-	}
+				reason = N_("Not associated");
+		} else
+			reason = N_("Cable unplugged");
+		showip = false;
+	} else if (g_strcmp0(ifm->reason, "FAIL") == 0)
+		reason = N_("Automatic configuration not possible");
+	else if (g_strcmp0(ifm->reason, "3RDPARTY") == 0)
+		reason = N_("Waiting for 3rd Party configuration");
+
 	if (reason == NULL)
 		reason = ifm->reason;
 	
@@ -652,7 +654,9 @@ dhcpcd_scan_results(_unused DBusGProxy *proxy, const char *iface,
 	g_slist_free(ifm->scan_results);
 	ifm->scan_results = aps;
 	if (txt != NULL) {
-		notify(N_("New Access Points"), txt, "network-wireless");
+		notify(strchr(txt, '\n') ?
+		    N_("New Access Points") : N_("New Access Point"),
+		    txt, "network-wireless");
 		g_free(txt);
 	}
 }
