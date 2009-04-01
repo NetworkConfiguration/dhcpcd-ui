@@ -22,7 +22,6 @@ _proginstall: ${PROG}
 
 include ${MK}/depend.mk
 include ${MK}/files.mk
-include ${MK}/dist.mk
 
 install: _proginstall _filesinstall
 

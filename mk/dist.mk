@@ -7,7 +7,7 @@ DISTFILE?=	${DISTPREFIX}.tar.bz2
 
 CLEANFILES+=	*.tar.bz2
 
-_VERSION_SH=	sed -n 's/\#define VERSION[[:space:]]*"\(.*\)".*/\1/p' config.h
+_VERSION_SH=	sed -n 's/\#define VERSION[[:space:]]*"\(.*\)".*/\1/p' src/config.h
 _VERSION!=	${_VERSION_SH}
 VERSION=	${_VERSION}$(shell ${_VERSION_SH})
 
