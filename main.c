@@ -39,6 +39,7 @@
 
 DBusGProxy *dbus = NULL;
 GSList *interfaces = NULL;
+GtkIconTheme *icontheme = NULL;
 
 static GtkStatusIcon *status_icon;
 static int ani_timer;
@@ -202,6 +203,9 @@ make_if_msg(GHashTable *config)
 		return NULL;
 	ifm = g_malloc0(sizeof(*ifm));
 	ifm->ifname = g_strdup(g_value_get_string(val));
+	val = g_hash_table_lookup(config, "Flags");
+	if (val)
+		ifm->flags = g_value_get_uint(val);
 	val = g_hash_table_lookup(config, "Reason");
 	if (val)
 		ifm->reason = g_strdup(g_value_get_string(val));
@@ -677,11 +681,9 @@ main(int argc, char *argv[])
 
 	gtk_init(&argc, &argv);
 	g_set_application_name("Network Configurator");
+	icontheme = gtk_icon_theme_get_default();
+	gtk_icon_theme_append_search_path(icontheme, ICONDIR);
 	status_icon = gtk_status_icon_new_from_icon_name("network-offline");
-	if (status_icon == NULL)
-		status_icon =
-		    gtk_status_icon_new_from_stock(GTK_STOCK_DISCONNECT);
-	//network_offline = gtk_status_icon_get_pixbuf(status_icon);
 	
 	gtk_status_icon_set_tooltip(status_icon,
 	    _("Connecting to dhcpcd ..."));

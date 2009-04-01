@@ -5,9 +5,12 @@
 PROG=		dhcpcd-gtk
 SRCS=		main.c menu.c dhcpcd-config.c prefs.c wpa.c
 
+ICONDIR?=	${PREFIX}/share/dhcpcd/icons
 SYSCONFDIR?=	${PREFIX}/etc/xdg/autostart
 FILESDIR?=	${SYSCONFDIR}
 FILES=		dhcpcd-gtk.desktop
+
+CPPFLAGS+=	-DICONDIR=\"${ICONDIR}\"
 
 _PKGCFLAGS_SH=	pkg-config --cflags dbus-glib-1 gtk+-2.0 libnotify
 _PKGCFLAGS!=	${_PKGCFLAGS_SH}

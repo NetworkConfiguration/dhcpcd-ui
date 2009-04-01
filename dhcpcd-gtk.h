@@ -68,6 +68,7 @@ struct if_ap {
 
 struct if_msg {
 	char *ifname;
+	unsigned int flags;
 	char *reason;
 	struct in_addr ip;
 	unsigned char cidr;
@@ -78,6 +79,7 @@ struct if_msg {
 
 extern DBusGProxy *dbus;
 extern GSList *interfaces;
+extern GtkIconTheme *icontheme;
 
 void notify_close(void);
 #endif

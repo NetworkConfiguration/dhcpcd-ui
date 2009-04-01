@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#include <net/if.h>
+
 #include <errno.h>
 
 #include "dhcpcd-config.h"
@@ -34,6 +36,7 @@ static GtkWidget *dialog, *blocks, *names, *controls, *clear, *rebind;
 static GtkWidget *autoconf, *address, *router, *dns_servers, *dns_search;
 static GPtrArray *config;
 static char *block, *name;
+static const struct if_msg *iface;
 
 static void
 show_config(GPtrArray *array)
@@ -44,8 +47,11 @@ show_config(GPtrArray *array)
 	if (get_config_static(array, "ip_address=", &val) != -1)
 		autocnf = false;
 	else {
-		get_config(array, "inform", &val);
-		autocnf = true;
+		if (get_config(array, "inform", &val) == -1 &&
+		    (iface && iface->flags & IFF_POINTOPOINT))
+			autocnf = false;
+		else
+			autocnf = true;
 	}
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(autoconf), autocnf);
 	gtk_entry_set_text(GTK_ENTRY(address), val ? val : "");
@@ -78,15 +84,19 @@ combo_active_text(GtkWidget *widget)
 static void
 make_config(GPtrArray *array)
 {
-	const char *val;
+	const char *val, ns[] = "";
 	bool a;
 
 	a = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(autoconf));
-	val = gtk_entry_get_text(GTK_ENTRY(address));
-	if (*val == '\0')
-		val = NULL;
-	set_option(array, false, "inform", a ? val : NULL);
-	set_option(array, true, "ip_address=", a ? NULL : val);
+	if (iface && iface->flags & IFF_POINTOPOINT)
+		set_option(array, true, "ip_address=", a ? NULL : ns);
+	else {
+		val = gtk_entry_get_text(GTK_ENTRY(address));
+		if (*val == '\0')
+			val = NULL;
+		set_option(array, false, "inform", a ? val : NULL);
+		set_option(array, true, "ip_address=", a ? NULL : val);
+	}
 	
 	val = gtk_entry_get_text(GTK_ENTRY(router));
 	if (a && *val == '\0')
@@ -104,21 +114,29 @@ make_config(GPtrArray *array)
 	set_option(array, true, "domain_search=", val);
 }
 
+static GdkPixbuf *
+load_icon(const char *iname)
+{
+	int width, height;
+
+	if (!gtk_icon_size_lookup(GTK_ICON_SIZE_MENU, &width, &height))
+		return NULL;
+	return gtk_icon_theme_load_icon(icontheme, iname, MIN(width, height),
+	    0, NULL);
+}
+
 static void
 set_name_active_icon(const char *iname)
 {
 	GtkListStore *store;
 	GtkTreeIter iter;
-	GtkIconTheme *it;
 	GtkTreePath *path;
 	GdkPixbuf *pb;
 
 	store = GTK_LIST_STORE(gtk_combo_box_get_model(GTK_COMBO_BOX(names)));
 	if (!gtk_combo_box_get_active_iter(GTK_COMBO_BOX(names), &iter))
 		return;
-	it = gtk_icon_theme_get_default();
-	pb = gtk_icon_theme_load_icon(it, iname,
-	    GTK_ICON_SIZE_MENU, 0, NULL);
+	pb = load_icon(iname);
 	if (pb) {
 		path = gtk_tree_model_get_path(GTK_TREE_MODEL(store), &iter);
 		gtk_list_store_set(store, &iter, 0, pb, -1);
@@ -218,8 +236,7 @@ blocks_on_change(GtkWidget *widget)
 			iname = "document-save";
 		else
 			iname = "document-new";
-		pb = gtk_icon_theme_load_icon(it, iname,
-		    GTK_ICON_SIZE_MENU, 0, &error);
+		pb = load_icon(iname);
 		gtk_list_store_append(store, &iter);
 		gtk_list_store_set(store, &iter, 0, pb, 1, nn, -1);
 		g_object_unref(pb);
@@ -232,8 +249,7 @@ blocks_on_change(GtkWidget *widget)
 				break;
 		if (l != NULL)
 			continue;
-		pb = gtk_icon_theme_load_icon(it, "document-save",
-		    GTK_ICON_SIZE_MENU, 0, &error);
+		pb = load_icon("document-save");
 		gtk_list_store_append(store, &iter);
 		gtk_list_store_set(store, &iter, 0, pb, 1, *lp, -1);
 		g_object_unref(pb);
@@ -247,6 +263,7 @@ blocks_on_change(GtkWidget *widget)
 static void
 names_on_change(void)
 {
+	GSList *l;
 	
 	if (name) {
 		make_config(config);
@@ -255,6 +272,16 @@ names_on_change(void)
 	}
 	name = combo_active_text(names);
 	free_config(&config);
+	iface = NULL;
+	if (g_strcmp0(block, "interface") == 0) {
+		for (l = interfaces; l; l = l->next) {
+			iface = (const struct if_msg *)l->data;
+			if (g_strcmp0(name, iface->ifname) == 0)
+				break;
+		}
+	}
+	gtk_widget_set_sensitive(address,
+	    iface && (iface->flags & IFF_POINTOPOINT) == 0);
 	config = load_config(block, name);
 	show_config(config);
 	gtk_widget_set_sensitive(controls, name ? true : false);
@@ -336,15 +363,15 @@ on_clear(void)
 }
 
 static void
-rebind_interface(const char *iface)
+rebind_interface(const char *ifname)
 {
 	GError *error;
 	
 	error = NULL;
 	if (!dbus_g_proxy_call(dbus, "Rebind", &error,
-		G_TYPE_STRING, iface, G_TYPE_INVALID, G_TYPE_INVALID))
+		G_TYPE_STRING, ifname, G_TYPE_INVALID, G_TYPE_INVALID))
 	{
-		g_critical("Rebind: %s: %s", iface, error->message);
+		g_critical("Rebind: %s: %s", ifname, error->message);
 		g_clear_error(&error);
 	}
 }
@@ -404,8 +431,6 @@ dhcpcd_prefs_show(void)
 	GtkListStore *store;
 	GtkTreeIter iter;
 	GtkCellRenderer *rend;
-	GError *error;
-	GtkIconTheme *it;
 	GdkPixbuf *pb;
 	
 	if (dialog) {
@@ -418,7 +443,8 @@ dhcpcd_prefs_show(void)
 
 	gtk_window_set_title(GTK_WINDOW(dialog), _("Network Preferences"));
 	gtk_window_set_resizable(GTK_WINDOW(dialog), false);
-	gtk_window_set_icon_name(GTK_WINDOW(dialog), "network-transmit-receive");
+	gtk_window_set_icon_name(GTK_WINDOW(dialog),
+	    "network-transmit-receive");
 	gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER);
 	gtk_window_set_type_hint(GTK_WINDOW(dialog),
 	    GDK_WINDOW_TYPE_HINT_DIALOG);
@@ -432,15 +458,11 @@ dhcpcd_prefs_show(void)
 	w = gtk_label_new("Configure:");
 	gtk_box_pack_start(GTK_BOX(hbox), w, false, false, 3);
 	store = gtk_list_store_new(2, GDK_TYPE_PIXBUF, G_TYPE_STRING);
-	it = gtk_icon_theme_get_default();
-	error = NULL;
-	pb = gtk_icon_theme_load_icon(it, "network-wired",
-	    GTK_ICON_SIZE_MENU, 0, &error);	
+	pb = load_icon("network-wired");
 	gtk_list_store_append(store, &iter);
 	gtk_list_store_set(store, &iter, 0, pb, 1, "interface", -1);
 	g_object_unref(pb);
-	pb = gtk_icon_theme_load_icon(it, "network-wireless",
-	    GTK_ICON_SIZE_MENU, 0, &error);
+	pb = load_icon("network-wireless");
 	gtk_list_store_append(store, &iter);
 	gtk_list_store_set(store, &iter, 0, pb, 1, "ssid", -1);
 	g_object_unref(pb);
