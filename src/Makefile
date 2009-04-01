@@ -22,6 +22,6 @@ _PKGLIBS!=	${_PKGLIBS_SH}
 PKGLIBS?=	${_PKGLIBS}$(shell ${_PKGLIBS_SH})
 LDADD+=		${PKGLIBS}
 
-MK=		mk
+MK=		../mk
 include ${MK}/sys.mk
 include ${MK}/prog.mk
