@@ -28,26 +28,24 @@
 
 #include <errno.h>
 
-#include "dhcpcd-config.h"
 #include "dhcpcd-gtk.h"
-#include "prefs.h"
 
 static GtkWidget *dialog, *blocks, *names, *controls, *clear, *rebind;
 static GtkWidget *autoconf, *address, *router, *dns_servers, *dns_search;
-static GPtrArray *config;
+static DHCPCD_CONFIG *config;
 static char *block, *name;
-static const struct if_msg *iface;
+static DHCPCD_IF *iface;
 
 static void
-show_config(GPtrArray *array)
+show_config(DHCPCD_CONFIG *conf)
 {
 	const char *val;
 	bool autocnf;
 
-	if (get_config_static(array, "ip_address=", &val) != -1)
+	if ((val = dhcpcd_config_get_static(conf, "ip_address=")) != NULL)
 		autocnf = false;
 	else {
-		if (get_config(array, "inform", &val) == -1 &&
+		if ((val = dhcpcd_config_get(conf, "inform")) == NULL &&
 		    (iface && iface->flags & IFF_POINTOPOINT))
 			autocnf = false;
 		else
@@ -55,11 +53,11 @@ show_config(GPtrArray *array)
 	}
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(autoconf), autocnf);
 	gtk_entry_set_text(GTK_ENTRY(address), val ? val : "");
-	get_config_static(array, "routers=", &val);
+	val = dhcpcd_config_get_static(conf, "routers=");
 	gtk_entry_set_text(GTK_ENTRY(router), val ? val : "");
-	get_config_static(array, "domain_name_servers=", &val);
+	val = dhcpcd_config_get_static(conf, "domain_name_servers=");
 	gtk_entry_set_text(GTK_ENTRY(dns_servers), val ? val : "");
-	get_config_static(array, "domain_search=", &val);
+	val = dhcpcd_config_get_static(conf, "domain_search=");
 	gtk_entry_set_text(GTK_ENTRY(dns_search), val ? val : "");
 }
 
@@ -81,37 +79,58 @@ combo_active_text(GtkWidget *widget)
 	return text;
 }
 
-static void
-make_config(GPtrArray *array)
+static bool
+set_option(DHCPCD_CONFIG **conf, bool s, const char *opt, const char *val,
+	bool *ret)
+{
+	bool r;
+
+	if (s)
+		r = dhcpcd_config_set_static(conf, opt, val);
+	else
+		r = dhcpcd_config_set(conf, opt, val);
+	if (r)
+		return true;
+	g_error("libdhcpcd: %s", strerror(errno));
+	if (ret)
+		*ret = false;
+	return false;
+}
+
+static bool
+make_config(DHCPCD_CONFIG **conf)
 {
 	const char *val, ns[] = "";
-	bool a;
+	bool a, ret;
 
+	ret = true;
 	a = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(autoconf));
 	if (iface && iface->flags & IFF_POINTOPOINT)
-		set_option(array, true, "ip_address=", a ? NULL : ns);
+		set_option(conf, true, "ip_address=", a ? NULL : ns, &ret);
 	else {
 		val = gtk_entry_get_text(GTK_ENTRY(address));
 		if (*val == '\0')
 			val = NULL;
-		set_option(array, false, "inform", a ? val : NULL);
-		set_option(array, true, "ip_address=", a ? NULL : val);
+		set_option(conf, false, "inform", a ? val : NULL, &ret);
+		set_option(conf, true, "ip_address=", a ? NULL : val, &ret);
 	}
 	
 	val = gtk_entry_get_text(GTK_ENTRY(router));
 	if (a && *val == '\0')
 		val = NULL;
-	set_option(array, true, "routers=", val);
+	set_option(conf, true, "routers=", val, &ret);
 	
 	val = gtk_entry_get_text(GTK_ENTRY(dns_servers));
 	if (a && *val == '\0')
 		val = NULL;
-	set_option(array, true, "domain_name_servers=", val);
+	set_option(conf, true, "domain_name_servers=", val, &ret);
 	
 	val = gtk_entry_get_text(GTK_ENTRY(dns_search));
 	if (a && *val == '\0')
 		val = NULL;
-	set_option(array, true, "domain_search=", val);
+	set_option(conf, true, "domain_search=", val, &ret);
+	
+	return ret;
 }
 
 static GdkPixbuf *
@@ -121,8 +140,8 @@ load_icon(const char *iname)
 
 	if (!gtk_icon_size_lookup(GTK_ICON_SIZE_MENU, &width, &height))
 		return NULL;
-	return gtk_icon_theme_load_icon(icontheme, iname, MIN(width, height),
-	    0, NULL);
+	return gtk_icon_theme_load_icon(gtk_icon_theme_get_default(),
+	    iname, MIN(width, height), 0, NULL);
 }
 
 static void
@@ -147,50 +166,44 @@ set_name_active_icon(const char *iname)
 }
 
 static GSList *
-list_interfaces(void)
+list_interfaces(DHCPCD_CONNECTION *con)
 {
-	GSList *list, *l;
-	const struct if_msg *ifm;
+	GSList *list;
+	DHCPCD_IF *i;
 
 	list = NULL;
-	for (l = interfaces; l; l = l->next) {
-		ifm = (const struct if_msg *)l->data;
-		list = g_slist_append(list, ifm->ifname);
-	}
+	for (i = dhcpcd_interfaces(con); i; i = i->next)
+		list = g_slist_append(list, i->ifname);
 	return list;
 }
 
 static GSList *
-list_ssids(void)
+list_ssids(WI_SCAN *scans)
 {
-	GSList *list, *l, *a, *la;
-	const struct if_msg *ifm;
-	const struct if_ap *ifa;
+	GSList *list, *l;
+	WI_SCAN *w;
+	DHCPCD_WI_SCAN *wis;
 
 	list = NULL;
-	for (l = interfaces; l; l = l->next) {
-		ifm = (const struct if_msg *)l->data;
-		if (!ifm->wireless)
-			continue;
-		for (a = ifm->scan_results; a; a = a->next) {
-			ifa = (const struct if_ap *)a->data;
-			for (la = list; la; la = la->next)
-				if (g_strcmp0((const char *)la->data,
-					ifa->ssid) == 0)
+	for (w = scans; w; w = w->next) {
+		for (wis = w->scans; wis; wis = wis->next) {
+			for (l = list; l; l = l->next)
+				if (g_strcmp0((const char *)l->data,
+					wis->ssid) == 0)
 					break;
-			if (la == NULL)
-				list = g_slist_append(list, ifa->ssid);
+			if (l == NULL)
+				list = g_slist_append(list, wis->ssid);
 		}
 	}
 	return list;
 }
 
 static void
-blocks_on_change(GtkWidget *widget)
+blocks_on_change(GtkWidget *widget, gpointer data)
 {
+	DHCPCD_CONNECTION *con;
 	GtkListStore *store;
 	GtkTreeIter iter;
-	GError *error;
 	char **list, **lp;
 	const char *iname, *nn;
 	GSList *l, *new_names;
@@ -198,10 +211,12 @@ blocks_on_change(GtkWidget *widget)
 	GdkPixbuf *pb;
 	int n;
 
+	con = (DHCPCD_CONNECTION *)data;
 	if (name) {
-		make_config(config);
-		save_config(block, name, config);
-		free_config(&config);
+		if (make_config(&config))
+			dhcpcd_config_save(con, block, name, config);
+		dhcpcd_config_free(config);
+		config = NULL;
 		show_config(config);
 		g_free(block);
 		g_free(name);
@@ -210,21 +225,13 @@ blocks_on_change(GtkWidget *widget)
 	block = combo_active_text(widget);
 	store = GTK_LIST_STORE(gtk_combo_box_get_model(GTK_COMBO_BOX(names)));
 	gtk_list_store_clear(store);
-	error = NULL;
-	if (!dbus_g_proxy_call(dbus, "GetConfigBlocks", &error,
-		G_TYPE_STRING, block, G_TYPE_INVALID,
-		G_TYPE_STRV, &list, G_TYPE_INVALID))
-	{
-		g_warning("GetConfigBlocks: %s", error->message);
-		g_clear_error(&error);
-		return;
-	}
-
+	list = dhcpcd_config_blocks_get(con, block);
+	
 	it = gtk_icon_theme_get_default();
 	if (g_strcmp0(block, "interface") == 0)
-		new_names = list_interfaces();
+		new_names = list_interfaces(con);
 	else
-		new_names = list_ssids();
+		new_names = list_ssids(wi_scans);
 
 	n = 0;
 	for (l = new_names; l; l = l->next) {
@@ -261,28 +268,35 @@ blocks_on_change(GtkWidget *widget)
 }
 
 static void
-names_on_change(void)
+names_on_change(_unused GtkWidget *widget, gpointer data)
 {
-	GSList *l;
-	
+	DHCPCD_CONNECTION *con;
+	DHCPCD_IF *i;
+
+	con = (DHCPCD_CONNECTION *)data;
 	if (name) {
-		make_config(config);
-		save_config(block, name, config);
+		if (make_config(&config))
+			dhcpcd_config_save(con, block, name, config);
 		g_free(name);
 	}
 	name = combo_active_text(names);
-	free_config(&config);
+	dhcpcd_config_free(config);
 	iface = NULL;
 	if (g_strcmp0(block, "interface") == 0) {
-		for (l = interfaces; l; l = l->next) {
-			iface = (const struct if_msg *)l->data;
-			if (g_strcmp0(name, iface->ifname) == 0)
+		for (i = dhcpcd_interfaces(con); i; i = i->next)
+			if (g_strcmp0(name, i->ifname) == 0) {
+				iface = i;
 				break;
-		}
+			}
 	}
 	gtk_widget_set_sensitive(address,
 	    iface && (iface->flags & IFF_POINTOPOINT) == 0);
-	config = load_config(block, name);
+	if (block && name) {
+		config = dhcpcd_config_load(con, block, name);
+		if (config == NULL && dhcpcd_error(con))
+			g_error("libdhcpcd: %s\n", dhcpcd_error(con));
+	} else
+		config = NULL;
 	show_config(config);
 	gtk_widget_set_sensitive(controls, name ? true : false);
 	gtk_widget_set_sensitive(clear, name ? true : false);
@@ -351,73 +365,63 @@ entry_lost_focus(GtkEntry *entry)
 }
 
 static void
-on_clear(void)
+on_clear(_unused GtkObject *o, gpointer data)
 {
+	DHCPCD_CONNECTION *con;
 
-	free_config(&config);
-	config = g_ptr_array_new();
-	if (save_config(block, name, config)) {
+	con = (DHCPCD_CONNECTION *)data;
+	dhcpcd_config_free(config);
+	config = NULL;
+	if (dhcpcd_config_save(con, block, name, config)) {
 		set_name_active_icon("document-new");
 		show_config(config);
 	}
 }
 
 static void
-rebind_interface(const char *ifname)
+on_rebind(_unused GtkWidget *widget, gpointer data)
 {
-	GError *error;
-	
-	error = NULL;
-	if (!dbus_g_proxy_call(dbus, "Rebind", &error,
-		G_TYPE_STRING, ifname, G_TYPE_INVALID, G_TYPE_INVALID))
-	{
-		g_critical("Rebind: %s: %s", ifname, error->message);
-		g_clear_error(&error);
-	}
-}
+	DHCPCD_CONNECTION *con;
+	DHCPCD_IF *i;
 
-static void
-on_rebind(void)
-{
-	GSList *l;
-	const struct if_msg *ifm;
-
-	make_config(config);
-	if (save_config(block, name, config)) {
-		set_name_active_icon(config->len == 0 ?
+	con = (DHCPCD_CONNECTION *)data;
+	if (make_config(&config) &&
+	    dhcpcd_config_save(con, block, name, config)) {
+		set_name_active_icon(config == NULL ?
 		    "document-new" : "document-save");
 		show_config(config);
 		if (g_strcmp0(block, "interface") == 0)
-			rebind_interface(name);
+			dhcpcd_rebind(con, iface);
 		else {
-			for (l = interfaces; l; l = l->next) {
-				ifm = (const struct if_msg *)l->data;
-				if (g_strcmp0(ifm->ssid, name) == 0)
-					rebind_interface(ifm->ifname);
+			for (i = dhcpcd_interfaces(con); i; i = i->next) {
+				if (g_strcmp0(i->ssid, name) == 0)
+					dhcpcd_rebind(con, i);
 			}
 		}
+		if (dhcpcd_error(con))
+			g_warning("libdhcpcd: %s", dhcpcd_error(con));
 	}
 }
 
 static void
-on_destroy(void)
+on_destroy(_unused GtkObject *o, gpointer data)
 {
-	
 	if (name != NULL) {
-		make_config(config);
-		save_config(block, name, config);
+		if (make_config(&config))
+			dhcpcd_config_save((DHCPCD_CONNECTION *)data,
+			    block, name, config);
 		g_free(block);
 		g_free(name);
 		block = name = NULL;
 	}
-	free_config(&config);
+	dhcpcd_config_free(config);
+	config = NULL;
 	dialog = NULL;
 }
 
-void
+static void
 dhcpcd_prefs_close(void)
 {
-	
 	if (dialog != NULL) {
 		gtk_widget_destroy(dialog);
 		dialog = NULL;
@@ -425,7 +429,15 @@ dhcpcd_prefs_close(void)
 }
 
 void
-dhcpcd_prefs_show(void)
+dhcpcd_prefs_abort(void)
+{
+	g_free(name);
+	name = NULL;
+	dhcpcd_prefs_close();
+}
+
+void
+dhcpcd_prefs_show(DHCPCD_CONNECTION *con)
 {
 	GtkWidget *dialog_vbox, *hbox, *vbox, *table, *w;
 	GtkListStore *store;
@@ -438,8 +450,12 @@ dhcpcd_prefs_show(void)
 		return;
 	}
 
+	if (g_strcmp0(dhcpcd_status(con), "down") == 0)
+		return;
+
 	dialog = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-	g_signal_connect(G_OBJECT(dialog), "destroy", on_destroy, NULL);
+	g_signal_connect(G_OBJECT(dialog), "destroy",
+	    G_CALLBACK(on_destroy), con);
 
 	gtk_window_set_title(GTK_WINDOW(dialog), _("Network Preferences"));
 	gtk_window_set_resizable(GTK_WINDOW(dialog), false);
@@ -489,9 +505,9 @@ dhcpcd_prefs_show(void)
 	gtk_widget_set_sensitive(names, false);
 	gtk_box_pack_start(GTK_BOX(hbox), names, false, false, 3);
 	g_signal_connect(G_OBJECT(blocks), "changed",
-	    G_CALLBACK(blocks_on_change), NULL);
+	    G_CALLBACK(blocks_on_change), con);
 	g_signal_connect(G_OBJECT(names), "changed",
-	    G_CALLBACK(names_on_change), NULL);
+	    G_CALLBACK(names_on_change), con);
 	
 	w = gtk_hseparator_new();
 	gtk_box_pack_start(GTK_BOX(dialog_vbox), w, true, false, 3);
@@ -549,20 +565,22 @@ dhcpcd_prefs_show(void)
 	clear = gtk_button_new_from_stock(GTK_STOCK_CLEAR);
 	gtk_widget_set_sensitive(clear, false);
 	gtk_box_pack_start(GTK_BOX(hbox), clear, false, false, 0);
-	g_signal_connect(G_OBJECT(clear), "clicked", on_clear, NULL);
+	g_signal_connect(G_OBJECT(clear), "clicked",
+	    G_CALLBACK(on_clear), NULL);
 	rebind = gtk_button_new_with_mnemonic(_("_Rebind"));
 	gtk_widget_set_sensitive(rebind, false);
 	w = gtk_image_new_from_stock(GTK_STOCK_EXECUTE,
 	    GTK_ICON_SIZE_BUTTON);
 	gtk_button_set_image(GTK_BUTTON(rebind), w);
 	gtk_box_pack_start(GTK_BOX(hbox), rebind, false, false, 0);
-	g_signal_connect(G_OBJECT(rebind), "clicked", on_rebind, NULL);
+	g_signal_connect(G_OBJECT(rebind), "clicked",
+	    G_CALLBACK(on_rebind), con);
 	w = gtk_button_new_from_stock(GTK_STOCK_CLOSE);
 	gtk_box_pack_end(GTK_BOX(hbox), w, false, false, 0);
 	g_signal_connect(G_OBJECT(w), "clicked",
-	    dhcpcd_prefs_close, NULL);
+	    G_CALLBACK(dhcpcd_prefs_close), NULL);
 	
-	blocks_on_change(blocks);
+	blocks_on_change(blocks, con);
 	show_config(NULL);
 	gtk_widget_show_all(dialog);
 }

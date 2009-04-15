@@ -24,13 +24,62 @@
  * SUCH DAMAGE.
  */
 
-#ifndef WPA_H
-#define WPA_H
+#ifndef DHCPCD_GTK_H
+#define DHCPCD_GTK_H
+
+#include <arpa/inet.h>
 
 #include <stdbool.h>
 
-#include "dhcpcd-gtk.h"
+#include <glib.h>
+#include <glib/gi18n.h>
+#include <gtk/gtk.h>
+#include <libintl.h>
 
-bool wpa_configure(const struct if_ap *);
+#include "libdhcpcd.h"
 
+#define PACKAGE "dhcpcd-gtk"
+#define VERSION "0.4.0"
+
+/* Work out if we have a private address or not
+ * 10/8
+ * 172.16/12
+ * 192.168/16
+ */
+#ifndef IN_PRIVATE
+#  define IN_PRIVATE(addr) (((addr & IN_CLASSA_NET) == 0x0a000000) ||	      \
+	    ((addr & 0xfff00000)    == 0xac100000) ||			      \
+	    ((addr & IN_CLASSB_NET) == 0xc0a80000))
+#endif
+#ifndef IN_LINKLOCAL
+#  define IN_LINKLOCAL(addr) ((addr & IN_CLASSB_NET) == 0xa9fe0000)
+#endif
+
+#define UNCONST(a)              ((void *)(unsigned long)(const void *)(a))
+
+#ifdef __GNUC__
+#  define _unused __attribute__((__unused__))
+#else
+#  define _unused
+#endif
+
+typedef struct wi_scan {
+	DHCPCD_CONNECTION *connection;
+	DHCPCD_IF *interface;
+	DHCPCD_WI_SCAN *scans;
+	struct wi_scan *next;
+} WI_SCAN;
+
+extern WI_SCAN *wi_scans;
+
+WI_SCAN * wi_scan_find(DHCPCD_WI_SCAN *);
+
+void menu_init(GtkStatusIcon *, DHCPCD_CONNECTION *);
+
+void notify_close(void);
+
+void dhcpcd_prefs_show(DHCPCD_CONNECTION *con);
+void dhcpcd_prefs_abort(void);
+
+bool wpa_configure(DHCPCD_CONNECTION *, DHCPCD_IF *, DHCPCD_WI_SCAN *);
 #endif

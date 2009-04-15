@@ -25,19 +25,15 @@
  */
 
 #include "dhcpcd-gtk.h"
-#include "menu.h"
-#include "prefs.h"
-#include "wpa.h"
 
 static const char *copyright = "Copyright (c) 2009 Roy Marples";
 static const char *authors[] = { "Roy Marples <roy@marples.name>", NULL };
 
 static void
-on_pref(void)
+on_pref(_unused GtkObject *o, gpointer data)
 {
-	dhcpcd_prefs_show();
+	dhcpcd_prefs_show((DHCPCD_CONNECTION *)data);
 }
-
 
 static void
 on_quit(void)
@@ -73,7 +69,13 @@ url_hook(GtkAboutDialog *dialog, const char *url, _unused gpointer data)
 static void
 ssid_hook(_unused GtkMenuItem *item, gpointer data)
 {
-	wpa_configure((const struct if_ap *)data);
+	DHCPCD_WI_SCAN *scan;
+	WI_SCAN *wi;
+
+	scan = (DHCPCD_WI_SCAN *)data;
+	wi = wi_scan_find(scan);
+	if (wi)
+		wpa_configure(wi->connection, wi->interface, scan);
 }
 
 static void
@@ -93,29 +95,30 @@ on_about(_unused GtkMenuItem *item)
 	    NULL);
 }
 
-static void
-add_scan_results(GtkMenu *menu, const struct if_msg *ifm)
+static GtkWidget *
+add_scans(WI_SCAN *scan)
 {
-	GSList *gl;
-	const struct if_ap *ifa;
-	GtkWidget *item, *image, *box, *label, *bar;
+	DHCPCD_WI_SCAN *wis;
+	GtkWidget *menu, *item, *image, *box, *label, *bar;
 	double perc;
 	int strength;
 	const char *icon;
 	char *tip;
 
-	for (gl = ifm->scan_results; gl; gl = gl->next) {
-		ifa = (const struct if_ap *)gl->data;
+	menu = gtk_menu_new();
+	for (wis = scan->scans; wis; wis = wis->next) {
 		item = gtk_check_menu_item_new();
-		gtk_check_menu_item_set_draw_as_radio(GTK_CHECK_MENU_ITEM(item), TRUE); 
-		box = gtk_hbox_new(FALSE, 6);
+		gtk_check_menu_item_set_draw_as_radio(
+			GTK_CHECK_MENU_ITEM(item), true); 
+		box = gtk_hbox_new(false, 6);
 		gtk_container_add(GTK_CONTAINER(item), box); 
-		label = gtk_label_new(ifa->ssid);
+		label = gtk_label_new(wis->ssid);
 		gtk_box_pack_start(GTK_BOX(box), label, TRUE, TRUE, 0);
 
-		if (g_strcmp0(ifm->ssid, ifa->ssid) == 0)
-			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), TRUE);
-		if (ifa->flags == NULL)
+		if (g_strcmp0(wis->ssid, scan->interface->ssid) == 0)
+			gtk_check_menu_item_set_active(
+				GTK_CHECK_MENU_ITEM(item), true);
+		if (wis->flags == NULL)
 			icon = "network-wireless";
 		else
 			icon = "network-wireless-encrypted";
@@ -126,11 +129,11 @@ add_scan_results(GtkMenu *menu, const struct if_msg *ifm)
 		bar = gtk_progress_bar_new();
 		gtk_widget_set_size_request(bar, 100, -1);
 		gtk_box_pack_end(GTK_BOX(box), bar, FALSE, TRUE, 0);
-		strength = CLAMP(ifa->quality, 0, 100);
+		strength = CLAMP(wis->quality, 0, 100);
 		perc = strength / 100.0;
 		gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(bar), perc);
 
-		tip = g_strconcat(ifa->bssid, " ", ifa->flags, NULL);
+		tip = g_strconcat(wis->bssid, " ", wis->flags, NULL);
 		gtk_widget_set_tooltip_text(item, tip);
 		g_free(tip);
 
@@ -139,53 +142,38 @@ add_scan_results(GtkMenu *menu, const struct if_msg *ifm)
 		gtk_widget_show(image);
 		gtk_widget_show(box);
 		g_signal_connect(G_OBJECT(item), "activate",
-		    G_CALLBACK(ssid_hook), gl->data);
+		    G_CALLBACK(ssid_hook), wis);
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 	}
+	return menu;
 }
 
 static void
 on_activate(GtkStatusIcon *icon)
 {
-	GtkMenu *menu;
-	const struct if_msg *ifm;
-	GSList *l;
-	size_t n, na;
+	WI_SCAN *w;
+	GtkWidget *menu, *imenu, *item, *image;
 
 	notify_close();
-
-	n = na =0;
-	for (l = interfaces; l; l = l->next) {
-		ifm = (const struct if_msg *)l->data;
-		if (ifm->wireless) {
-			if (ifm->scan_results != NULL)
-				++na;
-			if (++n > 1 && na != 0)
-				break;
-		}
-	}
-	if (n == 0 || (n == 1 && na == 0))
+	if (wi_scans == NULL)
 		return;
-
-	menu = (GtkMenu *)gtk_menu_new();
-
-	for (l = interfaces; l; l = l->next) {
-		ifm = (const struct if_msg *)l->data;
-		if (!ifm->wireless)
-			continue;
-		if (n == 1) {
-			add_scan_results(menu, ifm);
-			break;
+	if (wi_scans->next) {
+		menu = gtk_menu_new();
+		for (w = wi_scans; w; w = w->next) {
+			imenu = gtk_menu_new();
+			item = gtk_image_menu_item_new_with_label(
+				w->interface->ifname);
+			image = gtk_image_new_from_icon_name(
+				"network-wireless", GTK_ICON_SIZE_MENU);
+			gtk_image_menu_item_set_image(
+				GTK_IMAGE_MENU_ITEM(item), image);
+			gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+			gtk_menu_item_set_submenu(GTK_MENU_ITEM(item),
+			    add_scans(w));
 		}
-#if 0
-		item = gtk_image_menu_item_new_with_label(ifm->name);
-		image = gtk_image_new_from_icon_name("network-wireless",
-		    GTK_ICON_SIZE_MENU);
-		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
-
-		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-#endif
-	}
+	} else
+		menu = add_scans(wi_scans);
+	
 	gtk_widget_show_all(GTK_WIDGET(menu));
 	gtk_menu_popup(GTK_MENU(menu), NULL, NULL,
 	    gtk_status_icon_position_menu, icon,
@@ -195,19 +183,24 @@ on_activate(GtkStatusIcon *icon)
 static void
 on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 {
+	DHCPCD_CONNECTION *con;
 	GtkMenu *menu;
 	GtkWidget *item, *image;
 
 	notify_close();
 
+	con = (DHCPCD_CONNECTION *)data;
 	menu = (GtkMenu *)gtk_menu_new();
 
 	item = gtk_image_menu_item_new_with_mnemonic(_("_Preferences"));
 	image = gtk_image_new_from_icon_name(GTK_STOCK_PREFERENCES,
 	    GTK_ICON_SIZE_MENU);
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
-	g_signal_connect(G_OBJECT(item), "activate",
-	    G_CALLBACK(on_pref), icon);
+	if (g_strcmp0(dhcpcd_status(con), "down") == 0)
+		gtk_widget_set_sensitive(item, false);
+	else
+		g_signal_connect(G_OBJECT(item), "activate",
+		    G_CALLBACK(on_pref), data);
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 
 	item = gtk_separator_menu_item_new();
@@ -231,16 +224,16 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 
 	gtk_widget_show_all(GTK_WIDGET(menu));
 	gtk_menu_popup(GTK_MENU(menu), NULL, NULL,
-	    gtk_status_icon_position_menu, data, button, atime);
+	    gtk_status_icon_position_menu, icon, button, atime);
 	if (button == 0)
 		gtk_menu_shell_select_first(GTK_MENU_SHELL(menu), FALSE);
 }
 
 void
-menu_init(GtkStatusIcon *icon)
+menu_init(GtkStatusIcon *icon, DHCPCD_CONNECTION *con)
 {
-	g_signal_connect_object(G_OBJECT(icon), "activate",
-	    G_CALLBACK(on_activate), icon, 0);
-	g_signal_connect_object(G_OBJECT(icon), "popup_menu",
-	    G_CALLBACK(on_popup), icon, 0);
+	g_signal_connect(G_OBJECT(icon), "activate",
+	    G_CALLBACK(on_activate), con);
+	g_signal_connect(G_OBJECT(icon), "popup_menu",
+	    G_CALLBACK(on_popup), con);
 }

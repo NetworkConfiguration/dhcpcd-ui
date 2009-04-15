@@ -8,7 +8,10 @@ NONBINMODE?=	0644
 
 SYSCONFDIR?=	${PREFIX}/etc
 
+AR?=		ar
+ECHO?=		echo
 INSTALL?=	install
+RANLIB?=	ranlib
 SED?=		sed
 
 _LIBNAME_SH=		case `readlink /lib` in "") echo "lib";; *) basename `readlink /lib`;; esac

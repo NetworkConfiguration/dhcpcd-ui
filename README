@@ -1,0 +1,8 @@
+dhcpcd-ui is the graphical interface to dhcpcd
+
+It has a helper library in C so you don't *have* to learn each toolkit
+DBus implementation, or depend on it (dbus-glib, edbus, qt-dbus, etc).
+
+Currently only a GTK+ front end is available, but there are plans to
+create an EWL (Enlightment E17) front end.
+I don't use KDE/QT much, but it should be quite easy.

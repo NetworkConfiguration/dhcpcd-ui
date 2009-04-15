@@ -1,6 +1,7 @@
-PROG=		dhcpcd-gtk
+PROG=		dhcpcd-ui
+VERSION=	0.4.0
 
-SUBDIR=	src icons
+SUBDIR=		src icons
 
 MK=	mk
 include ${MK}/subdir.mk
