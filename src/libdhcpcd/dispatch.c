@@ -25,7 +25,7 @@
  */
 
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 
 #define IN_LIBDHCPCD
 #include "libdhcpcd.h"

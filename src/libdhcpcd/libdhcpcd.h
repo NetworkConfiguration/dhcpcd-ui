@@ -98,6 +98,10 @@ extern DHCPCD_WATCH *dhcpcd_watching;
 #define DHCPCD_SERVICE	"name.marples.roy.dhcpcd"
 #define DHCPCD_PATH	"/name/marples/roy/dhcpcd"
 
+#ifdef __GLIBC__
+#  define strlcpy(dst, src, n) snprintf(dst, n, "%s", src)
+#endif
+
 bool dhcpcd_iter_get(DHCPCD_CONNECTION *, DHCPCD_MESSAGEITER *, int, void *);
 DHCPCD_MESSAGE * dhcpcd_send_reply(DHCPCD_CONNECTION *, DHCPCD_MESSAGE *);
 DHCPCD_MESSAGE * dhcpcd_message_reply(DHCPCD_CONNECTION *,
@@ -110,8 +114,6 @@ bool dhcpcd_dispatch_message(DHCPCD_CONNECTION *, DHCPCD_MESSAGE *);
 #else
 typedef void * DHCPCD_CONNECTION;
 #endif
-
-#define DHCPCD_CALLBACK void (*callback)(DHCPCD_CONNECTION *, void *, void *)
 
 DHCPCD_CONNECTION * dhcpcd_open(char **);
 bool dhcpcd_close(DHCPCD_CONNECTION *);
