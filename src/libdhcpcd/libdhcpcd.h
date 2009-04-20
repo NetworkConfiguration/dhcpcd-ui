@@ -38,12 +38,17 @@
 #define FLAGSIZE 8
 #define REASONSIZE 16
 
+typedef struct dhcpcd_wi_avs {
+	int value;
+	int average;
+} DHCPCD_WI_AV;
+
 typedef struct dhcpcd_wi_scan {
 	char bssid[IF_BSSIDSIZE];
 	int frequency;
-	int quality;
-	int noise;
-	int level;
+	DHCPCD_WI_AV quality;
+	DHCPCD_WI_AV noise;
+	DHCPCD_WI_AV level;
 	char flags[FLAGSIZE];
 	char ssid[IF_SSIDSIZE];
 	struct dhcpcd_wi_scan *next;
@@ -66,6 +71,15 @@ typedef struct dhcpcd_if {
 typedef DBusMessage DHCPCD_MESSAGE;
 typedef DBusMessageIter DHCPCD_MESSAGEITER;
 
+typedef struct dhcpcd_wi_hist {
+	char ifname[IF_NAMESIZE];
+	char bssid[IF_BSSIDSIZE];
+	int quality;
+	int noise;
+	int level;
+	struct dhcpcd_wi_hist *next;
+} DHCPCD_WI_HIST;
+
 typedef struct dhcpcd_connection {
 	DBusConnection *bus;
 	char *error;
@@ -84,6 +98,7 @@ typedef struct dhcpcd_connection {
 	    void *);
 	void *signal_data;
 	DHCPCD_IF *interfaces;
+	DHCPCD_WI_HIST *wi_history;
 	struct dhcpcd_connection *next;
 } DHCPCD_CONNECTION;
 
@@ -141,6 +156,7 @@ char * dhcpcd_if_message(const DHCPCD_IF *);
 
 DHCPCD_WI_SCAN * dhcpcd_wi_scans(DHCPCD_CONNECTION *, DHCPCD_IF *);
 void dhcpcd_wi_scans_free(DHCPCD_WI_SCAN *);
+void dhcpcd_wi_history_clear(DHCPCD_CONNECTION *);
 bool dhcpcd_wpa_command(DHCPCD_CONNECTION *, DHCPCD_IF *, const char *, int);
 bool dhcpcd_wpa_set_network(DHCPCD_CONNECTION *, DHCPCD_IF *,
     int, const char *, const char *);

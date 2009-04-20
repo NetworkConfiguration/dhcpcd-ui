@@ -198,6 +198,7 @@ dhcpcd_close(DHCPCD_CONNECTION *con)
 				l->next = con->next;
 			dbus_connection_unref(con->bus);
 			dhcpcd_if_free(con->interfaces);
+			dhcpcd_wi_history_clear(con);
 			free(con->status);
 			free(con->error);
 			free(con);

@@ -105,6 +105,8 @@ add_scans(WI_SCAN *scan)
 	const char *icon;
 	char *tip;
 
+	if (scan->scans == NULL)
+		return NULL;
 	menu = gtk_menu_new();
 	for (wis = scan->scans; wis; wis = wis->next) {
 		item = gtk_check_menu_item_new();
@@ -129,8 +131,11 @@ add_scans(WI_SCAN *scan)
 		bar = gtk_progress_bar_new();
 		gtk_widget_set_size_request(bar, 100, -1);
 		gtk_box_pack_end(GTK_BOX(box), bar, FALSE, TRUE, 0);
-		strength = CLAMP(wis->quality, 0, 100);
-		perc = strength / 100.0;
+		if (wis->quality.value == 0)
+			strength = wis->level.average;
+		else
+			strength = wis->quality.average;
+		perc = CLAMP(strength, 0, 100) / 100.0;
 		gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(bar), perc);
 
 		tip = g_strconcat(wis->bssid, " ", wis->flags, NULL);
@@ -173,11 +178,13 @@ on_activate(GtkStatusIcon *icon)
 		}
 	} else
 		menu = add_scans(wi_scans);
-	
-	gtk_widget_show_all(GTK_WIDGET(menu));
-	gtk_menu_popup(GTK_MENU(menu), NULL, NULL,
-	    gtk_status_icon_position_menu, icon,
-	    1, gtk_get_current_event_time());
+
+	if (menu) {
+		gtk_widget_show_all(GTK_WIDGET(menu));
+		gtk_menu_popup(GTK_MENU(menu), NULL, NULL,
+		    gtk_status_icon_position_menu, icon,
+		    1, gtk_get_current_event_time());
+	}
 }
 
 static void

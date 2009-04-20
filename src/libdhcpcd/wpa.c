@@ -32,6 +32,20 @@
 #define IN_LIBDHCPCD
 #include "libdhcpcd.h"
 
+#define HIST_MAX 10 /* Max history per ssid/bssid */
+
+void
+dhcpcd_wi_history_clear(DHCPCD_CONNECTION *con)
+{
+	DHCPCD_WI_HIST *h;
+
+	while (con->wi_history) {
+		h = con->wi_history->next;
+		free(con->wi_history);
+		con->wi_history = h;
+	}
+}
+
 void
 dhcpcd_wi_scans_free(DHCPCD_WI_SCAN *wis)
 {
@@ -83,15 +97,15 @@ dhcpcd_scanresult_new(DHCPCD_CONNECTION *con, DBusMessageIter *array)
 		} else if (strcmp(s, "Quality") == 0) {
 			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_INT32, &i32))
 				break;
-			wis->quality = i32;
+			wis->quality.value = i32;
 		} else if (strcmp(s, "Noise") == 0) {
 			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_INT32, &i32))
 				break;
-			wis->noise = i32;
+			wis->noise.value = i32;
 		} else if (strcmp(s, "Level") == 0) {
 			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_INT32, &i32))
 				break;
-			wis->level = i32;
+			wis->level.value = i32;
 		} else if (strcmp(s, "Flags") == 0) {
 			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_STRING, &s))
 				break;
@@ -117,7 +131,8 @@ dhcpcd_wi_scans(DHCPCD_CONNECTION *con, DHCPCD_IF *i)
 	DBusMessage *msg;
 	DBusMessageIter args, array;
 	DHCPCD_WI_SCAN *wis, *scans, *l;
-	int errors;
+	DHCPCD_WI_HIST *h, *hl;
+	int errors, nh;
 
 	msg = dhcpcd_message_reply(con, "ScanResults", i->ifname);
 	if (!dbus_message_iter_init(msg, &args) ||
@@ -137,6 +152,41 @@ dhcpcd_wi_scans(DHCPCD_CONNECTION *con, DHCPCD_IF *i)
 		wis = dhcpcd_scanresult_new(con, &array);
 		if (wis == NULL)
 			break;
+		nh = 1;
+		hl = NULL;
+		wis->quality.average = wis->quality.value;
+		wis->noise.average = wis->noise.value;
+		wis->level.average = wis->level.value;
+		for (h = con->wi_history; h; h = h->next) {
+			if (strcmp(h->ifname, i->ifname) == 0 &&
+			    strcmp(h->bssid, wis->bssid) == 0)
+			{
+				wis->quality.average += h->quality;
+				wis->noise.average += h->noise;
+				wis->level.average += h->level;
+				if (++nh == HIST_MAX) {
+					hl->next = h->next;
+					free(h);
+					break;
+				}
+			}
+			hl = h;
+		}
+		if (nh != 1) {
+			wis->quality.average /= nh;
+       			wis->noise.average /= nh;
+			wis->level.average /= nh;
+		}
+		h = malloc(sizeof(*h));
+		if (h) {
+			strlcpy(h->ifname, i->ifname, sizeof(h->ifname));
+			strlcpy(h->bssid, wis->bssid, sizeof(h->bssid));
+			h->quality = wis->quality.value;
+			h->noise = wis->noise.value;
+			h->level = wis->level.value;
+			h->next = con->wi_history;
+			con->wi_history = h;
+		}
 		if (l == NULL)
 			scans = l = wis;
 		else {
