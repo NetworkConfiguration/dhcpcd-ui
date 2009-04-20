@@ -9,3 +9,5 @@ _LDADD_SH=	case "${MKSTATIC}" in \
 		esac
 _LDADD!=	${_LDADD_SH}
 LDADD+=		${_LDADD}$(shell ${_LDADD_SH})
+
+TARGETS+=	../libdhcpcd/libdhcpcd.a
