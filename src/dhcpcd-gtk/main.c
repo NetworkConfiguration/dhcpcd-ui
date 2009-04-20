@@ -251,8 +251,8 @@ status_cb(DHCPCD_CONNECTION *con, const char *status, _unused void *data)
 		dhcpcd_prefs_abort();
 		while (wi_scans) {
 			w = wi_scans->next;
-			dhcpcd_wi_scans_free(w->scans);
-			free(wi_scans);
+			dhcpcd_wi_scans_free(wi_scans->scans);
+			g_free(wi_scans);
 			wi_scans = w;
 		}
 	} else {
@@ -311,7 +311,7 @@ scan_cb(DHCPCD_CONNECTION *con, DHCPCD_IF *i, _unused void *data)
 			notify(msg, txt, "network-wireless");
 			g_free(txt);
 		}
-		g_free(w->scans);
+		dhcpcd_wi_scans_free(w->scans);
 	}
 	w->scans = scans;
 }
