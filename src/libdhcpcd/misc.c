@@ -97,14 +97,14 @@ dhcpcd_if_message(const DHCPCD_IF *i)
 	else if (strcmp(i->reason, "CARRIER") == 0) {
 		if (i->wireless) {
 			reason = _("Associated with");
-			if (i->ssid != NULL)
+			if (*i->ssid != '\0')
 				showssid = true;
 		} else
 			reason = _("Cable plugged in");
 		showip = false;
 	} else if (strcmp(i->reason, "NOCARRIER") == 0) {
 		if (i->wireless) {
-			if (i->ssid != NULL || i->ip.s_addr != 0) {
+			if (*i->ssid != '\0' || i->ip.s_addr != 0) {
 				reason = _("Disassociated from");
 				showssid = true;
 			} else
