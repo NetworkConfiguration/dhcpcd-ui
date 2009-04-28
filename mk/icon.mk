@@ -17,7 +17,7 @@ all: ${ICONS}
 
 _iconinstall: ${ICONS}
 	${INSTALL} -d ${DESTDIR}${ICONDIR}
-	${INSTALL} -m ${BINMODE} ${ICONS} ${DESTDIR}${ICONDIR}
+	${INSTALL} -m ${NONBINMODE} ${ICONS} ${DESTDIR}${ICONDIR}
 
 install: _iconinstall
 
