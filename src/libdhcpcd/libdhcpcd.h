@@ -35,7 +35,7 @@
 
 #define IF_SSIDSIZE 33
 #define IF_BSSIDSIZE 64
-#define FLAGSIZE 8
+#define FLAGSIZE 64
 #define REASONSIZE 16
 
 typedef struct dhcpcd_wi_avs {
@@ -44,17 +44,18 @@ typedef struct dhcpcd_wi_avs {
 } DHCPCD_WI_AV;
 
 typedef struct dhcpcd_wi_scan {
+	struct dhcpcd_wi_scan *next;
 	char bssid[IF_BSSIDSIZE];
 	int frequency;
 	DHCPCD_WI_AV quality;
 	DHCPCD_WI_AV noise;
 	DHCPCD_WI_AV level;
-	char flags[FLAGSIZE];
 	char ssid[IF_SSIDSIZE];
-	struct dhcpcd_wi_scan *next;
+	char flags[FLAGSIZE];
 } DHCPCD_WI_SCAN;
 
 typedef struct dhcpcd_if {
+	struct dhcpcd_if *next;
 	char ifname[IF_NAMESIZE];
 	unsigned int flags;
 	char reason[REASONSIZE];
@@ -62,7 +63,6 @@ typedef struct dhcpcd_if {
 	unsigned char cidr;
 	bool wireless;
 	char ssid[IF_SSIDSIZE];
-	struct dhcpcd_if *next;
 } DHCPCD_IF;
 
 /* Although we use DBus, we don't have to rely on it for our API */
@@ -72,15 +72,16 @@ typedef DBusMessage DHCPCD_MESSAGE;
 typedef DBusMessageIter DHCPCD_MESSAGEITER;
 
 typedef struct dhcpcd_wi_hist {
+	struct dhcpcd_wi_hist *next;
 	char ifname[IF_NAMESIZE];
 	char bssid[IF_BSSIDSIZE];
 	int quality;
 	int noise;
 	int level;
-	struct dhcpcd_wi_hist *next;
 } DHCPCD_WI_HIST;
 
 typedef struct dhcpcd_connection {
+	struct dhcpcd_connection *next;
 	DBusConnection *bus;
 	char *error;
 	int err;
@@ -99,14 +100,13 @@ typedef struct dhcpcd_connection {
 	void *signal_data;
 	DHCPCD_IF *interfaces;
 	DHCPCD_WI_HIST *wi_history;
-	struct dhcpcd_connection *next;
 } DHCPCD_CONNECTION;
 
 typedef struct dhcpcd_watch {
+	struct dhcpcd_watch *next;
 	DHCPCD_CONNECTION *connection;
 	DBusWatch *watch;
 	struct pollfd pollfd;
-	struct dhcpcd_watch *next;
 } DHCPCD_WATCH;
 extern DHCPCD_WATCH *dhcpcd_watching;
 
