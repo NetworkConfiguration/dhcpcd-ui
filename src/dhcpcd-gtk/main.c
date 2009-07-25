@@ -411,8 +411,10 @@ main(int argc, char *argv[])
 
 	g_message(_("Connecting ..."));
 	con = dhcpcd_open(&error);
-	if (con ==  NULL)
+	if (con ==  NULL) {
 		g_critical("libdhcpcd: %s", error);
+		exit(EXIT_FAILURE);
+	}
 
 	gtk_status_icon_set_tooltip(status_icon, _("Triggering dhcpcd ..."));
 	online = false;
