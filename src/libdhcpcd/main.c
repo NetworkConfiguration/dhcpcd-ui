@@ -144,10 +144,9 @@ dhcpcd_open(char **error)
 	}
 	if (bus == NULL)
 		return NULL;
-	con = malloc(sizeof(*con));
+	con = calloc(1, sizeof(*con));
 	if (con == NULL)
 		goto bad;
-	memset(con, 0, sizeof(*con));
 	con->bus = bus;
 	if (!dbus_connection_set_watch_functions(bus,
 		dhcpcd_add_watch, dhcpcd_delete_watch, NULL, con, NULL))
@@ -406,12 +405,11 @@ dhcpcd_if_new(DHCPCD_CONNECTION *con, DBusMessageIter *array, char **order)
 		return NULL;
 	}
 	dbus_message_iter_recurse(array, &dict);
-	i = malloc(sizeof(*i));
+	i = calloc(1, sizeof(*i));
 	if (i == NULL) {
 		dhcpcd_error_set(con, 0, errno);
 		return NULL;
 	}
-	memset(i, 0, sizeof(*i));
 	errors = con->errors;
 	for (;
 	     dbus_message_iter_get_arg_type(&dict) == DBUS_TYPE_DICT_ENTRY;

@@ -67,12 +67,11 @@ dhcpcd_scanresult_new(DHCPCD_CONNECTION *con, DBusMessageIter *array)
 	int32_t i32;
 	int errors;
 
-	wis = malloc(sizeof(*wis));
+	wis = calloc(1, sizeof(*wis));
 	if (wis == NULL) {
 		dhcpcd_error_set(con, NULL, errno);
 		return NULL;
 	}
-	memset(wis, 0, sizeof(*wis));
 	errors = con->errors;
 	dbus_message_iter_recurse(array, &dict);
 	for (;
