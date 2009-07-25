@@ -1,5 +1,5 @@
 PROG=		dhcpcd-ui
-VERSION=	0.4.0
+VERSION=	0.4.1
 
 SUBDIR=		src icons
 
