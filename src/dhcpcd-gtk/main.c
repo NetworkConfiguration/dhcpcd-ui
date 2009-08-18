@@ -279,6 +279,10 @@ scan_cb(DHCPCD_CONNECTION *con, DHCPCD_IF *i, _unused void *data)
 
 	g_message(_("%s: Received scan results"), i->ifname);
 	scans = dhcpcd_wi_scans(con, i);
+	if (scans == NULL) {
+		g_warning("%s: %s", i->ifname, dhcpcd_error(con));
+		dhcpcd_error_clear(con);
+	}
 	for (w = wi_scans; w; w = w->next)
 		if (w->connection == con && w->interface == i)
 			break;
