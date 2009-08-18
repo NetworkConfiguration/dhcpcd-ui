@@ -134,6 +134,8 @@ dhcpcd_wi_scans(DHCPCD_CONNECTION *con, DHCPCD_IF *i)
 	int errors, nh;
 
 	msg = dhcpcd_message_reply(con, "ScanResults", i->ifname);
+	if (msg == NULL)
+		return NULL;
 	if (!dbus_message_iter_init(msg, &args) ||
 	    dbus_message_iter_get_arg_type(&args) != DBUS_TYPE_ARRAY)
 	{
