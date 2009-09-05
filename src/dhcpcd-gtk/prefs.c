@@ -24,6 +24,7 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/types.h>
 #include <net/if.h>
 
 #include <errno.h>
