@@ -14,9 +14,14 @@ SNAPDIR=	${DISTPREFIX}-${SNAP}
 SNAPFILE=	${SNAPDIR}.tar.bz2
 
 dist:
-	git archive --prefix=${DISTPREFIX}/ ${GITREF} | bzip2 > ${DISTFILE}
+	mkdir /tmp/${DISTPREFIX}
+	cp -RPp * /tmp/${DISTPREFIX}
+	(cd /tmp/${DISTPREFIX}; make clean icons)
+	tar -cvjpf ${DISTFILE} -C /tmp ${DISTPREFIX}
+	rm -rf /tmp/${DISTPREFIX}
+	ls -l ${DISTFILE}
 
-snapshot:
+snapshot: icons
 	mkdir /tmp/${SNAPDIR}
 	cp -RPp * /tmp/${SNAPDIR}
 	(cd /tmp/${SNAPDIR}; make clean)
