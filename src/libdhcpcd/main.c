@@ -397,8 +397,7 @@ dhcpcd_if_new(DHCPCD_CONNECTION *con, DBusMessageIter *array, char **order)
 	DHCPCD_IF *i;
 	char *s;
 	uint32_t u32;
-	bool b;
-	int errors;
+	int b, errors;
 
 	if (dbus_message_iter_get_arg_type(array) != DBUS_TYPE_ARRAY) {
 		errno = EINVAL;
@@ -434,6 +433,8 @@ dhcpcd_if_new(DHCPCD_CONNECTION *con, DBusMessageIter *array, char **order)
 				break;
 			strlcpy(i->reason, s, sizeof(i->reason));
 		} else if (strcmp(s, "Wireless") == 0) {
+			/* b is an int as DBus booleans want more space than
+			 * a C99 boolean */
 			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_BOOLEAN, &b))
 				break;
 			i->wireless = b;
@@ -444,7 +445,7 @@ dhcpcd_if_new(DHCPCD_CONNECTION *con, DBusMessageIter *array, char **order)
 		} else if (strcmp(s, "IPAddress") == 0) {
 			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_UINT32, &u32))
 				break;
-				i->ip.s_addr = u32;
+			i->ip.s_addr = u32;
 		} else if (strcmp(s, "SubnetCIDR") == 0)
 			dbus_message_iter_get_basic(&var, &i->cidr);
 		else if (order != NULL && strcmp(s, "InterfaceOrder") == 0)
