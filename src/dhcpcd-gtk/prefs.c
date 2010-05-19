@@ -567,7 +567,7 @@ dhcpcd_prefs_show(DHCPCD_CONNECTION *con)
 	gtk_widget_set_sensitive(clear, false);
 	gtk_box_pack_start(GTK_BOX(hbox), clear, false, false, 0);
 	g_signal_connect(G_OBJECT(clear), "clicked",
-	    G_CALLBACK(on_clear), NULL);
+	    G_CALLBACK(on_clear), con);
 	rebind = gtk_button_new_with_mnemonic(_("_Rebind"));
 	gtk_widget_set_sensitive(rebind, false);
 	w = gtk_image_new_from_stock(GTK_STOCK_EXECUTE,
