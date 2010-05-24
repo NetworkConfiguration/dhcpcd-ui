@@ -176,15 +176,13 @@ notify_close(void)
 #endif
 }
 
+#ifdef NOTIFY
 static void
 notify_closed(void)
 {
-#ifdef NOTIFY
 	nn = NULL;
-#endif
 }
 
-#ifdef NOTIFY
 static void
 notify(const char *title, const char *msg, const char *icon)
 {
@@ -412,7 +410,9 @@ main(int argc, char *argv[])
 	    _("Connecting to dhcpcd ..."));
 	gtk_status_icon_set_visible(status_icon, true);
 
+#ifdef NOTIFY
 	notify_init(PACKAGE);
+#endif
 
 	g_message(_("Connecting ..."));
 	con = dhcpcd_open(&error);

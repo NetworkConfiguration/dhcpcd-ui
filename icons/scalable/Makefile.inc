@@ -1,5 +1,6 @@
 SIZE=		scalable
 SIZEDIR=	scalable
 
-MK=		../../../mk
-include 	${MK}/icon.mk
+TOPDIR=		../../..
+include ${TOPDIR}/config.mk
+include ${MKDIR}/icon.mk

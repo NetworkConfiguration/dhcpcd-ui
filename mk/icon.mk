@@ -1,4 +1,4 @@
-include ${MK}/sys.mk
+include ${MKDIR}/sys.mk
 
 SIZEDIR?=	${SIZE}x${SIZE}
 ICONDIR?=	${PREFIX}/share/dhcpcd/icons

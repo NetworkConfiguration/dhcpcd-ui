@@ -228,7 +228,7 @@ echo "DBUS_LIBS=	$DBUS_LIBS" >>$CONFIG_MK
 
 UI=
 if [ "$WITH_GTK" = yes -o -z "$WITH_GTK" ]; then
-	PKG="gtk+-2.0"
+	PKG="dbus-1 gtk+-2.0"
 	if [ "$NOTIFY" = yes ]; then
 		PKG="$PKG${PKG:+ }libnotify"
 		echo "NOTIFY=		-DNOTIFY" >>$CONFIG_MK
@@ -254,6 +254,7 @@ echo
 echo "   SYSCONFDIR =		$SYSCONFDIR"
 echo "   BINDIR =		$BINDIR"
 echo "   LIBDIR = 		$LIBDIR"
+echo "   ICONDIR = 		$ICONDIR"
 echo "   UI =			$UI"
 echo
 

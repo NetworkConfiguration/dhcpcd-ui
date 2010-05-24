@@ -1,4 +1,5 @@
 SUBDIR=	actions devices status
 
-MK=	../../mk
-include ${MK}/subdir.mk
+TOPDIR=		../..
+include ${TOPDIR}/config.mk
+include ${MKDIR}/subdir.mk
