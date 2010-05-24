@@ -10,6 +10,7 @@ NOTIFY=yes
 for x; do
 	opt=${x%%=*}
 	var=${x#*=}
+	[ "$var" = "$opt" ] && var=
 	case "$opt" in
 	--os|OS) OS=$var;;
 	--with-cc|CC) CC=$var;;
@@ -96,12 +97,12 @@ if [ -z "$OS" ]; then
 	KERNEL=${REST%%-*}
 fi
 
-echo "Configuring dhcpcd-dbus for ... $OS"
+echo "Configuring dhcpcd-ui for ... $OS"
 rm -f $CONFIG_H $CONFIG_MK
 echo "# $OS" >$CONFIG_MK
 echo "/* $OS */" >$CONFIG_H
 
-for x in PREFIX SYSCONFDIR BINDIRi ICONDIR; do
+for x in PREFIX SYSCONFDIR BINDIR ICONDIR; do
 	eval v=\$$x
 	# Make files look nice for import
 	l=$((10 - ${#x}))
@@ -135,7 +136,7 @@ else
 fi
 echo "CC=		$CC" >>$CONFIG_MK
 
-if [ -z "$CFLAGS"]; then
+if [ -z "$CFLAGS" ]; then
 	CFLAGS="-O2"
 fi
 echo "CFLAGS=		$CFLAGS" >>$CONFIG_MK

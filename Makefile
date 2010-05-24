@@ -24,7 +24,7 @@ SNAPFILE=	${SNAPDIR}.tar.bz2
 dist:
 	mkdir /tmp/${DISTPREFIX}
 	cp -RPp * /tmp/${DISTPREFIX}
-	(cd /tmp/${DISTPREFIX}; make clean icons)
+	(cd /tmp/${DISTPREFIX}; make clean icons; rm config.h config.mk)
 	find /tmp/${DISTPREFIX} -name .gitignore -delete
 	tar -cvjpf ${DISTFILE} -C /tmp ${DISTPREFIX}
 	rm -rf /tmp/${DISTPREFIX}
@@ -33,7 +33,7 @@ dist:
 snapshot: icons
 	mkdir /tmp/${SNAPDIR}
 	cp -RPp * /tmp/${SNAPDIR}
-	(cd /tmp/${SNAPDIR}; make clean)
+	(cd /tmp/${SNAPDIR}; make clean; rm config.h config.mk)
 	find /tmp/${SNAPDIR} -name .gitignore -delete
 	tar -cvjpf ${SNAPFILE} -C /tmp ${SNAPDIR}
 	rm -rf /tmp/${SNAPDIR}
