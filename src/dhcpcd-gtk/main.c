@@ -1,6 +1,6 @@
 /*
  * dhcpcd-gtk
- * Copyright 2009 Roy Marples <roy@marples.name>
+ * Copyright 2009-2010 Roy Marples <roy@marples.name>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
