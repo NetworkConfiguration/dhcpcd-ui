@@ -31,6 +31,7 @@
 
 #define IN_LIBDHCPCD
 #include "libdhcpcd.h"
+#include "config.h"
 
 #define HIST_MAX 10 /* Max history per ssid/bssid */
 

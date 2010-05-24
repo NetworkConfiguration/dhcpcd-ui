@@ -35,6 +35,7 @@
 
 #define IN_LIBDHCPCD
 #include "libdhcpcd.h"
+#include "config.h"
 
 #define DHCPCD_TIMEOUT_MS 500
 

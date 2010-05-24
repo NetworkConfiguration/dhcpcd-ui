@@ -113,10 +113,6 @@ extern DHCPCD_WATCH *dhcpcd_watching;
 #define DHCPCD_SERVICE	"name.marples.roy.dhcpcd"
 #define DHCPCD_PATH	"/name/marples/roy/dhcpcd"
 
-#ifdef __GLIBC__
-#  define strlcpy(dst, src, n) snprintf(dst, n, "%s", src)
-#endif
-
 bool dhcpcd_iter_get(DHCPCD_CONNECTION *, DHCPCD_MESSAGEITER *, int, void *);
 DHCPCD_MESSAGE * dhcpcd_send_reply(DHCPCD_CONNECTION *, DHCPCD_MESSAGE *);
 DHCPCD_MESSAGE * dhcpcd_message_reply(DHCPCD_CONNECTION *,

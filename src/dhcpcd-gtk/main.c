@@ -34,6 +34,7 @@
 static NotifyNotification *nn;
 #endif
 
+#include "config.h"
 #include "dhcpcd-gtk.h"
 
 static GtkStatusIcon *status_icon;

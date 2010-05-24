@@ -1,7 +1,8 @@
 include ${MK}/sys.mk
 
 SIZEDIR?=	${SIZE}x${SIZE}
-ICONDIR?=	${PREFIX}/share/dhcpcd/icons/hicolor/${SIZEDIR}/${CATEGORY}
+ICONDIR?=	${PREFIX}/share/dhcpcd/icons
+IDIR=		${ICONDIR}/hicolor/${SIZEDIR}/${CATEGORY}
 
 RSVG_CONVERT?=	rsvg-convert
 
@@ -16,8 +17,8 @@ all: ${ICONS}
 	${RSVG_CONVERT} -h ${SIZE} -w ${SIZE} $< >$@
 
 _iconinstall: ${ICONS}
-	${INSTALL} -d ${DESTDIR}${ICONDIR}
-	${INSTALL} -m ${NONBINMODE} ${ICONS} ${DESTDIR}${ICONDIR}
+	${INSTALL} -d ${DESTDIR}${IDIR}
+	${INSTALL} -m ${NONBINMODE} ${ICONS} ${DESTDIR}${IDIR}
 
 install: _iconinstall
 

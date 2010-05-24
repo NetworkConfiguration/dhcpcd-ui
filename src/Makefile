@@ -1,12 +1,6 @@
-MKGTK?=		yes
-_GTK_SH=	case "${MKGTK}" in \
-		[Yy][Ee][Ss]) echo "dhcpcd-gtk";; \
-		*) echo "";; \
-		esac
-_GTK!=		${_GTK_SH}
-GTK=		${_GTK}$(shell ${_GTK_SH})
+TOPDIR=		..
+include ${TOPDIR}/config.mk
 
-SUBDIR=		libdhcpcd ${GTK}
+SUBDIR=		libdhcpcd ${UI}
 
-MK=../mk
-include ${MK}/subdir.mk
+include ${MKDIR}/subdir.mk

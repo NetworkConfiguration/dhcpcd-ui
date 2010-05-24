@@ -1,21 +1,16 @@
 LIB=		dhcpcd
 SHLIB_MAJOR=	1
 SRCS=		main.c config.c dispatch.c misc.c wpa.c
+INCS=		libdhcpcd.h
 
-_PKGCFLAGS_SH=	pkg-config --cflags dbus-1
-_PKGCFLAGS!=	${_PKGCFLAGS_SH}
-PKGCFLAGS?=	${_PKGCFLAGS}$(shell ${_PKGCFLAGS_SH})
-CFLAGS+=	${PKGCFLAGS}
+TOPDIR=		../..
+include ${TOPDIR}/config.mk
 
-_PKGLIBS_SH=	pkg-config --libs dbus-1
-_PKGLIBS!=	${_PKGLIBS_SH}
-PKGLIBS?=	${_PKGLIBS}$(shell ${_PKGLIBS_SH})
-LDADD+=		${PKGLIBS}
+CPPFLAGS+=	-I${TOPDIR} ${DBUS_CFLAGS}
+CFLAGS+=	${DBUS_CFLAGS}
+LDADD+=		${DBUS_LIBS}
 
 # Don't install
-LIBINSTALL=
+LIBINSTALL=	${LIB_DHCPCD_INSTALL}
 
-MK=		../../mk
-include ${MK}/lib.mk
-include ${MK}/cc.mk
-include ${MK}/debug.mk
+include ${MKDIR}/lib.mk

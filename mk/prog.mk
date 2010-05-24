@@ -1,9 +1,7 @@
 # rules to build a program 
 # based on FreeBSD's bsd.prog.mk
 
-# Copyright 2008 Roy Marples <roy@marples.name>
-
-include ${MK}/cc.mk
+# Copyright 2008-2010 Roy Marples <roy@marples.name>
 
 SRCS?=		${PROG}.c
 OBJS+=		${SRCS:.c=.o}
@@ -20,8 +18,9 @@ _proginstall: ${PROG}
 	${INSTALL} -d ${DESTDIR}${BINDIR}
 	${INSTALL} -m ${BINMODE} ${PROG} ${DESTDIR}${BINDIR}
 
-include ${MK}/depend.mk
-include ${MK}/files.mk
+include ${MKDIR}/sys.mk
+include ${MKDIR}/depend.mk
+include ${MKDIR}/files.mk
 
 install: _proginstall _filesinstall
 

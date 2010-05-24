@@ -1,0 +1,260 @@
+#!/bin/sh
+# Try and be like autotools configure, but without autotools
+
+# Ensure that we do not inherit these from env
+DEBUG=
+LIBDHCPCD=no
+WITH_GTK=
+NOTIFY=yes
+
+for x; do
+	opt=${x%%=*}
+	var=${x#*=}
+	case "$opt" in
+	--os|OS) OS=$var;;
+	--with-cc|CC) CC=$var;;
+	--debug) DEBUG=$var;;
+	--disable-debug) DEBUG=no;;
+	--enable-debug) DEBUG=yes;;
+	--prefix) PREFIX=$var;;
+	--sysconfdir) SYSCONFDIR=$var;;
+	--bindir) BINDIR=$var;;
+	--libexecdir) LIBEXECDIR=$var;;
+	--statedir|--localstatedir) STATEDIR=$var;;
+	--rundir) RUNDIR=$var;;
+	--mandir) MANDIR=$var;;
+	--with-ccopts|CFLAGS) CFLAGS=$var;;
+	CPPFLAGS) CPPFLAGS=$var;;
+	--build) BUILD=$var;;
+	--host) HOST=$var;;
+	--target) TARGET=$var;;
+	--libdir) LIBDIR=$var;;
+	--datadir|--infodir) ;; # ignore autotools
+	--icondir) ICONDIR=$var;;
+	--with-gtk|--with-gtk+) WITH_GTK=${var:-yes};;
+	--without-gtk|--without-gtk+) WITH_GTK=no;;
+	--enable-notification) NOTIFY=yes;;
+	--disable-notification) NOTIFY=no;;
+	--help) echo "See the README file for available options"; exit 0;;
+	*) echo "$0: WARNING: unknown option $opt" >&2;;
+	esac
+done
+
+: ${INSTALL:=install}
+: ${SED:=sed}
+
+: ${PREFIX:=/usr/local}
+: ${SYSCONFDIR:=$PREFIX/etc}
+: ${BINDIR:=$PREFIX/bin}
+: ${LIBEXECDIR:=$PREFIX/libexec}
+: ${STATEDIR:=/var}
+: ${MANDIR:=${PREFIX:-/usr}/share/man}
+
+: ${ICONDIR:=$PREFIX/share/dhcpcd/icons}
+
+_which()
+{
+	x="$(which "$1" 2>/dev/null)"
+	if [ -n "$x" ]; then
+		echo "$x"
+		return 0
+	fi
+	for x in /sbin/"$1" /usr/sbin/"$1" \
+		/usr/pkg/sbin/"$1" /usr/local/sbin/"$1"
+	do
+		if [ -e "$x" ]; then
+			echo "$x"
+			return 0
+		fi
+	done
+	return 1
+}
+
+CONFIG_H=config.h
+CONFIG_MK=config.mk
+
+if [ -z "$BUILD" ]; then
+	BUILD=`uname -m`-unknown-`uname -s | tr '[:upper:]' '[:lower:]'`
+fi
+if [ -z "$HOST" ]; then
+	[ -z "$TARGET" ] && TARGET=$BUILD
+	HOST=$TARGET
+fi
+if [ -z "$TARGET" ]; then
+	[ -z "$HOST" ] && HOST=$BUILD
+	TARGET=$HOST
+fi
+
+if [ -z "$OS" ]; then
+	# Derive OS from cpu-manufacturer-os-kernel
+	CPU=${TARGET%%-*}
+	REST=${TARGET#*-}
+	MANU=${REST%%-*}
+	REST=${REST#*-}
+	OS=${REST%%-*}
+	REST=${REST#*-}
+	KERNEL=${REST%%-*}
+fi
+
+echo "Configuring dhcpcd-dbus for ... $OS"
+rm -f $CONFIG_H $CONFIG_MK
+echo "# $OS" >$CONFIG_MK
+echo "/* $OS */" >$CONFIG_H
+
+for x in PREFIX SYSCONFDIR BINDIRi ICONDIR; do
+	eval v=\$$x
+	# Make files look nice for import
+	l=$((10 - ${#x}))
+	unset t
+	[ $l -gt 3 ] && t="	"
+	echo "$x=$t	$v" >>$CONFIG_MK
+	unset t
+	[ $l -gt 2 ] && t="	"
+	echo "#define $x$t	\"$v\"" >>$CONFIG_H
+done
+
+if [ -z "$CC" ]; then
+	printf "Looking for compiler ... "
+	for b in $TARGET- ""; do
+		for cc in gcc pcc icc cc; do
+			if type $b$cc >/dev/null 2>&1; then
+				CC=$b$cc
+				echo "$CC"
+				break
+			fi
+		done
+		[ -n "$CC" ] && break
+	done
+	if [ -z "$CC" ]; then
+		echo
+		echo "no suitable compiler found - aborting" >&2
+		exit 1
+	fi
+else
+	echo "Using compiler $CC"
+fi
+echo "CC=		$CC" >>$CONFIG_MK
+
+if [ -z "$CFLAGS"]; then
+	CFLAGS="-O2"
+fi
+echo "CFLAGS=		$CFLAGS" >>$CONFIG_MK
+if [ -n "$CPPLAGS" ]; then
+	echo "CPPLAGS=		$CPPLAGS" >>$CONFIG_MK
+fi
+
+if [ -n "$DEBUG" -a "$DEBUG" != no -a "$DEBUG" != false ]; then
+	echo "Enabling memory debugging"
+	echo "CPPFLAGS+=	-DDEBUG_MEMORY" >>$CONFIG_MK
+elif [ -z "$DEBUG" -a -d .git ]; then
+	printf "Found git ... "
+	DEBUG=yes
+	echo "LDADD+=		-Wl,-rpath=../libdhcpcd" >>$CONFIG_MK
+else
+	DEBUG=no
+fi
+if [ "$DEBUG" != no -a "$DEBUG" != false ]; then
+	echo "Adding debugging CFLAGS"
+	cat <<EOF >>$CONFIG_MK
+CFLAGS+=	-Wall -Wextra -Wimplicit -Wshadow -Wformat=2
+CFLAGS+=	-Wmissing-prototypes -Wmissing-declarations
+CFLAGS+=	-Wmissing-noreturn -Wmissing-format-attribute
+CFLAGS+=	-Wredundant-decls  -Wnested-externs
+CFLAGS+=	-Winline -Wwrite-strings -Wcast-align -Wcast-qual
+CFLAGS+=	-Wpointer-arith
+CFLAGS+=	-Wdeclaration-after-statement -Wsequence-point
+CFLAGS+=	-fno-common
+EOF
+fi
+
+# Add CPPFLAGS and CFLAGS to CC for testing features
+XCC="$CC `$SED -n -e 's/CPPLAGS+=*\(.*\)/\1/p' $CONFIG_MK`"
+XCC="$XCC `$SED -n -e 's/CFLAGS+=*\(.*\)/\1/p' $CONFIG_MK`"
+
+if [ -z "$STRLCPY" ]; then
+	printf "Testing for strlcpy ... "
+	cat <<EOF >_strlcpy.c
+#include <string.h>
+int main(void) {
+	const char s1[] = "foo";
+	char s2[10];
+	strlcpy(s2, s1, sizeof(s2));
+	return 0;
+}
+EOF
+	if $XCC _strlcpy.c -o _strlcpy 2>/dev/null; then
+		STRLCPY=yes
+	else
+		STRLCPY=no
+	fi
+	echo "$STRLCPY"
+	rm -f _strlcpy.c _strlcpy
+fi
+if [ "$STRLCPY" = no ]; then
+	echo "#define strlcpy(dst, src, n) snprintf(dst, n, \"%s\", src)" \
+	>>$CONFIG_H
+fi
+
+if [ -z "$LIBDIR" ]; then
+	printf "lib directory name ... "
+	case `readlink /lib` in
+		"") LIBNAME="lib";;
+		*) LIBNAME=$(basename `readlink /lib`);;
+	esac
+	echo "$LIBNAME"
+	echo "LIBNAME=	$LIBNAME" >>$CONFIG_MK
+	LIBDIR=${PREFIX}/${LIBNAME}
+	echo "LIBDIR=		\${PREFIX}/\${LIBNAME}" >>$CONFIG_MK
+else
+	echo "LIBDIR=	$LIBDIR" >>$CONFIG_MK
+fi
+
+# We normally want to build in the static library
+if [ "$LIBDHCPCD" = yes ]; then
+	x="-ldhcpcd"
+	echo "LIB_DHCPCD_INSTALL=	_libinstall" >>$CONFIG_MK
+else
+	x="-Wl,-Bstatic -ldhcpcd -Wl,-Bdynamic"
+fi
+echo "LIB_DHCPCD=	$x" >>$CONFIG_MK
+
+# Get DBus CFLAGS
+DBUS_CFLAGS=$(pkg-config --cflags dbus-1) || exit 1
+DBUS_LIBS=$(pkg-config --libs dbus-1) || exit 1
+echo "DBus CFLAGS=$DBUS_CFLAGS"
+echo "DBus LIBS=$DBUS_LIBS"
+echo "DBUS_CFLAGS=	$DBUS_CFLAGS" >>$CONFIG_MK
+echo "DBUS_LIBS=	$DBUS_LIBS" >>$CONFIG_MK
+
+UI=
+if [ "$WITH_GTK" = yes -o -z "$WITH_GTK" ]; then
+	PKG="gtk+-2.0"
+	if [ "$NOTIFY" = yes ]; then
+		PKG="$PKG${PKG:+ }libnotify"
+		echo "NOTIFY=		-DNOTIFY" >>$CONFIG_MK
+	fi
+	GTK_CFLAGS=$(pkg-config --cflags $PKG)
+	[ $? != 0 -a "$WITH_GTK" = yes ] && exit 1
+	GTK_LIBS=$(pkg-config --libs $PKG)
+	[ $? != 0 -a "$WITH_GTK" = yes ] && exit 1
+	echo "GTK+ CFLAGS=$GTK_CFLAGS"
+	echo "GTK+ LIBS=$GTK_LIBS"
+	echo "GTK_CFLAGS=	$GTK_CFLAGS" >>$CONFIG_MK
+	echo "GTK_LIBS=	$GTK_LIBS" >>$CONFIG_MK
+	UI="$UI${UI:+ }dhcpcd-gtk"
+fi
+
+if [ -z "$UI" ]; then
+	echo "no UI is available, not building." >&2
+	exit 1
+fi
+echo "UI=		$UI" >>config.mk
+
+echo
+echo "   SYSCONFDIR =		$SYSCONFDIR"
+echo "   BINDIR =		$BINDIR"
+echo "   LIBDIR = 		$LIBDIR"
+echo "   UI =			$UI"
+echo
+
+echo "MKDIR=		\${TOPDIR}/mk" >>$CONFIG_MK

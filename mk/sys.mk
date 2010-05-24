@@ -5,6 +5,10 @@ PREFIX?=	/usr/local
 BINDIR?=	${PREFIX}/bin
 BINMODE?=	0755
 NONBINMODE?=	0644
+LIBMODE?=	${NONBINMODE}
+
+INCDIR?=	${PREFIX}/include
+INCMODE?=	${NONBINMODE}
 
 SYSCONFDIR?=	${PREFIX}/etc
 
@@ -14,8 +18,6 @@ INSTALL?=	install
 RANLIB?=	ranlib
 SED?=		sed
 
-PICFLAG?=		-fPIC
+PICFLAG?=	-fPIC
 
-_LIBNAME_SH=		case `readlink /lib` in "") echo "lib";; *) basename `readlink /lib`;; esac
-_LIBNAME!=		${_LIBNAME_SH}
-LIBNAME?=		${_LIBNAME}$(shell ${_LIBNAME_SH})
+LIBNAME?=	lib

@@ -1,5 +1,7 @@
 # rules to build a library
 
+include ${TOPDIR}/config.mk
+
 SHLIB=			lib${LIB}.so.${SHLIB_MAJOR}
 SHLIB_LINK=		lib${LIB}.so
 LIBNAME=		lib${LIB}.a
@@ -37,7 +39,7 @@ ${SHLIB}:	${SOBJS}
 
 _libinstall:	all
 	${INSTALL} -d ${DESTDIR}${LIBDIR}
-	${INSTALL} -m ${LIBMODE} ${LIB} ${DESTDIR}${LIBDIR}
+	${INSTALL} -m ${LIBMODE} ${LIBNAME} ${DESTDIR}${LIBDIR}
 	${INSTALL} -d ${DESTDIR}${SHLIBDIR}
 	${INSTALL} -m ${LIBMODE} ${SHLIB} ${DESTDIR}${SHLIBDIR}
 	ln -fs ${SHLIB} ${DESTDIR}${SHLIBDIR}/${SHLIB_LINK}
@@ -54,5 +56,5 @@ extra_depend:
 	${SED} -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.So:/' .depend > $${TMP}; \
 	mv $${TMP} .depend
 
-include ${MK}/sys.mk
-include ${MK}/depend.mk
+include ${MKDIR}/sys.mk
+include ${MKDIR}/depend.mk
