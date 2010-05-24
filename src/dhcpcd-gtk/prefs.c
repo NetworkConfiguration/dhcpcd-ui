@@ -535,7 +535,7 @@ dhcpcd_prefs_show(DHCPCD_CONNECTION *con)
 	
 	w = gtk_label_new(_("IP Address:"));
 	address = gtk_entry_new();
-	gtk_entry_set_max_length(GTK_ENTRY(address), 15);
+	gtk_entry_set_max_length(GTK_ENTRY(address), 18);
 	g_signal_connect(G_OBJECT(address), "focus-out-event",
 	    G_CALLBACK(address_lost_focus), NULL);
 	attach_label(w, 0, 1, 0, 1);
@@ -543,7 +543,7 @@ dhcpcd_prefs_show(DHCPCD_CONNECTION *con)
 
 	w = gtk_label_new(_("Router:"));
 	router = gtk_entry_new();
-	gtk_entry_set_max_length(GTK_ENTRY(router), 12);
+	gtk_entry_set_max_length(GTK_ENTRY(router), 15);
 	g_signal_connect(G_OBJECT(router), "focus-out-event",
 	    G_CALLBACK(entry_lost_focus), NULL);
 	attach_label(w, 0, 1, 2, 3);
