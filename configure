@@ -6,6 +6,7 @@ DEBUG=
 LIBDHCPCD=no
 WITH_GTK=
 NOTIFY=yes
+INCLUDEDIR=
 
 for x; do
 	opt=${x%%=*}
@@ -17,7 +18,7 @@ for x; do
 	--debug) DEBUG=$var;;
 	--disable-debug) DEBUG=no;;
 	--enable-debug) DEBUG=yes;;
-	--prefix) PREFIX=$var;;
+	--prefix) prefix=$var;;
 	--sysconfdir) SYSCONFDIR=$var;;
 	--bindir) BINDIR=$var;;
 	--libexecdir) LIBEXECDIR=$var;;
@@ -30,7 +31,9 @@ for x; do
 	--host) HOST=$var;;
 	--target) TARGET=$var;;
 	--libdir) LIBDIR=$var;;
+	--includedir) eval INCLUDEDIR="$INCLUDEDIR${INCLUDEDIR:+ }$var";;
 	--datadir|--infodir) ;; # ignore autotools
+	--disable-maintainer-mode|--disable-dependency-tracking) ;;
 	--icondir) ICONDIR=$var;;
 	--with-gtk|--with-gtk+) WITH_GTK=${var:-yes};;
 	--without-gtk|--without-gtk+) WITH_GTK=no;;
@@ -44,7 +47,7 @@ done
 : ${INSTALL:=install}
 : ${SED:=sed}
 
-: ${PREFIX:=/usr/local}
+: ${PREFIX:=${prefix:=/usr/local}}
 : ${SYSCONFDIR:=$PREFIX/etc}
 : ${BINDIR:=$PREFIX/bin}
 : ${LIBEXECDIR:=$PREFIX/libexec}
@@ -52,6 +55,14 @@ done
 : ${MANDIR:=${PREFIX:-/usr}/share/man}
 
 : ${ICONDIR:=$PREFIX/share/dhcpcd/icons}
+
+eval SYSCONFDIR="$SYSCONFDIR"
+eval LIBDIR="$LIBDIR"
+eval LIBEXECDIR="$LIBEXECDIR"
+eval STATEDIR="$STATEDIR"
+eval DBDIR="$DBDIR"
+eval RUNDIR="$RUNDIR"
+eval MANDIR="$MANDIR"
 
 _which()
 {
@@ -90,11 +101,26 @@ if [ -z "$OS" ]; then
 	# Derive OS from cpu-manufacturer-os-kernel
 	CPU=${TARGET%%-*}
 	REST=${TARGET#*-}
-	MANU=${REST%%-*}
-	REST=${REST#*-}
-	OS=${REST%%-*}
-	REST=${REST#*-}
-	KERNEL=${REST%%-*}
+	if [ "$CPU" != "$REST" ]; then
+		MANU=${REST%%-*}
+		REST=${REST#*-}
+		if [ "$MANU" != "$REST" ]; then
+			OS=${REST%%-*}
+			REST=${REST#*-}
+			if [ "$OS" != "$REST" ]; then
+				KERNEL=${REST%%-*}
+			else
+				# 3 tupple
+				KERNEL=$OS
+				OS=$MANU
+				MANU=
+			fi
+		else
+			# 2 tupple
+			OS=$MANU
+			MANU=
+		fi
+	fi
 fi
 
 echo "Configuring dhcpcd-ui for ... $OS"
@@ -146,6 +172,9 @@ echo "CFLAGS=		$CFLAGS" >>$CONFIG_MK
 if [ -n "$CPPLAGS" ]; then
 	echo "CPPLAGS=		$CPPLAGS" >>$CONFIG_MK
 fi
+for x in $INCLUDEDIR; do
+	echo "CPPFLAGS+=	-I$x" >>$CONFIG_MK
+done
 
 if [ -n "$DEBUG" -a "$DEBUG" != no -a "$DEBUG" != false ]; then
 	echo "Enabling memory debugging"
@@ -221,6 +250,10 @@ else
 	x="-Wl,-Bstatic -ldhcpcd -Wl,-Bdynamic"
 fi
 echo "LIB_DHCPCD=	$x" >>$CONFIG_MK
+
+# Due to our use of pkg-config, pass --as-needed to ld so we only link
+# what we actually need.
+echo "LDADD+=	-Wl,--as-needed" >>$CONFIG_MK
 
 # Get DBus CFLAGS
 DBUS_CFLAGS=$(pkg-config --cflags dbus-1) || exit 1

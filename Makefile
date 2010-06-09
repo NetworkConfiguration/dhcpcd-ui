@@ -30,6 +30,10 @@ dist:
 	rm -rf /tmp/${DISTPREFIX}
 	ls -l ${DISTFILE}
 
+distclean:
+	(cd src; make clean)
+	rm -f config.h config.mk
+
 snapshot: icons
 	mkdir /tmp/${SNAPDIR}
 	cp -RPp * /tmp/${SNAPDIR}
