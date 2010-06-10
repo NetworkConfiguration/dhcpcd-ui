@@ -21,8 +21,9 @@ _proginstall: ${PROG}
 include ${MKDIR}/sys.mk
 include ${MKDIR}/depend.mk
 include ${MKDIR}/files.mk
+include ${MKDIR}/man.mk
 
-install: _proginstall _filesinstall
+install: _proginstall _filesinstall _maninstall
 
 clean:
 	rm -f ${OBJS} ${PROG} ${PROG}.core ${CLEANFILES}

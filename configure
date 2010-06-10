@@ -142,6 +142,7 @@ for x in PREFIX SYSCONFDIR BINDIR ICONDIR; do
 	[ $l -gt 2 ] && t="	"
 	echo "#define $x$t	\"$v\"" >>$CONFIG_H
 done
+echo "MANDIR=		${MANDIR}" >>$CONFIG_MK
 
 if [ -z "$CC" ]; then
 	printf "Looking for compiler ... "
@@ -292,6 +293,7 @@ echo "   SYSCONFDIR =		$SYSCONFDIR"
 echo "   BINDIR =		$BINDIR"
 echo "   LIBDIR = 		$LIBDIR"
 echo "   ICONDIR = 		$ICONDIR"
+echo "   MANDIR =		$MANDIR"
 echo "   UI =			$UI"
 echo
 

@@ -8,6 +8,7 @@ ICONDIR?=	${PREFIX}/share/dhcpcd/icons
 AUTOSTARTDIR?=	${PREFIX}/share/gnome/autostart
 FILESDIR=	${AUTOSTARTDIR}
 FILES=		dhcpcd-gtk.desktop
+MAN8=		dhcpcd-gtk.8
 
 CPPFLAGS+=	${NOTIFY} -I${TOPDIR}
 
