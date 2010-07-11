@@ -6,3 +6,5 @@ DBus implementation, or depend on it (dbus-glib, edbus, qt-dbus, etc).
 Currently only a GTK+ front end is available, but there are plans to
 create an EWL (Enlightment E17) front end.
 I don't use KDE/QT much, but it should be quite easy.
+
+dhcpcd-ui depends on hicolor-icon-theme from freedesktop.org
