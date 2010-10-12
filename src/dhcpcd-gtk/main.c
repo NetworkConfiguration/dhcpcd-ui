@@ -177,6 +177,8 @@ notify_close(void)
 }
 
 #ifdef NOTIFY
+static char *notify_last_msg;
+
 static void
 notify_closed(void)
 {
@@ -187,6 +189,14 @@ static void
 notify(const char *title, const char *msg, const char *icon)
 {
 	char **msgs, **m;
+
+	/* Don't spam the same message */
+	if (notify_last_msg) {
+		if (strcmp(msg, notify_last_msg) == 0)
+			return;
+		g_free(notify_last_msg);
+	}
+	notify_last_msg = g_strdup(msg);
 
 	msgs = g_strsplit(msg, "\n", 0);
 	for (m = msgs; *m; m++)
