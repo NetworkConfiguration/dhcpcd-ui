@@ -46,6 +46,7 @@ static const char *const dhcpcd_up_reasons[] = {
 	"INFORM",
 	"STATIC",
 	"TIMEOUT",
+	"ROUTERADVERT",
 	NULL
 };
 
