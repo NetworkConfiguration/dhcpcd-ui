@@ -1,6 +1,6 @@
 /*
  * dhcpcd-gtk
- * Copyright 2009-2010 Roy Marples <roy@marples.name>
+ * Copyright 2009-2011 Roy Marples <roy@marples.name>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,6 +31,9 @@
 
 #ifdef NOTIFY
 #  include <libnotify/notify.h>
+#ifndef NOTIFY_CHECK_VERSION
+#  define NOTIFY_CHECK_VERSION(a,b,c) 0
+#endif
 static NotifyNotification *nn;
 #endif
 
@@ -202,6 +205,10 @@ notify(const char *title, const char *msg, const char *icon)
 	for (m = msgs; *m; m++)
 		g_message("%s", *m);
 	g_strfreev(msgs);
+
+#if NOTIFY_CHECK_VERSION(0,7,0)
+	nn = nn = notify_notification_new(title, msg, icon);
+#else
 	if (nn != NULL)
 		notify_notification_close(nn, NULL);
 	if (gtk_status_icon_get_visible(status_icon))
@@ -209,6 +216,8 @@ notify(const char *title, const char *msg, const char *icon)
 		    msg, icon, status_icon);
 	else
 		nn = notify_notification_new(title, msg, icon, NULL);
+#endif
+
 	notify_notification_set_timeout(nn, 5000);
 	g_signal_connect(nn, "closed", G_CALLBACK(notify_closed), NULL);
 	notify_notification_show(nn, NULL);
