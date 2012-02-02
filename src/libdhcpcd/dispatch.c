@@ -1,6 +1,6 @@
 /*
  * libdhcpcd
- * Copyright 2009 Roy Marples <roy@marples.name>
+ * Copyright 2009-2012 Roy Marples <roy@marples.name>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -51,6 +51,8 @@ dhcpcd_handle_event(DHCPCD_CONNECTION *con, DHCPCD_MESSAGE *msg)
 	DBusMessageIter args;
 	DHCPCD_IF *i, *e, *l, *n, *nl;
 	char *order, *o, *p;
+	static const char *types[] = { "ipv4", "ra", NULL };
+	int ti;
 
 	if (!dbus_message_iter_init(msg, &args))
 		return;
@@ -60,38 +62,48 @@ dhcpcd_handle_event(DHCPCD_CONNECTION *con, DHCPCD_MESSAGE *msg)
 		return;
 	p = order;
 	n = nl = NULL;
+
 	while ((o = strsep(&p, " ")) != NULL) {
-		l = NULL;
-		for (e = con->interfaces; e; e = e->next) {
-			if (strcmp(e->ifname, o) == 0)
-				break;
-			l = e;
-		}
-		if (e == NULL) {
-			e = i;
-		} else {
-			if (l != NULL)
-				l->next = e->next;
-			else
-				con->interfaces = e->next;
-			e->next = NULL;
-		}
-		if (e != i && strcmp(e->ifname, i->ifname) == 0) {
-			/* Preserve the pointer */
-			memcpy(e, i, sizeof(*e));
-			free(i);
-			i = e;
-		}
-		if (nl == NULL)
-			n = nl = e;
-		else {
-			nl->next = e;
-			nl = nl->next;
+		for (ti = 0; ti < 2; ti++) {
+			l = NULL;
+			for (e = con->interfaces; e; e = e->next) {
+				if (strcmp(e->ifname, o) == 0 &&
+				    strcmp(e->type, types[ti]) == 0)
+					break;
+				l = e;
+			}
+			if (e == NULL) {
+				e = i;
+			} else {
+				if (l != NULL)
+					l->next = e->next;
+				else
+					con->interfaces = e->next;
+				e->next = NULL;
+				if (i != NULL &&
+				    strcmp(e->ifname, i->ifname) == 0 &&
+				    strcmp(e->type, i->type) == 0)
+				{
+					/* Preserve the pointer for
+					 * our wireless history */
+					memcpy(e, i, sizeof(*e));
+					free(i);
+					i = e;
+				}
+			}
+			if (nl == NULL)
+				n = nl = e;
+			else {
+				nl->next = e;
+				nl = nl->next;
+			}
 		}
 	}
+
 	if (nl != NULL)
 		nl->next = con->interfaces;
 	con->interfaces = n;
+
 	if (con->event)
 		con->event(con, i, con->signal_data);
 }
@@ -101,6 +113,7 @@ dhcpcd_dispatch_message(DHCPCD_CONNECTION *con, DHCPCD_MESSAGE *msg)
 {
 	bool handled;
 	const char *str;
+	DHCPCD_IF *ifp;
 
 	if (dbus_message_get_type(msg) != DBUS_MESSAGE_TYPE_SIGNAL)
 		return false;
@@ -122,8 +135,9 @@ dhcpcd_dispatch_message(DHCPCD_CONNECTION *con, DHCPCD_MESSAGE *msg)
 	{
 		if (con->wi_scanresults) {
 			str = dhcpcd_message_get_string(msg);
-			con->wi_scanresults(con, dhcpcd_if_find(con, str),
-			    con->signal_data);
+			ifp = dhcpcd_if_find(con, str, "ipv4");
+			if (ifp)
+				con->wi_scanresults(con, ifp, con->signal_data);
 		}
 	} else if (dbus_message_is_signal(msg, DHCPCD_SERVICE, "Event"))
 		dhcpcd_handle_event(con, msg);

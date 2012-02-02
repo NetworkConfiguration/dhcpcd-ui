@@ -1,6 +1,6 @@
 /*
  * libdhcpcd
- * Copyright 2009 Roy Marples <roy@marples.name>
+ * Copyright 2009-2012 Roy Marples <roy@marples.name>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,6 +36,7 @@
 #define IF_SSIDSIZE 33
 #define IF_BSSIDSIZE 64
 #define FLAGSIZE 64
+#define TYPESIZE 8
 #define REASONSIZE 16
 
 typedef struct dhcpcd_wi_avs {
@@ -57,9 +58,13 @@ typedef struct dhcpcd_wi_scan {
 typedef struct dhcpcd_if {
 	struct dhcpcd_if *next;
 	char ifname[IF_NAMESIZE];
+	char type[TYPESIZE];
 	unsigned int flags;
+	bool up;
 	char reason[REASONSIZE];
 	struct in_addr ip;
+	struct in6_addr prefix;
+	int prefix_len;
 	unsigned char cidr;
 	bool wireless;
 	char ssid[IF_SSIDSIZE];
@@ -143,11 +148,9 @@ const char * dhcpcd_status(DHCPCD_CONNECTION *);
 bool dhcpcd_command(DHCPCD_CONNECTION *, const char *, const char *, char **);
 void dhcpcd_dispatch(int);
 DHCPCD_IF * dhcpcd_interfaces(DHCPCD_CONNECTION *);
-DHCPCD_IF * dhcpcd_if_find(DHCPCD_CONNECTION *, const char *);
+DHCPCD_IF * dhcpcd_if_find(DHCPCD_CONNECTION *, const char *, const char *);
 DHCPCD_CONNECTION * dhcpcd_if_connection(DHCPCD_IF *);
 
-bool dhcpcd_if_up(const DHCPCD_IF *);
-bool dhcpcd_if_down(const DHCPCD_IF *);
 char * dhcpcd_if_message(const DHCPCD_IF *);
 
 DHCPCD_WI_SCAN * dhcpcd_wi_scans(DHCPCD_CONNECTION *, DHCPCD_IF *);

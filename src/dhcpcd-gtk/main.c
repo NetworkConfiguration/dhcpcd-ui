@@ -1,6 +1,6 @@
 /*
  * dhcpcd-gtk
- * Copyright 2009-2011 Roy Marples <roy@marples.name>
+ * Copyright 2009-2012 Roy Marples <roy@marples.name>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -134,7 +134,7 @@ update_online(DHCPCD_CONNECTION *con, bool showif)
 		if (strcmp(i->reason, "RELEASE") == 0 ||
 		    strcmp(i->reason, "STOP") == 0)
 			continue;
-		if (dhcpcd_if_up(i))
+		if (i->up)
 			ison = iscarrier = true;
 		if (!iscarrier && g_strcmp0(i->reason, "CARRIER") == 0)
 			iscarrier = true;
@@ -241,11 +241,11 @@ event_cb(DHCPCD_CONNECTION *con, DHCPCD_IF *i, _unused void *data)
 		return;
 
 	msg = dhcpcd_if_message(i);
-	if (dhcpcd_if_up(i))
+	if (i->up)
 		icon = "network-transmit-receive";
-	else
-		icon = "network-transmit";
-	if (dhcpcd_if_down(i))
+	//else
+	//	icon = "network-transmit";
+	if (!i->up)
 		icon = "network-offline";
 	notify(_("Network event"), msg, icon);
 	g_free(msg);
@@ -264,6 +264,13 @@ status_cb(DHCPCD_CONNECTION *con, const char *status, _unused void *data)
 	if (g_strcmp0(status, "down") == 0) {
 		msg = N_(last ?
 		    "Connection to dhcpcd lost" : "dhcpcd not running");
+		if (ani_timer != 0) {
+			g_source_remove(ani_timer);
+			ani_timer = 0;
+			ani_counter = 0;
+		}
+		gtk_status_icon_set_from_icon_name(status_icon,
+		    "network-offline");
 		gtk_status_icon_set_tooltip(status_icon, msg);
 		notify(_("No network"), msg, "network-offline");
 		dhcpcd_prefs_abort();
@@ -382,7 +389,7 @@ add_watch_cb(DHCPCD_CONNECTION *con, const struct pollfd *fd,
 	
 	gio = g_io_channel_unix_new(fd->fd);
 	if (gio == NULL) {
-		g_error(_("Error creating new GIO Channel\n"));
+		g_warning(_("Error creating new GIO Channel\n"));
 		return;
 	}
 	flags = 0;
@@ -396,7 +403,7 @@ add_watch_cb(DHCPCD_CONNECTION *con, const struct pollfd *fd,
 		flags |= G_IO_HUP;
 	if ((eventid = g_io_add_watch(gio, flags, gio_callback, con)) == 0) {
 		g_io_channel_unref(gio);
-		g_error(_("Error creating watch\n"));
+		g_warning(_("Error creating watch\n"));
 		return;
 	}
 	w = g_malloc(sizeof(*w));
@@ -452,8 +459,10 @@ main(int argc, char *argv[])
 
 	dhcpcd_set_watch_functions(con, add_watch_cb, delete_watch_cb, NULL);
 	dhcpcd_set_signal_functions(con, event_cb, status_cb, scan_cb, NULL);
-	if (dhcpcd_error(con))
-		g_error("libdhcpcd: %s", dhcpcd_error(con));
+	if (dhcpcd_error(con)) {
+		g_critical("libdhcpcd: %s", dhcpcd_error(con));
+		exit(EXIT_FAILURE);
+	}
 
 	menu_init(status_icon, con);
 

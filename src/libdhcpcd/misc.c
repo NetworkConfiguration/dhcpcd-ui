@@ -1,6 +1,6 @@
 /*
  * libdhcpcd
- * Copyright 2009 Roy Marples <roy@marples.name>
+ * Copyright 2009-2012 Roy Marples <roy@marples.name>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,50 +37,6 @@
 
 #define _ gettext
 
-static const char *const dhcpcd_up_reasons[] = {
-	"BOUND",
-	"RENEW",
-	"REBIND",
-	"REBOOT",
-	"IPV4LL",
-	"INFORM",
-	"STATIC",
-	"TIMEOUT",
-	"ROUTERADVERT",
-	NULL
-};
-
-static const char *const dhcpcd_down_reasons[] = {
-	"EXPIRE",
-	"FAIL",
-	"NAK",
-	"NOCARRIER",
-	"STOP",
-	NULL
-};
-
-bool
-dhcpcd_if_up(const DHCPCD_IF *i)
-{
-	const char *const *r;
-
-	for (r = dhcpcd_up_reasons; *r; r++)
-		if (strcmp(*r, i->reason) == 0)
-			return true;
-	return false;
-}
-
-bool
-dhcpcd_if_down(const DHCPCD_IF *i)
-{
-	const char *const *r;
-
-	for (r = dhcpcd_down_reasons; *r; r++)
-		if (strcmp(*r, i->reason) == 0)
-			return true;
-	return false;
-}
-
 char *
 dhcpcd_if_message(const DHCPCD_IF *i)
 {
@@ -88,12 +44,11 @@ dhcpcd_if_message(const DHCPCD_IF *i)
 	const char *reason = NULL;
 	size_t len;
 	bool showip, showssid;
+	char buf[INET6_ADDRSTRLEN];
     
 	showip = true;
 	showssid = false;
-	if (dhcpcd_if_up(i))
-		reason = _("Acquired address");
-	else if (strcmp(i->reason, "EXPIRE") == 0)
+	if (strcmp(i->reason, "EXPIRE") == 0)
 		reason = _("Expired");
 	else if (strcmp(i->reason, "CARRIER") == 0) {
 		if (i->wireless) {
@@ -118,8 +73,14 @@ dhcpcd_if_message(const DHCPCD_IF *i)
 	else if (strcmp(i->reason, "3RDPARTY") == 0)
 		reason = _("Waiting for 3rd Party configuration");
 
-	if (reason == NULL)
-		reason = i->reason;
+	if (reason == NULL) {
+		if (i->up)
+			reason = _("Configured");
+		else if (strcmp(i->type, "ra") == 0)
+			reason = "Expired RA";
+		else
+			reason = i->reason;
+	}
 	
 	len = strlen(i->ifname) + 3;
 	len += strlen(reason) + 1;
@@ -127,6 +88,10 @@ dhcpcd_if_message(const DHCPCD_IF *i)
 		len += 16; /* 000. * 4 */
 		if (i->cidr != 0)
 			len += 3; /* /32 */
+	} else if (!IN6_IS_ADDR_UNSPECIFIED(&i->prefix)) {
+		len += INET6_ADDRSTRLEN;
+		if (i->prefix_len != 0)
+			len += 4;
 	}
 	if (showssid)
 		len += strlen(i->ssid) + 1;
@@ -138,6 +103,11 @@ dhcpcd_if_message(const DHCPCD_IF *i)
 		p += snprintf(p, len - (p - msg), " %s", inet_ntoa(i->ip));
 		if (i->cidr != 0)
 			snprintf(p, len - (p - msg), "/%d", i->cidr);
+	} else if (!IN6_IS_ADDR_UNSPECIFIED(&i->prefix) && showip) {
+		p += snprintf(p, len - (p - msg), " %s",
+		    inet_ntop(AF_INET6, &i->prefix, buf, INET6_ADDRSTRLEN));
+		if (i->prefix_len != 0)
+			snprintf(p, len - (p - msg), "/%d", i->prefix_len);
 	}
 	return msg;
 }

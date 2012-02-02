@@ -15,5 +15,7 @@ CPPFLAGS+=	${NOTIFY} -I${TOPDIR}
 CFLAGS+=	${GTK_CFLAGS}
 LDADD+=		${LIB_DHCPCD} ${GTK_LIBS}
 
+.PHONY: dhcpcd-gtk
+
 include ../libdhcpcd/Makefile.inc
 include ${MKDIR}/prog.mk

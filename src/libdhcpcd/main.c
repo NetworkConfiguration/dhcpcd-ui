@@ -1,6 +1,6 @@
 /*
  * libdhcpcd
- * Copyright 2009 Roy Marples <roy@marples.name>
+ * Copyright 2009-2012 Roy Marples <roy@marples.name>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,6 +24,7 @@
  * SUCH DAMAGE.
  */
 
+#include <arpa/inet.h>
 #include <errno.h>
 #include <poll.h>
 #include <stdbool.h>
@@ -425,17 +426,25 @@ dhcpcd_if_new(DHCPCD_CONNECTION *con, DBusMessageIter *array, char **order)
 			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_STRING, &s))
 				break;
 			strlcpy(i->ifname, s, sizeof(i->ifname));
+		} else if (strcmp(s, "Type") == 0) {
+			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_STRING, &s))
+				break;
+			strlcpy(i->type, s, sizeof(i->type));
 		} else if (strcmp(s, "Flags") == 0) {
 			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_UINT32, &u32))
 				break;
 			i->flags = u32;
+		} else if (strcmp(s, "Up") == 0) {
+			/* b is an int as DBus booleans want more space than
+			 * a C99 boolean */
+			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_BOOLEAN, &b))
+				break;
+			i->up = b;
 		} else if (strcmp(s, "Reason") == 0) {
 			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_STRING, &s))
 				break;
 			strlcpy(i->reason, s, sizeof(i->reason));
 		} else if (strcmp(s, "Wireless") == 0) {
-			/* b is an int as DBus booleans want more space than
-			 * a C99 boolean */
 			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_BOOLEAN, &b))
 				break;
 			i->wireless = b;
@@ -449,7 +458,15 @@ dhcpcd_if_new(DHCPCD_CONNECTION *con, DBusMessageIter *array, char **order)
 			i->ip.s_addr = u32;
 		} else if (strcmp(s, "SubnetCIDR") == 0)
 			dbus_message_iter_get_basic(&var, &i->cidr);
-		else if (order != NULL && strcmp(s, "InterfaceOrder") == 0)
+		else if (strcmp(s, "RA_Prefix") == 0) {
+			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_STRING, &s))
+				break;
+			inet_pton(AF_INET6, s, &i->prefix.s6_addr);
+		} else if (strcmp(s, "RA_PrefixLen") == 0) {
+			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_BYTE, &b))
+				break;
+			i->prefix_len = b;
+		} else if (order != NULL && strcmp(s, "InterfaceOrder") == 0)
 			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_STRING, order))
 				break;
 	}
@@ -514,14 +531,15 @@ dhcpcd_interfaces(DHCPCD_CONNECTION *con)
 }
 
 DHCPCD_IF *
-dhcpcd_if_find(DHCPCD_CONNECTION *con, const char *ifname)
+dhcpcd_if_find(DHCPCD_CONNECTION *con, const char *ifname, const char *type)
 {
 	DHCPCD_IF *i;
 
 	if (con->interfaces == NULL)
 		dhcpcd_interfaces(con);
 	for (i = con->interfaces; i; i = i ->next)
-		if (strcmp(i->ifname, ifname) == 0)
+		if (strcmp(i->ifname, ifname) == 0 &&
+		    strcmp(i->type, type) == 0)
 			return i;
 	return NULL;
 }
@@ -572,7 +590,7 @@ dhcpcd_set_signal_functions(DHCPCD_CONNECTION *con,
 	}
 	if (con->wi_scanresults) {
 		for (i = dhcpcd_interfaces(con); i; i = i->next)
-			if (i->wireless)
+			if (i->wireless && strcmp(i->type, "ipv4") == 0)
 				con->wi_scanresults(con, i, data);
 	}
 }

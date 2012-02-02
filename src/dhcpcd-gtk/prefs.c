@@ -1,6 +1,6 @@
 /*
  * dhcpcd-gtk
- * Copyright 2009-2010 Roy Marples <roy@marples.name>
+ * Copyright 2009-2012 Roy Marples <roy@marples.name>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -174,7 +174,8 @@ list_interfaces(DHCPCD_CONNECTION *con)
 
 	list = NULL;
 	for (i = dhcpcd_interfaces(con); i; i = i->next)
-		list = g_slist_append(list, i->ifname);
+		if (strcmp(i->type, "ipv4") == 0)
+			list = g_slist_append(list, i->ifname);
 	return list;
 }
 
@@ -295,7 +296,7 @@ names_on_change(_unused GtkWidget *widget, gpointer data)
 	if (block && name) {
 		config = dhcpcd_config_load(con, block, name);
 		if (config == NULL && dhcpcd_error(con))
-			g_error("libdhcpcd: %s\n", dhcpcd_error(con));
+			g_error("libdhcpcd: %s", dhcpcd_error(con));
 	} else
 		config = NULL;
 	show_config(config);
