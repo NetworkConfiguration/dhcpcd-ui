@@ -73,13 +73,15 @@ dhcpcd_handle_event(DHCPCD_CONNECTION *con, DHCPCD_MESSAGE *msg)
 				l = e;
 			}
 			if (e == NULL) {
+				if (strcmp(i->ifname, o) != 0 ||
+				    strcmp(i->type, types[ti]) == 0)
+					continue;
 				e = i;
 			} else {
 				if (l != NULL)
 					l->next = e->next;
 				else
 					con->interfaces = e->next;
-				e->next = NULL;
 				if (i != NULL &&
 				    strcmp(e->ifname, i->ifname) == 0 &&
 				    strcmp(e->type, i->type) == 0)
@@ -90,6 +92,7 @@ dhcpcd_handle_event(DHCPCD_CONNECTION *con, DHCPCD_MESSAGE *msg)
 					free(i);
 					i = e;
 				}
+				e->next = NULL;
 			}
 			if (nl == NULL)
 				n = nl = e;
