@@ -121,9 +121,9 @@ animate_online(_unused gpointer data)
 static void
 update_online(DHCPCD_CONNECTION *con, bool showif)
 {
-	bool ison, iscarrier;
+	bool ison, iscarrier, isstop;
 	char *msg, *msgs, *tmp;
-	DHCPCD_IF *ifs, *i;
+	DHCPCD_IF *ifs, *i, *j;
 
 	ison = iscarrier = false;
 	msgs = NULL;
@@ -134,6 +134,19 @@ update_online(DHCPCD_CONNECTION *con, bool showif)
 		if (strcmp(i->reason, "RELEASE") == 0 ||
 		    strcmp(i->reason, "STOP") == 0)
 			continue;
+		if (strcmp(i->type, "ipv4") != 0) {
+			isstop = false;
+			for (j = ifs; j; j = j->next)
+				if (strcmp(j->ifname, i->ifname) == 0 &&
+				    strcmp(j->type, "ipv4") == 0)
+				{
+					if (strcmp(j->reason, "STOP") == 0)
+						isstop = true;
+					break;
+				}
+			if (isstop)
+				continue;
+		}
 		if (i->up)
 			ison = iscarrier = true;
 		if (!iscarrier && g_strcmp0(i->reason, "CARRIER") == 0)
