@@ -158,7 +158,7 @@ static void
 on_activate(GtkStatusIcon *icon)
 {
 	WI_SCAN *w;
-	GtkWidget *menu, *imenu, *item, *image;
+	GtkWidget *menu, *item, *image;
 
 	notify_close();
 	if (wi_scans == NULL)
@@ -166,7 +166,6 @@ on_activate(GtkStatusIcon *icon)
 	if (wi_scans->next) {
 		menu = gtk_menu_new();
 		for (w = wi_scans; w; w = w->next) {
-			imenu = gtk_menu_new();
 			item = gtk_image_menu_item_new_with_label(
 				w->interface->ifname);
 			image = gtk_image_new_from_icon_name(

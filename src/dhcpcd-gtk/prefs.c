@@ -209,7 +209,6 @@ blocks_on_change(GtkWidget *widget, gpointer data)
 	char **list, **lp;
 	const char *iname, *nn;
 	GSList *l, *new_names;
-	GtkIconTheme *it;
 	GdkPixbuf *pb;
 	int n;
 
@@ -229,7 +228,6 @@ blocks_on_change(GtkWidget *widget, gpointer data)
 	gtk_list_store_clear(store);
 	list = dhcpcd_config_blocks_get(con, block);
 	
-	it = gtk_icon_theme_get_default();
 	if (g_strcmp0(block, "interface") == 0)
 		new_names = list_interfaces(con);
 	else
