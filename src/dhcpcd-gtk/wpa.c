@@ -112,9 +112,9 @@ wpa_configure(DHCPCD_CONNECTION *con, DHCPCD_IF *i, DHCPCD_WI_SCAN *s)
 	    "network-wireless-encrypted");
 	gtk_dialog_set_default_response(GTK_DIALOG(dialog),
 	    GTK_RESPONSE_ACCEPT);
-	vbox = GTK_DIALOG(dialog)->vbox;
+	vbox = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 
-	hbox = gtk_hbox_new(false, 2);
+	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
 	label = gtk_label_new(_("Pre Shared Key:"));
 	gtk_box_pack_start(GTK_BOX(hbox), label, false, false, 0);
 	psk = gtk_entry_new();

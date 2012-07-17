@@ -179,7 +179,7 @@ update_online(DHCPCD_CONNECTION *con, bool showif)
 			    "network-offline");
 		}
 	}
-	gtk_status_icon_set_tooltip(status_icon, msgs);
+	gtk_status_icon_set_tooltip_text(status_icon, msgs);
 	g_free(msgs);
 }
 
@@ -219,11 +219,14 @@ notify(const char *title, const char *msg, const char *icon)
 		g_message("%s", *m);
 	g_strfreev(msgs);
 
-#if NOTIFY_CHECK_VERSION(0,7,0)
-	nn = nn = notify_notification_new(title, msg, icon);
-#else
 	if (nn != NULL)
 		notify_notification_close(nn, NULL);
+
+#if NOTIFY_CHECK_VERSION(0,7,0)
+	nn = notify_notification_new(title, msg, icon);
+	notify_notification_set_hint(nn, "transient",
+	    g_variant_new_boolean(TRUE));
+#else
 	if (gtk_status_icon_get_visible(status_icon))
 		nn = notify_notification_new_with_status_icon(title,
 		    msg, icon, status_icon);
@@ -284,7 +287,7 @@ status_cb(DHCPCD_CONNECTION *con, const char *status, _unused void *data)
 		}
 		gtk_status_icon_set_from_icon_name(status_icon,
 		    "network-offline");
-		gtk_status_icon_set_tooltip(status_icon, msg);
+		gtk_status_icon_set_tooltip_text(status_icon, msg);
 		notify(_("No network"), msg, "network-offline");
 		dhcpcd_prefs_abort();
 		while (wi_scans) {
@@ -444,8 +447,8 @@ main(int argc, char *argv[])
 	gtk_icon_theme_append_search_path(gtk_icon_theme_get_default(),
 	    ICONDIR);
 	status_icon = gtk_status_icon_new_from_icon_name("network-offline");
-	
-	gtk_status_icon_set_tooltip(status_icon,
+
+	gtk_status_icon_set_tooltip_text(status_icon,
 	    _("Connecting to dhcpcd ..."));
 	gtk_status_icon_set_visible(status_icon, true);
 
@@ -460,7 +463,8 @@ main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	gtk_status_icon_set_tooltip(status_icon, _("Triggering dhcpcd ..."));
+	gtk_status_icon_set_tooltip_text(status_icon,
+	    _("Triggering dhcpcd ..."));
 	online = false;
 
 	if (!dhcpcd_command(con, "GetVersion", NULL, &version)) {

@@ -81,4 +81,9 @@ void dhcpcd_prefs_show(DHCPCD_CONNECTION *con);
 void dhcpcd_prefs_abort(void);
 
 bool wpa_configure(DHCPCD_CONNECTION *, DHCPCD_IF *, DHCPCD_WI_SCAN *);
+
+#if GTK_MAJOR_VERSION == 2
+GtkWidget *gtk_box_new(GtkOrientation, gint);
+#endif
+
 #endif

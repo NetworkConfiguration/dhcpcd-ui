@@ -365,7 +365,7 @@ entry_lost_focus(GtkEntry *entry)
 }
 
 static void
-on_clear(_unused GtkObject *o, gpointer data)
+on_clear(_unused GtkWidget *o, gpointer data)
 {
 	DHCPCD_CONNECTION *con;
 
@@ -379,7 +379,7 @@ on_clear(_unused GtkObject *o, gpointer data)
 }
 
 static void
-on_rebind(_unused GtkWidget *widget, gpointer data)
+on_rebind(_unused GObject *widget, gpointer data)
 {
 	DHCPCD_CONNECTION *con;
 	DHCPCD_IF *i;
@@ -404,7 +404,7 @@ on_rebind(_unused GtkWidget *widget, gpointer data)
 }
 
 static void
-on_destroy(_unused GtkObject *o, gpointer data)
+on_destroy(_unused GObject *o, gpointer data)
 {
 	if (name != NULL) {
 		if (make_config(&config))
@@ -436,6 +436,18 @@ dhcpcd_prefs_abort(void)
 	dhcpcd_prefs_close();
 }
 
+#if GTK_MAJOR_VERSION == 2
+static GtkWidget *
+gtk_separator_new(GtkOrientation o)
+{
+
+	if (o == GTK_ORIENTATION_HORIZONTAL)
+		return gtk_hseparator_new();
+	else
+		return gtk_vseparator_new();
+}
+#endif
+
 void
 dhcpcd_prefs_show(DHCPCD_CONNECTION *con)
 {
@@ -465,11 +477,11 @@ dhcpcd_prefs_show(DHCPCD_CONNECTION *con)
 	gtk_window_set_type_hint(GTK_WINDOW(dialog),
 	    GDK_WINDOW_TYPE_HINT_DIALOG);
 
-	dialog_vbox = gtk_vbox_new(false, 10);
+	dialog_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
 	gtk_container_set_border_width(GTK_CONTAINER(dialog), 10);
 	gtk_container_add(GTK_CONTAINER(dialog), dialog_vbox);
 
-	hbox = gtk_hbox_new(false, 0);
+	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 	gtk_box_pack_start(GTK_BOX(dialog_vbox), hbox, false, false, 3);
 	w = gtk_label_new("Configure:");
 	gtk_box_pack_start(GTK_BOX(hbox), w, false, false, 3);
@@ -509,12 +521,12 @@ dhcpcd_prefs_show(DHCPCD_CONNECTION *con)
 	g_signal_connect(G_OBJECT(names), "changed",
 	    G_CALLBACK(names_on_change), con);
 	
-	w = gtk_hseparator_new();
+	w = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
 	gtk_box_pack_start(GTK_BOX(dialog_vbox), w, true, false, 3);
-	controls = gtk_vbox_new(false, 10);
+	controls = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
 	gtk_widget_set_sensitive(controls, false);
 	gtk_box_pack_start(GTK_BOX(dialog_vbox), controls, true, true, 0);
-	vbox = gtk_vbox_new(false, 3);
+	vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 3);
 	gtk_box_pack_start(GTK_BOX(controls), vbox, false, false, 0);
 	autoconf = gtk_check_button_new_with_label(
 		_("Automatically configure empty options"));
@@ -560,7 +572,7 @@ dhcpcd_prefs_show(DHCPCD_CONNECTION *con)
 	attach_label(w, 0, 1, 4, 5);
 	attach_entry(dns_search, 1, 2, 4, 5);
 
-	hbox = gtk_hbox_new(false, 10);
+	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
 	gtk_box_pack_start(GTK_BOX(dialog_vbox), hbox, true, true, 3);
 	clear = gtk_button_new_from_stock(GTK_STOCK_CLEAR);
 	gtk_widget_set_sensitive(clear, false);
@@ -584,3 +596,4 @@ dhcpcd_prefs_show(DHCPCD_CONNECTION *con)
 	show_config(NULL);
 	gtk_widget_show_all(dialog);
 }
+

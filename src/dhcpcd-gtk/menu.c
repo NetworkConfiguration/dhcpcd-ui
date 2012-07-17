@@ -31,7 +31,7 @@ static const char *copyright = "Copyright (c) 2009-2012 Roy Marples";
 static const char *authors[] = { "Roy Marples <roy@marples.name>", NULL };
 
 static void
-on_pref(_unused GtkObject *o, gpointer data)
+on_pref(_unused GObject *o, gpointer data)
 {
 	dhcpcd_prefs_show((DHCPCD_CONNECTION *)data);
 }
@@ -42,6 +42,7 @@ on_quit(void)
 	gtk_main_quit();
 }
 
+#if GTK_MAJOR_VERSION == 2
 static void
 url_show(GtkAboutDialog *dialog, const char *url)
 {
@@ -61,11 +62,13 @@ email_hook(GtkAboutDialog *dialog, const char *url, _unused gpointer data)
 	g_free(address);
 }
 
+
 static void
 url_hook(GtkAboutDialog *dialog, const char *url, _unused gpointer data)
 {
 	url_show(dialog, url);
 }
+#endif
 
 static void
 ssid_hook(_unused GtkMenuItem *item, gpointer data)
@@ -83,8 +86,10 @@ static void
 on_about(_unused GtkMenuItem *item)
 {
 	gtk_window_set_default_icon_name("network-transmit-receive");
+#if GTK_MAJOR_VERSION == 2
 	gtk_about_dialog_set_email_hook(email_hook, NULL, NULL);
 	gtk_about_dialog_set_url_hook(url_hook, NULL, NULL);
+#endif
 	gtk_show_about_dialog(NULL,
 	    "version", VERSION,
 	    "copyright", copyright,
@@ -113,7 +118,7 @@ add_scans(WI_SCAN *scan)
 		item = gtk_check_menu_item_new();
 		gtk_check_menu_item_set_draw_as_radio(
 			GTK_CHECK_MENU_ITEM(item), true); 
-		box = gtk_hbox_new(false, 6);
+		box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
 		gtk_container_add(GTK_CONTAINER(item), box); 
 		label = gtk_label_new(wis->ssid);
 		gtk_box_pack_start(GTK_BOX(box), label, TRUE, TRUE, 0);
@@ -244,3 +249,16 @@ menu_init(GtkStatusIcon *icon, DHCPCD_CONNECTION *con)
 	g_signal_connect(G_OBJECT(icon), "popup_menu",
 	    G_CALLBACK(on_popup), con);
 }
+
+
+#if GTK_MAJOR_VERSION == 2
+GtkWidget *
+gtk_box_new(GtkOrientation o, gint s)
+{
+
+	if (o == GTK_ORIENTATION_HORIZONTAL)
+		return gtk_hbox_new(false, s);
+	else
+		return gtk_vbox_new(false, s);
+}
+#endif
