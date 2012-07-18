@@ -395,9 +395,9 @@ dhcpcd_dispatch(int fd)
 DHCPCD_IF *
 dhcpcd_if_new(DHCPCD_CONNECTION *con, DBusMessageIter *array, char **order)
 {
- 	DBusMessageIter dict, entry, var;
+ 	DBusMessageIter dict, entry, var, a;
 	DHCPCD_IF *i;
-	char *s;
+	char *s, *p;
 	uint32_t u32;
 	int b, errors;
 
@@ -459,13 +459,24 @@ dhcpcd_if_new(DHCPCD_CONNECTION *con, DBusMessageIter *array, char **order)
 		} else if (strcmp(s, "SubnetCIDR") == 0)
 			dbus_message_iter_get_basic(&var, &i->cidr);
 		else if (strcmp(s, "RA_Prefix") == 0) {
-			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_STRING, &s))
+			/* Don't crash with older dhcpcd versions */
+	     		if (dbus_message_iter_get_arg_type(&dict) !=
+			    DBUS_TYPE_DICT_ENTRY)
+				continue;
+			dbus_message_iter_recurse(&var, &a);
+			if (!dhcpcd_iter_get(con, &a, DBUS_TYPE_STRING, &s))
 				break;
+			/* Future versions may include pltime and vltime */
+			p = strchr(s, ',');
+			if (p)
+				*p = '\0';
+			p = strchr(s, '/');
+			if (p) {
+				*p++ = '\0';
+				i->prefix_len = atoi(p);
+			} else
+				i->prefix_len = 0;
 			inet_pton(AF_INET6, s, &i->prefix.s6_addr);
-		} else if (strcmp(s, "RA_PrefixLen") == 0) {
-			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_BYTE, &b))
-				break;
-			i->prefix_len = b;
 		} else if (order != NULL && strcmp(s, "InterfaceOrder") == 0)
 			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_STRING, order))
 				break;
