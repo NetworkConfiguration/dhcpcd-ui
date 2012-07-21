@@ -460,9 +460,19 @@ dhcpcd_if_new(DHCPCD_CONNECTION *con, DBusMessageIter *array, char **order)
 			dbus_message_iter_get_basic(&var, &i->cidr);
 		else if (strcmp(s, "RA_Prefix") == 0) {
 			/* Don't crash with older dhcpcd versions */
+	     		if (dbus_message_iter_get_arg_type(&dict) ==
+			    DBUS_TYPE_STRING)
+			{
+				if (!dhcpcd_iter_get(con, &a,
+				    DBUS_TYPE_STRING, &s))
+					break;
+				inet_pton(AF_INET6, s, &i->prefix.s6_addr);
+				continue;
+			}
+
 	     		if (dbus_message_iter_get_arg_type(&dict) !=
 			    DBUS_TYPE_DICT_ENTRY)
-				continue;
+				break;
 			dbus_message_iter_recurse(&var, &a);
 			if (!dhcpcd_iter_get(con, &a, DBUS_TYPE_STRING, &s))
 				break;
@@ -477,6 +487,10 @@ dhcpcd_if_new(DHCPCD_CONNECTION *con, DBusMessageIter *array, char **order)
 			} else
 				i->prefix_len = 0;
 			inet_pton(AF_INET6, s, &i->prefix.s6_addr);
+		} else if (strcmp(s, "RA_PrefixLen") == 0) { 
+			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_BYTE, &b)) 
+				break; 
+			i->prefix_len = b; 
 		} else if (order != NULL && strcmp(s, "InterfaceOrder") == 0)
 			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_STRING, order))
 				break;
