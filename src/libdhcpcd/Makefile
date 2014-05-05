@@ -4,7 +4,7 @@ SRCS=		main.c config.c dispatch.c misc.c wpa.c
 INCS=		libdhcpcd.h
 
 TOPDIR=		../..
-include ${TOPDIR}/config.mk
+include ${TOPDIR}/iconfig.mk
 
 CPPFLAGS+=	-I${TOPDIR} ${DBUS_CFLAGS}
 CFLAGS+=	${DBUS_CFLAGS}

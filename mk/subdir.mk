@@ -22,6 +22,8 @@ clean:
 	${_SUBDIR}
 realinstall:
 	${_SUBDIR}
+proginstall:
+	${_SUBDIR}
 install: realinstall ${INSTALLAFTER}
 check test::
 	${_SUBDIR}

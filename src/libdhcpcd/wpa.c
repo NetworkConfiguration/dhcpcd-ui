@@ -1,6 +1,6 @@
 /*
  * libdhcpcd
- * Copyright 2009 Roy Marples <roy@marples.name>
+ * Copyright 2009-2014 Roy Marples <roy@marples.name>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -176,7 +176,7 @@ dhcpcd_wi_scans(DHCPCD_CONNECTION *con, DHCPCD_IF *i)
 		}
 		if (nh != 1) {
 			wis->quality.average /= nh;
-       			wis->noise.average /= nh;
+			wis->noise.average /= nh;
 			wis->level.average /= nh;
 		}
 		h = malloc(sizeof(*h));
@@ -224,7 +224,7 @@ dhcpcd_wpa_find_network(DHCPCD_CONNECTION *con, DHCPCD_IF *i, const char *ssid)
 	}
 
 	errors = con->errors;
-   	for(;
+	for(;
 	    dbus_message_iter_get_arg_type(&args) == DBUS_TYPE_ARRAY;
 	    dbus_message_iter_next(&args))
 	{
@@ -251,7 +251,7 @@ dhcpcd_wpa_find_network(DHCPCD_CONNECTION *con, DHCPCD_IF *i, const char *ssid)
 	dbus_message_unref(msg);
 	return -1;
 }
-	
+
 static int
 dhcpcd_wpa_add_network(DHCPCD_CONNECTION *con, DHCPCD_IF *i)
 {
@@ -345,7 +345,7 @@ dhcpcd_wpa_command(DHCPCD_CONNECTION *con, DHCPCD_IF *i,
 	DBusMessageIter args;
 	char *ifname;
 	bool retval;
-	
+
 	msg = dbus_message_new_method_call(DHCPCD_SERVICE, DHCPCD_PATH,
 	    DHCPCD_SERVICE, cmd);
 	if (msg == NULL) {

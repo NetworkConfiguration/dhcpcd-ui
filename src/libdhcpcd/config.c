@@ -1,6 +1,6 @@
 /*
  * libdhcpcd
- * Copyright 2009 Roy Marples <roy@marples.name>
+ * Copyright 2009-2014 Roy Marples <roy@marples.name>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -62,7 +62,7 @@ void
 dhcpcd_config_free(DHCPCD_CONFIG *config)
 {
 	DHCPCD_CONFIG *c;
-	
+
 	while (config) {
 		c = config->next;
 		free(config->option);
@@ -70,7 +70,7 @@ dhcpcd_config_free(DHCPCD_CONFIG *config)
 		free(config);
 		config = c;
 	}
-}	
+}
 
 char **
 dhcpcd_config_blocks_get(DHCPCD_CONNECTION *con, const char *block)
@@ -104,7 +104,7 @@ dhcpcd_config_blocks_get(DHCPCD_CONNECTION *con, const char *block)
 		dbus_error_free(&error);
 	}
 	dbus_message_unref(reply);
-	return blocks;	
+	return blocks;
 }
 
 DHCPCD_CONFIG *

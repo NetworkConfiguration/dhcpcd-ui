@@ -1,6 +1,6 @@
 /*
  * dhcpcd-gtk
- * Copyright 2009-2012 Roy Marples <roy@marples.name>
+ * Copyright 2009-2014 Roy Marples <roy@marples.name>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,18 +27,20 @@
 #include "config.h"
 #include "dhcpcd-gtk.h"
 
-static const char *copyright = "Copyright (c) 2009-2012 Roy Marples";
+static const char *copyright = "Copyright (c) 2009-2013 Roy Marples";
 static const char *authors[] = { "Roy Marples <roy@marples.name>", NULL };
 
 static void
 on_pref(_unused GObject *o, gpointer data)
 {
+
 	dhcpcd_prefs_show((DHCPCD_CONNECTION *)data);
 }
 
 static void
 on_quit(void)
 {
+
 	gtk_main_quit();
 }
 
@@ -85,6 +87,7 @@ ssid_hook(_unused GtkMenuItem *item, gpointer data)
 static void
 on_about(_unused GtkMenuItem *item)
 {
+
 	gtk_window_set_default_icon_name("network-transmit-receive");
 #if GTK_MAJOR_VERSION == 2
 	gtk_about_dialog_set_email_hook(email_hook, NULL, NULL);
@@ -244,6 +247,7 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 void
 menu_init(GtkStatusIcon *icon, DHCPCD_CONNECTION *con)
 {
+
 	g_signal_connect(G_OBJECT(icon), "activate",
 	    G_CALLBACK(on_activate), con);
 	g_signal_connect(G_OBJECT(icon), "popup_menu",

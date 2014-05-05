@@ -14,7 +14,7 @@ all: ${PROG} ${SCRIPTS}
 ${PROG}: .depend ${OBJS}
 	${CC} ${LDFLAGS} -o $@ ${OBJS} ${LDADD}
 
-_proginstall: ${PROG}
+proginstall: ${PROG}
 	${INSTALL} -d ${DESTDIR}${BINDIR}
 	${INSTALL} -m ${BINMODE} ${PROG} ${DESTDIR}${BINDIR}
 
@@ -23,7 +23,7 @@ include ${MKDIR}/depend.mk
 include ${MKDIR}/files.mk
 include ${MKDIR}/man.mk
 
-install: _proginstall _filesinstall _maninstall
+install: proginstall _filesinstall _maninstall
 
 clean:
 	rm -f ${OBJS} ${PROG} ${PROG}.core ${CLEANFILES}

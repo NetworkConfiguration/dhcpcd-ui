@@ -1,6 +1,6 @@
 /*
  * dhcpcd-gtk
- * Copyright 2009-2012 Roy Marples <roy@marples.name>
+ * Copyright 2009-2014 Roy Marples <roy@marples.name>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,14 +41,14 @@ static NotifyNotification *nn;
 #include "dhcpcd-gtk.h"
 
 static GtkStatusIcon *status_icon;
-static int ani_timer;
+static guint ani_timer;
 static int ani_counter;
 static bool online;
 static bool carrier;
 
 struct watch {
 	struct pollfd pollfd;
-	int eventid;
+	guint eventid;
 	GIOChannel *gio;
 	struct watch *next;
 };
@@ -76,7 +76,7 @@ static gboolean
 animate_carrier(_unused gpointer data)
 {
 	const char *icon;
-	
+
 	if (ani_timer == 0)
 		return false;
 
@@ -100,7 +100,7 @@ static gboolean
 animate_online(_unused gpointer data)
 {
 	const char *icon;
-	
+
 	if (ani_timer == 0)
 		return false;
 
@@ -152,13 +152,15 @@ update_online(DHCPCD_CONNECTION *con, bool showif)
 		if (!iscarrier && g_strcmp0(i->reason, "CARRIER") == 0)
 			iscarrier = true;
 		msg = dhcpcd_if_message(i);
-		if (msgs) {
-			tmp = g_strconcat(msgs, "\n", msg, NULL);
-			g_free(msgs);
-			g_free(msg);
-			msgs = tmp;
-		} else
-			msgs = msg;
+		if (msg) {
+			if (msgs) {
+				tmp = g_strconcat(msgs, "\n", msg, NULL);
+				g_free(msgs);
+				g_free(msg);
+				msgs = tmp;
+			} else
+				    msgs = msg;
+		}
 	}
 
 	if (online != ison || carrier != iscarrier) {
@@ -206,9 +208,12 @@ notify(const char *title, const char *msg, const char *icon)
 {
 	char **msgs, **m;
 
+	if (msg == NULL)
+		return;
 	/* Don't spam the same message */
 	if (notify_last_msg) {
-		if (strcmp(msg, notify_last_msg) == 0)
+			return;
+		if (notify_last_msg && strcmp(msg, notify_last_msg) == 0)
 			return;
 		g_free(notify_last_msg);
 	}
@@ -250,7 +255,7 @@ event_cb(DHCPCD_CONNECTION *con, DHCPCD_IF *i, _unused void *data)
 
 	g_message("%s: %s", i->ifname, i->reason);
 	update_online(con, false);
-	
+
 	/* We should ignore renew and stop so we don't annoy the user */
 	if (g_strcmp0(i->reason, "RENEW") == 0 ||
 	    g_strcmp0(i->reason, "STOP") == 0)
@@ -398,11 +403,12 @@ add_watch_cb(DHCPCD_CONNECTION *con, const struct pollfd *fd,
 {
 	struct watch *w;
 	GIOChannel *gio;
-	int flags, eventid;
+	int flags;
+	guint eventid;
 
 	/* Remove any existing watch */
 	delete_watch_cb(con, fd, data);
-	
+
 	gio = g_io_channel_unix_new(fd->fd);
 	if (gio == NULL) {
 		g_warning(_("Error creating new GIO Channel\n"));
@@ -436,7 +442,7 @@ main(int argc, char *argv[])
 	char *error = NULL;
 	char *version = NULL;
 	DHCPCD_CONNECTION *con;
-		
+
 	setlocale(LC_ALL, "");
 	bindtextdomain(PACKAGE, NULL);
 	bind_textdomain_codeset(PACKAGE, "UTF-8");

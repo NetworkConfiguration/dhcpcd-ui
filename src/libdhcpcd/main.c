@@ -1,6 +1,6 @@
 /*
  * libdhcpcd
- * Copyright 2009-2012 Roy Marples <roy@marples.name>
+ * Copyright 2009-2014 Roy Marples <roy@marples.name>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -55,11 +55,12 @@ static dbus_bool_t
 dhcpcd_add_watch(DBusWatch *watch, void *data)
 {
 	DHCPCD_WATCH *w;
-	int flags;
+	int fd;
+	unsigned int flags;
 
-	flags = dbus_watch_get_unix_fd(watch);
+	fd = dbus_watch_get_unix_fd(watch);
 	for (w = dhcpcd_watching; w; w = w->next) {
-		if (w->pollfd.fd == flags)
+		if (w->pollfd.fd == fd)
 			break;
 	}
 	if (w == NULL) {
@@ -72,7 +73,7 @@ dhcpcd_add_watch(DBusWatch *watch, void *data)
 
 	w->connection = (DHCPCD_CONNECTION *)data;
 	w->watch = watch;
-	w->pollfd.fd = flags;
+	w->pollfd.fd = fd;
 	flags = dbus_watch_get_flags(watch);
 	w->pollfd.events = POLLHUP | POLLERR;
 	if (flags & DBUS_WATCH_READABLE)
@@ -111,6 +112,7 @@ dhcpcd_delete_watch(DBusWatch *watch, void *data)
 static DBusHandlerResult
 dhcpcd_message(_unused DBusConnection *bus, DBusMessage *msg, void *data)
 {
+
 	if (dhcpcd_dispatch_message((DHCPCD_CONNECTION *)data, msg))
 		return DBUS_HANDLER_RESULT_HANDLED;
 	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
@@ -228,6 +230,7 @@ dhcpcd_if_connection(DHCPCD_IF *interface)
 void
 dhcpcd_error_clear(DHCPCD_CONNECTION *con)
 {
+
 	free(con->error);
 	con->error = NULL;
 	con->err = 0;
@@ -236,6 +239,7 @@ dhcpcd_error_clear(DHCPCD_CONNECTION *con)
 void
 dhcpcd_error_set(DHCPCD_CONNECTION *con, const char *error, int err)
 {
+
 	dhcpcd_error_clear(con);
 	if (error != NULL) {
 		con->error = strdup(error);
@@ -250,6 +254,7 @@ dhcpcd_error_set(DHCPCD_CONNECTION *con, const char *error, int err)
 const char *
 dhcpcd_error(DHCPCD_CONNECTION *con)
 {
+
 	return con->error;
 }
 
@@ -257,6 +262,7 @@ bool
 dhcpcd_iter_get(DHCPCD_CONNECTION *con, DBusMessageIter *iter,
     int type, void *arg)
 {
+
 	if (dbus_message_iter_get_arg_type(iter) == type) {
 		dbus_message_iter_get_basic(iter, arg);
 		dbus_message_iter_next(iter);
@@ -271,7 +277,7 @@ dhcpcd_message_error(DHCPCD_CONNECTION *con, DHCPCD_MESSAGE *msg)
 {
 	DBusMessageIter args;
 	char *s;
-	
+
 	if (dbus_message_get_type(msg) != DBUS_MESSAGE_TYPE_ERROR)
 		return false;
 	if (dbus_message_iter_init(msg, &args) &&
@@ -312,7 +318,7 @@ dhcpcd_message_reply(DHCPCD_CONNECTION *con, const char *cmd, const char *arg)
 {
 	DBusMessage *msg, *reply;
 	DBusMessageIter args;
-	
+
 	msg = dbus_message_new_method_call(DHCPCD_SERVICE, DHCPCD_PATH,
 	    DHCPCD_SERVICE, cmd);
 	if (msg == NULL) {
@@ -363,13 +369,12 @@ dhcpcd_dispatch(int fd)
 {
 	DHCPCD_WATCH *w;
 	struct pollfd fds;
-	int n, flags;
+	unsigned int flags;
 
+	flags = 0;
 	fds.fd = fd;
 	fds.events = (POLLIN | POLLHUP | POLLOUT | POLLERR);
-	n = poll(&fds, 1, 0);
-	flags = 0;
-	if (n == 1) {
+	if (poll(&fds, 1, 0) == 1) {
 		if (fds.revents & POLLIN)
 			flags |= DBUS_WATCH_READABLE;
 		if (fds.revents & POLLOUT)
@@ -395,11 +400,12 @@ dhcpcd_dispatch(int fd)
 DHCPCD_IF *
 dhcpcd_if_new(DHCPCD_CONNECTION *con, DBusMessageIter *array, char **order)
 {
- 	DBusMessageIter dict, entry, var, a;
+	DBusMessageIter dict, entry, var, a;
 	DHCPCD_IF *i;
 	char *s, *p;
 	uint32_t u32;
 	int b, errors;
+	size_t l;
 
 	if (dbus_message_iter_get_arg_type(array) != DBUS_TYPE_ARRAY) {
 		errno = EINVAL;
@@ -443,7 +449,11 @@ dhcpcd_if_new(DHCPCD_CONNECTION *con, DBusMessageIter *array, char **order)
 		} else if (strcmp(s, "Reason") == 0) {
 			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_STRING, &s))
 				break;
+
 			strlcpy(i->reason, s, sizeof(i->reason));
+			l = strlen(i->reason);
+			if (l != 0 && i->reason[l - 1] == '6')
+				i->reason[l - 1] = '\0';
 		} else if (strcmp(s, "Wireless") == 0) {
 			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_BOOLEAN, &b))
 				break;
@@ -460,7 +470,7 @@ dhcpcd_if_new(DHCPCD_CONNECTION *con, DBusMessageIter *array, char **order)
 			dbus_message_iter_get_basic(&var, &i->cidr);
 		else if (strcmp(s, "RA_Prefix") == 0) {
 			/* Don't crash with older dhcpcd versions */
-	     		if (dbus_message_iter_get_arg_type(&dict) ==
+			if (dbus_message_iter_get_arg_type(&dict) ==
 			    DBUS_TYPE_STRING)
 			{
 				if (!dhcpcd_iter_get(con, &a,
@@ -470,7 +480,7 @@ dhcpcd_if_new(DHCPCD_CONNECTION *con, DBusMessageIter *array, char **order)
 				continue;
 			}
 
-	     		if (dbus_message_iter_get_arg_type(&dict) !=
+			if (dbus_message_iter_get_arg_type(&dict) !=
 			    DBUS_TYPE_DICT_ENTRY)
 				break;
 			dbus_message_iter_recurse(&var, &a);
@@ -487,10 +497,14 @@ dhcpcd_if_new(DHCPCD_CONNECTION *con, DBusMessageIter *array, char **order)
 			} else
 				i->prefix_len = 0;
 			inet_pton(AF_INET6, s, &i->prefix.s6_addr);
-		} else if (strcmp(s, "RA_PrefixLen") == 0) { 
-			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_BYTE, &b)) 
-				break; 
-			i->prefix_len = b; 
+		} else if (strcmp(s, "RA_PrefixLen") == 0) {
+			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_BYTE, &b))
+				break;
+			i->prefix_len = b;
+		} else if (strcmp(s, "D6_IPAddress") == 0) {
+			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_STRING, &s))
+				break;
+			inet_pton(AF_INET6, s, &i->ip6.s6_addr);
 		} else if (order != NULL && strcmp(s, "InterfaceOrder") == 0)
 			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_STRING, order))
 				break;
@@ -512,7 +526,7 @@ dhcpcd_interfaces(DHCPCD_CONNECTION *con)
 	DBusMessageIter args, dict, entry;
 	DHCPCD_IF *i, *l;
 	int errors;
-	
+
 	if (con->interfaces != NULL)
 		return con->interfaces;
 	l = NULL;
@@ -532,7 +546,7 @@ dhcpcd_interfaces(DHCPCD_CONNECTION *con)
 	dbus_message_iter_recurse(&args, &dict);
 	for (;
 	     dbus_message_iter_get_arg_type(&dict) == DBUS_TYPE_DICT_ENTRY;
-	     dbus_message_iter_next(&dict))    
+	     dbus_message_iter_next(&dict))
 	{
 		dbus_message_iter_recurse(&dict, &entry);
 		dbus_message_iter_next(&entry);
@@ -584,7 +598,7 @@ dhcpcd_set_watch_functions(DHCPCD_CONNECTION *con,
     void *data)
 {
 	DHCPCD_WATCH *w;
-	
+
 	con->add_watch = add_watch;
 	con->delete_watch = delete_watch;
 	con->watch_data = data;
@@ -603,7 +617,7 @@ dhcpcd_set_signal_functions(DHCPCD_CONNECTION *con,
     void *data)
 {
 	DHCPCD_IF *i;
-	
+
 	con->event = event;
 	con->status_changed = status_changed;
 	con->wi_scanresults = wi_scanresults;

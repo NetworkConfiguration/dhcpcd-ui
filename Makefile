@@ -6,7 +6,7 @@ VERSION=	0.6.0
 SUBDIR=		src icons
 
 TOPDIR=		.
-include ${TOPDIR}/config.mk
+include ${TOPDIR}/iconfig.mk
 include ${MKDIR}/subdir.mk
 
 GITREF?=	HEAD
@@ -20,6 +20,9 @@ _SNAP!=		${_SNAP_SH}
 SNAP=		${_SNAP}$(shell ${_SNAP_SH})
 SNAPDIR=	${DISTPREFIX}-${SNAP}
 SNAPFILE=	${SNAPDIR}.tar.bz2
+
+proginstall:
+	cd src && make $@
 
 dist:
 	mkdir /tmp/${DISTPREFIX}

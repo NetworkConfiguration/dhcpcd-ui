@@ -2,7 +2,7 @@ PROG=		dhcpcd-gtk
 SRCS=		main.c menu.c prefs.c wpa.c
 
 TOPDIR=		../..
-include ${TOPDIR}/config.mk
+include ${TOPDIR}/iconfig.mk
 
 ICONDIR?=	${PREFIX}/share/dhcpcd/icons
 AUTOSTARTDIR?=	${PREFIX}/share/gnome/autostart

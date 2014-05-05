@@ -1,6 +1,6 @@
 /*
  * libdhcpcd
- * Copyright 2009-2012 Roy Marples <roy@marples.name>
+ * Copyright 2009-2014 Roy Marples <roy@marples.name>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -45,7 +45,13 @@ dhcpcd_if_message(const DHCPCD_IF *i)
 	size_t len;
 	bool showip, showssid;
 	char buf[INET6_ADDRSTRLEN];
-    
+
+	/* Don't report non SLAAC configurations */
+	if (strcmp(i->type, "ra") == 0 &&
+	    IN6_IS_ADDR_UNSPECIFIED(&i->prefix) &&
+	    i->up)
+		return NULL;
+
 	showip = true;
 	showssid = false;
 	if (strcmp(i->reason, "EXPIRE") == 0)
@@ -81,13 +87,15 @@ dhcpcd_if_message(const DHCPCD_IF *i)
 		else
 			reason = i->reason;
 	}
-	
+
 	len = strlen(i->ifname) + 3;
 	len += strlen(reason) + 1;
 	if (i->ip.s_addr != 0) {
 		len += 16; /* 000. * 4 */
 		if (i->cidr != 0)
 			len += 3; /* /32 */
+	} else if (!IN6_IS_ADDR_UNSPECIFIED(&i->ip6)) {
+		len += INET6_ADDRSTRLEN;
 	} else if (!IN6_IS_ADDR_UNSPECIFIED(&i->prefix)) {
 		len += INET6_ADDRSTRLEN;
 		if (i->prefix_len != 0)
@@ -96,18 +104,23 @@ dhcpcd_if_message(const DHCPCD_IF *i)
 	if (showssid)
 		len += strlen(i->ssid) + 1;
 	msg = p = malloc(len);
+	if (msg == NULL)
+		return NULL;
 	p += snprintf(msg, len, "%s: %s", i->ifname, reason);
 	if (showssid)
-		p += snprintf(p, len - (p - msg), " %s", i->ssid);
+		p += snprintf(p, len - (size_t)(p - msg), " %s", i->ssid);
 	if (i->ip.s_addr != 0 && showip) {
-		p += snprintf(p, len - (p - msg), " %s", inet_ntoa(i->ip));
+		p += snprintf(p, len - (size_t)(p - msg), " %s", inet_ntoa(i->ip));
 		if (i->cidr != 0)
-			snprintf(p, len - (p - msg), "/%d", i->cidr);
+			snprintf(p, len - (size_t)(p - msg), "/%d", i->cidr);
+	} else if (!IN6_IS_ADDR_UNSPECIFIED(&i->ip6) && showip) {
+		p += snprintf(p, len - (size_t)(p - msg), " %s",
+		    inet_ntop(AF_INET6, &i->ip6, buf, INET6_ADDRSTRLEN));
 	} else if (!IN6_IS_ADDR_UNSPECIFIED(&i->prefix) && showip) {
-		p += snprintf(p, len - (p - msg), " %s",
+		p += snprintf(p, len - (size_t)(p - msg), " %s",
 		    inet_ntop(AF_INET6, &i->prefix, buf, INET6_ADDRSTRLEN));
 		if (i->prefix_len != 0)
-			snprintf(p, len - (p - msg), "/%d", i->prefix_len);
+			snprintf(p, len - (size_t)(p - msg), "/%d", i->prefix_len);
 	}
 	return msg;
 }

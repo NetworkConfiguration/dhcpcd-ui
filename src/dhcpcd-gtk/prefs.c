@@ -1,6 +1,6 @@
 /*
  * dhcpcd-gtk
- * Copyright 2009-2012 Roy Marples <roy@marples.name>
+ * Copyright 2009-2014 Roy Marples <roy@marples.name>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -115,22 +115,22 @@ make_config(DHCPCD_CONFIG **conf)
 		set_option(conf, false, "inform", a ? val : NULL, &ret);
 		set_option(conf, true, "ip_address=", a ? NULL : val, &ret);
 	}
-	
+
 	val = gtk_entry_get_text(GTK_ENTRY(router));
 	if (a && *val == '\0')
 		val = NULL;
 	set_option(conf, true, "routers=", val, &ret);
-	
+
 	val = gtk_entry_get_text(GTK_ENTRY(dns_servers));
 	if (a && *val == '\0')
 		val = NULL;
 	set_option(conf, true, "domain_name_servers=", val, &ret);
-	
+
 	val = gtk_entry_get_text(GTK_ENTRY(dns_search));
 	if (a && *val == '\0')
 		val = NULL;
 	set_option(conf, true, "domain_search=", val, &ret);
-	
+
 	return ret;
 }
 
@@ -227,7 +227,7 @@ blocks_on_change(GtkWidget *widget, gpointer data)
 	store = GTK_LIST_STORE(gtk_combo_box_get_model(GTK_COMBO_BOX(names)));
 	gtk_list_store_clear(store);
 	list = dhcpcd_config_blocks_get(con, block);
-	
+
 	if (g_strcmp0(block, "interface") == 0)
 		new_names = list_interfaces(con);
 	else
@@ -328,13 +328,12 @@ valid_address(const char *val, bool allow_cidr)
 		}
 	}
 	retval = inet_aton(addr, &in) == 0 ? false : true;
-	
+
 out:
 	g_free(addr);
 	return retval;
 }
 
-	
 static bool
 address_lost_focus(GtkEntry *entry)
 {
@@ -406,6 +405,7 @@ on_rebind(_unused GObject *widget, gpointer data)
 static void
 on_destroy(_unused GObject *o, gpointer data)
 {
+
 	if (name != NULL) {
 		if (make_config(&config))
 			dhcpcd_config_save((DHCPCD_CONNECTION *)data,
@@ -456,7 +456,7 @@ dhcpcd_prefs_show(DHCPCD_CONNECTION *con)
 	GtkTreeIter iter;
 	GtkCellRenderer *rend;
 	GdkPixbuf *pb;
-	
+
 	if (dialog) {
 		gtk_window_present(GTK_WINDOW(dialog));
 		return;
@@ -520,7 +520,7 @@ dhcpcd_prefs_show(DHCPCD_CONNECTION *con)
 	    G_CALLBACK(blocks_on_change), con);
 	g_signal_connect(G_OBJECT(names), "changed",
 	    G_CALLBACK(names_on_change), con);
-	
+
 	w = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
 	gtk_box_pack_start(GTK_BOX(dialog_vbox), w, true, false, 3);
 	controls = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
@@ -543,7 +543,7 @@ dhcpcd_prefs_show(DHCPCD_CONNECTION *con)
 #define attach_entry(a, b, c, d, e)					      \
 	gtk_table_attach(GTK_TABLE(table), a, b, c, d, e,		      \
 	    GTK_EXPAND | GTK_FILL | GTK_SHRINK, GTK_FILL | GTK_SHRINK, 3, 3);
-	
+
 	w = gtk_label_new(_("IP Address:"));
 	address = gtk_entry_new();
 	gtk_entry_set_max_length(GTK_ENTRY(address), 18);
@@ -591,9 +591,8 @@ dhcpcd_prefs_show(DHCPCD_CONNECTION *con)
 	gtk_box_pack_end(GTK_BOX(hbox), w, false, false, 0);
 	g_signal_connect(G_OBJECT(w), "clicked",
 	    G_CALLBACK(dhcpcd_prefs_close), NULL);
-	
+
 	blocks_on_change(blocks, con);
 	show_config(NULL);
 	gtk_widget_show_all(dialog);
 }
-

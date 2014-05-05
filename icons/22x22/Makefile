@@ -1,5 +1,5 @@
 SUBDIR=	actions devices status
 
 TOPDIR=		../..
-include ${TOPDIR}/config.mk
+include ${TOPDIR}/iconfig.mk
 include ${MKDIR}/subdir.mk

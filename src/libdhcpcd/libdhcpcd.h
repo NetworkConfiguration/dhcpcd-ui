@@ -60,14 +60,15 @@ typedef struct dhcpcd_if {
 	char ifname[IF_NAMESIZE];
 	char type[TYPESIZE];
 	unsigned int flags;
+	bool wireless;
+	char ssid[IF_SSIDSIZE];
 	bool up;
 	char reason[REASONSIZE];
 	struct in_addr ip;
 	struct in6_addr prefix;
 	int prefix_len;
 	unsigned char cidr;
-	bool wireless;
-	char ssid[IF_SSIDSIZE];
+	struct in6_addr ip6;
 } DHCPCD_IF;
 
 /* Although we use DBus, we don't have to rely on it for our API */

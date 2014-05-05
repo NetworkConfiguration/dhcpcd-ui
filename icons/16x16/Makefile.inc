@@ -7,5 +7,5 @@ VPATH+=		${SRCDIR}/${CATEGORY}
 SIZE=		16
 
 TOPDIR=		../../..
-include ${TOPDIR}/config.mk
+include ${TOPDIR}/iconfig.mk
 include ${MKDIR}/icon.mk
