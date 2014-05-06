@@ -30,6 +30,8 @@
 #define IN_LIBDHCPCD
 #include "libdhcpcd.h"
 
+static const char *dhcpcd_types[] = { "link", "ipv4", "ra", "dhcp6", NULL };
+
 static const char *
 dhcpcd_message_get_string(DHCPCD_MESSAGE *msg)
 {
@@ -51,7 +53,6 @@ dhcpcd_handle_event(DHCPCD_CONNECTION *con, DHCPCD_MESSAGE *msg)
 	DBusMessageIter args;
 	DHCPCD_IF *i, *e, *l, *n, *nl;
 	char *order, *o, *p;
-	static const char *types[] = { "ipv4", "ra", NULL };
 	int ti;
 
 	if (!dbus_message_iter_init(msg, &args))
@@ -63,48 +64,90 @@ dhcpcd_handle_event(DHCPCD_CONNECTION *con, DHCPCD_MESSAGE *msg)
 	p = order;
 	n = nl = NULL;
 
+	/* Remove all instances on carrier drop */
+	if (strcmp(i->reason, "NOCARRIER") == 0 ||
+	    strcmp(i->reason, "DEPARTED") == 0 ||
+	    strcmp(i->reason, "STOPPED") == 0)
+	{
+		l = NULL;
+		for (e = con->interfaces; e; e = n) {
+			n = e->next;
+			if (strcmp(e->ifname, i->ifname) == 0) {
+				if (strcmp(e->type, i->type) == 0)
+					l = nl = e;
+				else {
+					if (l)
+						l->next = e->next;
+					else
+						con->interfaces = e->next;
+					free(e);
+				}
+			} else
+				l = e;
+		}
+	}
+
+	/* Find our pointer */
+	if (nl == NULL) {
+		l = NULL;
+		for (e = con->interfaces; e; e = e->next) {
+			if (strcmp(e->ifname, i->ifname) == 0 &&
+			    strcmp(e->type, i->type) == 0)
+			{
+				nl = e;
+				break;
+			}
+			l = e;
+		}
+	}
+	if (nl) {
+		/* Preserve the pointer for wireless history */
+		n = nl->next;
+		memcpy(nl, i, sizeof(*i));
+		nl->next = n;
+		free(i);
+		i = nl;
+	} else {
+		/* Append it then */
+		if (l)
+			l->next = i;
+		else
+			con->interfaces = i;
+		i->next = NULL;
+	}
+
+	/* Sort! */
+	n = nl = NULL;
 	while ((o = strsep(&p, " ")) != NULL) {
-		for (ti = 0; ti < 2; ti++) {
+		for (ti = 0; dhcpcd_types[ti]; ti++) {
 			l = NULL;
 			for (e = con->interfaces; e; e = e->next) {
 				if (strcmp(e->ifname, o) == 0 &&
-				    strcmp(e->type, types[ti]) == 0)
+				    strcmp(e->type, dhcpcd_types[ti]) == 0)
 					break;
 				l = e;
 			}
-			if (e == NULL) {
-				if (strcmp(i->ifname, o) != 0 ||
-				    strcmp(i->type, types[ti]) == 0)
-					continue;
-				e = i;
-			} else {
-				if (l != NULL)
-					l->next = e->next;
-				else
-					con->interfaces = e->next;
-				if (i != NULL &&
-				    strcmp(e->ifname, i->ifname) == 0 &&
-				    strcmp(e->type, i->type) == 0)
-				{
-					/* Preserve the pointer for
-					 * our wireless history */
-					memcpy(e, i, sizeof(*e));
-					free(i);
-					i = e;
-				}
-				e->next = NULL;
-			}
+			if (e == NULL)
+				continue;
+			if (l)
+				l->next = e->next;
+			else
+				con->interfaces = e->next;
+			e->next = NULL;
 			if (nl == NULL)
 				n = nl = e;
 			else {
 				nl->next = e;
-				nl = nl->next;
+				nl = e;
 			}
 		}
 	}
-
-	if (nl != NULL)
-		nl->next = con->interfaces;
+	/* Free any stragglers */
+	while (con->interfaces) {
+		e = con->interfaces->next;
+		free(con->interfaces);
+		con->interfaces = e;
+	}
 	con->interfaces = n;
 
 	if (con->event)
@@ -138,7 +181,7 @@ dhcpcd_dispatch_message(DHCPCD_CONNECTION *con, DHCPCD_MESSAGE *msg)
 	{
 		if (con->wi_scanresults) {
 			str = dhcpcd_message_get_string(msg);
-			ifp = dhcpcd_if_find(con, str, "ipv4");
+			ifp = dhcpcd_if_find(con, str, "link");
 			if (ifp)
 				con->wi_scanresults(con, ifp, con->signal_data);
 		}

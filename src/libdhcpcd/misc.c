@@ -74,7 +74,9 @@ dhcpcd_if_message(const DHCPCD_IF *i)
 		} else
 			reason = _("Cable unplugged");
 		showip = false;
-	} else if (strcmp(i->reason, "FAIL") == 0)
+	} else if (strcmp(i->reason, "UNKNOWN") == 0)
+		reason = _("Unknown link state");
+	else if (strcmp(i->reason, "FAIL") == 0)
 		reason = _("Automatic configuration not possible");
 	else if (strcmp(i->reason, "3RDPARTY") == 0)
 		reason = _("Waiting for 3rd Party configuration");
@@ -110,7 +112,8 @@ dhcpcd_if_message(const DHCPCD_IF *i)
 	if (showssid)
 		p += snprintf(p, len - (size_t)(p - msg), " %s", i->ssid);
 	if (i->ip.s_addr != 0 && showip) {
-		p += snprintf(p, len - (size_t)(p - msg), " %s", inet_ntoa(i->ip));
+		p += snprintf(p, len - (size_t)(p - msg), " %s",
+		    inet_ntoa(i->ip));
 		if (i->cidr != 0)
 			snprintf(p, len - (size_t)(p - msg), "/%d", i->cidr);
 	} else if (!IN6_IS_ADDR_UNSPECIFIED(&i->ip6) && showip) {
@@ -120,7 +123,8 @@ dhcpcd_if_message(const DHCPCD_IF *i)
 		p += snprintf(p, len - (size_t)(p - msg), " %s",
 		    inet_ntop(AF_INET6, &i->prefix, buf, INET6_ADDRSTRLEN));
 		if (i->prefix_len != 0)
-			snprintf(p, len - (size_t)(p - msg), "/%d", i->prefix_len);
+			snprintf(p, len - (size_t)(p - msg),
+			    "/%d", i->prefix_len);
 	}
 	return msg;
 }

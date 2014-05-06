@@ -121,46 +121,31 @@ animate_online(_unused gpointer data)
 static void
 update_online(DHCPCD_CONNECTION *con, bool showif)
 {
-	bool ison, iscarrier, isstop;
+	bool ison, iscarrier;
 	char *msg, *msgs, *tmp;
-	DHCPCD_IF *ifs, *i, *j;
+	DHCPCD_IF *ifs, *i;
 
 	ison = iscarrier = false;
 	msgs = NULL;
 	ifs = dhcpcd_interfaces(con);
 	for (i = ifs; i; i = i->next) {
-		if (showif)
-			g_message("%s: %s", i->ifname, i->reason);
-		if (strcmp(i->reason, "RELEASE") == 0 ||
-		    strcmp(i->reason, "STOP") == 0)
-			continue;
-		if (strcmp(i->type, "ipv4") != 0) {
-			isstop = false;
-			for (j = ifs; j; j = j->next)
-				if (strcmp(j->ifname, i->ifname) == 0 &&
-				    strcmp(j->type, "ipv4") == 0)
-				{
-					if (strcmp(j->reason, "STOP") == 0)
-						isstop = true;
-					break;
-				}
-			if (isstop)
-				continue;
-		}
 		if (i->up)
 			ison = iscarrier = true;
 		if (!iscarrier && g_strcmp0(i->reason, "CARRIER") == 0)
 			iscarrier = true;
 		msg = dhcpcd_if_message(i);
 		if (msg) {
+			if (showif)
+				g_message("%s", msg);
 			if (msgs) {
 				tmp = g_strconcat(msgs, "\n", msg, NULL);
 				g_free(msgs);
 				g_free(msg);
 				msgs = tmp;
 			} else
-				    msgs = msg;
-		}
+				msgs = msg;
+		} else if (showif)
+			g_message("%s: %s", i->ifname, i->reason);
 	}
 
 	if (online != ison || carrier != iscarrier) {
@@ -253,7 +238,7 @@ event_cb(DHCPCD_CONNECTION *con, DHCPCD_IF *i, _unused void *data)
 	char *msg;
 	const char *icon;
 
-	g_message("%s: %s", i->ifname, i->reason);
+	g_message("interface event: %s: %s", i->ifname, i->reason);
 	update_online(con, false);
 
 	/* We should ignore renew and stop so we don't annoy the user */
@@ -262,14 +247,17 @@ event_cb(DHCPCD_CONNECTION *con, DHCPCD_IF *i, _unused void *data)
 		return;
 
 	msg = dhcpcd_if_message(i);
-	if (i->up)
-		icon = "network-transmit-receive";
-	//else
-	//	icon = "network-transmit";
-	if (!i->up)
-		icon = "network-offline";
-	notify(_("Network event"), msg, icon);
-	g_free(msg);
+	if (msg) {
+		g_message("%s", msg);
+		if (i->up)
+			icon = "network-transmit-receive";
+		//else
+		//	icon = "network-transmit";
+		if (!i->up)
+			icon = "network-offline";
+		notify(_("Network event"), msg, icon);
+		g_free(msg);
+	}
 }
 
 static void

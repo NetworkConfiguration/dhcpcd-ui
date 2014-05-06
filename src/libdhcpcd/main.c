@@ -526,6 +526,7 @@ dhcpcd_interfaces(DHCPCD_CONNECTION *con)
 	DBusMessageIter args, dict, entry;
 	DHCPCD_IF *i, *l;
 	int errors;
+	char *stopif;
 
 	if (con->interfaces != NULL)
 		return con->interfaces;
@@ -544,6 +545,7 @@ dhcpcd_interfaces(DHCPCD_CONNECTION *con)
 	l = NULL;
 	errors = con->errors;
 	dbus_message_iter_recurse(&args, &dict);
+	stopif = NULL;
 	for (;
 	     dbus_message_iter_get_arg_type(&dict) == DBUS_TYPE_DICT_ENTRY;
 	     dbus_message_iter_next(&dict))
@@ -553,6 +555,14 @@ dhcpcd_interfaces(DHCPCD_CONNECTION *con)
 		i = dhcpcd_if_new(con, &entry, NULL);
 		if (i == NULL)
 			break;
+		if (stopif && strcmp(stopif, i->ifname) == 0) {
+			free(i);
+			continue;
+		}
+		if (strcmp(i->reason, "NOCARRIER") == 0 ||
+		    strcmp(i->reason, "DEPARTED") == 0 ||
+		    strcmp(i->reason, "STOPPED") == 0)
+			stopif = i->ifname;
 		if (l == NULL)
 			con->interfaces = i;
 		else
@@ -629,7 +639,7 @@ dhcpcd_set_signal_functions(DHCPCD_CONNECTION *con,
 	}
 	if (con->wi_scanresults) {
 		for (i = dhcpcd_interfaces(con); i; i = i->next)
-			if (i->wireless && strcmp(i->type, "ipv4") == 0)
+			if (i->wireless && strcmp(i->type, "link") == 0)
 				con->wi_scanresults(con, i, data);
 	}
 }
