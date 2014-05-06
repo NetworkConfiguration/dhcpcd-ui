@@ -30,7 +30,8 @@
 #define IN_LIBDHCPCD
 #include "libdhcpcd.h"
 
-static const char *dhcpcd_types[] = { "link", "ipv4", "ra", "dhcp6", NULL };
+static const char * const dhcpcd_types[] =
+    { "link", "ipv4", "ra", "dhcp6", NULL };
 
 static const char *
 dhcpcd_message_get_string(DHCPCD_MESSAGE *msg)
