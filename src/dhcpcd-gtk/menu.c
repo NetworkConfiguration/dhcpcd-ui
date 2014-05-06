@@ -129,7 +129,7 @@ add_scans(WI_SCAN *scan)
 		if (g_strcmp0(wis->ssid, scan->interface->ssid) == 0)
 			gtk_check_menu_item_set_active(
 				GTK_CHECK_MENU_ITEM(item), true);
-		if (wis->flags == NULL)
+		if (wis->flags[0] == '\0')
 			icon = "network-wireless";
 		else
 			icon = "network-wireless-encrypted";
@@ -147,9 +147,13 @@ add_scans(WI_SCAN *scan)
 		perc = CLAMP(strength, 0, 100) / 100.0;
 		gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(bar), perc);
 
-		tip = g_strconcat(wis->bssid, " ", wis->flags, NULL);
-		gtk_widget_set_tooltip_text(item, tip);
-		g_free(tip);
+		if (wis->flags[0] == '\0')
+			gtk_widget_set_tooltip_text(item, wis->bssid);
+		else {
+			tip = g_strconcat(wis->bssid, " ", wis->flags, NULL);
+			gtk_widget_set_tooltip_text(item, tip);
+			g_free(tip);
+		}
 
 		gtk_widget_show(label);
 		gtk_widget_show(bar);

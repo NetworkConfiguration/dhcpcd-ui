@@ -403,7 +403,7 @@ add_watch_cb(DHCPCD_CONNECTION *con, const struct pollfd *fd,
 {
 	struct watch *w;
 	GIOChannel *gio;
-	int flags;
+	GIOCondition flags;
 	guint eventid;
 
 	/* Remove any existing watch */
@@ -446,7 +446,7 @@ main(int argc, char *argv[])
 	setlocale(LC_ALL, "");
 	bindtextdomain(PACKAGE, NULL);
 	bind_textdomain_codeset(PACKAGE, "UTF-8");
-	textdomain(PACKAGE); 
+	textdomain(PACKAGE);
 
 	gtk_init(&argc, &argv);
 	g_set_application_name("Network Configurator");

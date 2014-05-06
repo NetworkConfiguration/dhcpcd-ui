@@ -285,10 +285,10 @@ echo "DBUS_LIBS=	$DBUS_LIBS" >>$CONFIG_MK
 
 UI=
 if [ "$WITH_GTK" = yes -o -z "$WITH_GTK" ]; then
-	if pkg-config --cflags gtk+-3.0 >/dev/null 2>&1; then
-		WITH_GTK="gtk+-3.0"
-	elif pkg-config --cflags gtk+-2.0 >/dev/null 2>&1; then
+	if pkg-config --cflags gtk+-2.0 >/dev/null 2>&1; then
 		WITH_GTK="gtk+-2.0"
+	elif pkg-config --cflags gtk+-3.0 >/dev/null 2>&1; then
+		WITH_GTK="gtk+-3.0"
 	fi
 elif [ -n "$WITH_GTK" -a "$WITH_GTK" != no ]; then
 	if ! pkg-config --cflags $WITH_GTK >/dev/null; then
