@@ -27,7 +27,7 @@
 #include "config.h"
 #include "dhcpcd-gtk.h"
 
-static const char *copyright = "Copyright (c) 2009-2013 Roy Marples";
+static const char *copyright = "Copyright (c) 2009-2014 Roy Marples";
 static const char *authors[] = { "Roy Marples <roy@marples.name>", NULL };
 
 static void
