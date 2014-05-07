@@ -191,7 +191,6 @@ notify_closed(void)
 static void
 notify(const char *title, const char *msg, const char *icon)
 {
-	char **msgs, **m;
 
 	if (msg == NULL)
 		return;
@@ -202,11 +201,6 @@ notify(const char *title, const char *msg, const char *icon)
 		g_free(notify_last_msg);
 	}
 	notify_last_msg = g_strdup(msg);
-
-	msgs = g_strsplit(msg, "\n", 0);
-	for (m = msgs; *m; m++)
-		g_message("%s", *m);
-	g_strfreev(msgs);
 
 	if (nn != NULL)
 		notify_notification_close(nn, NULL);
