@@ -197,7 +197,6 @@ notify(const char *title, const char *msg, const char *icon)
 		return;
 	/* Don't spam the same message */
 	if (notify_last_msg) {
-			return;
 		if (notify_last_msg && strcmp(msg, notify_last_msg) == 0)
 			return;
 		g_free(notify_last_msg);
