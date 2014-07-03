@@ -24,283 +24,141 @@
  * SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <errno.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <dbus/dbus.h>
-
 #define IN_LIBDHCPCD
-#include "libdhcpcd.h"
 
-static DHCPCD_CONFIG *
-dhcpcd_config_new(const char *opt, const char *val)
+#include "dhcpcd.h"
+
+static DHCPCD_OPTION *
+dhcpcd_option_new(const char *opt, const char *val)
 {
-	DHCPCD_CONFIG *c;
+	DHCPCD_OPTION *o;
 
-	c = malloc(sizeof(*c));
-	if (c == NULL)
+	o = malloc(sizeof(*o));
+	if (o == NULL)
 		return NULL;
-	c->option = strdup(opt);
-	if (c->option == NULL) {
-		free(c);
-		return NULL;
-	}
-	c->value = strdup(val);
-	if (c->value == NULL) {
-		free(c->option);
-		free(c);
+	o->option = strdup(opt);
+	if (o->option == NULL) {
+		free(o);
 		return NULL;
 	}
-	c->next = NULL;
-	return c;
+	o->value = strdup(val);
+	if (o->value == NULL) {
+		free(o->option);
+		free(o);
+		return NULL;
+	}
+	o->next = NULL;
+	return o;
+}
+
+static void
+dhcpcd_option_free(DHCPCD_OPTION *o)
+{
+
+	free(o->option);
+	free(o->value);
+	free(o);
 }
 
 void
-dhcpcd_config_free(DHCPCD_CONFIG *config)
+dhcpcd_config_free(DHCPCD_OPTION *c)
 {
-	DHCPCD_CONFIG *c;
+	DHCPCD_OPTION *n;
 
-	while (config) {
-		c = config->next;
-		free(config->option);
-		free(config->value);
-		free(config);
-		config = c;
+	while (c) {
+		n = c->next;
+		dhcpcd_option_free(c);
+		c = n;
 	}
 }
 
-char **
-dhcpcd_config_blocks_get(DHCPCD_CONNECTION *con, const char *block)
+static DHCPCD_OPTION *
+dhcpcd_config_get1(DHCPCD_OPTION *config, const char *opt, DHCPCD_OPTION **lst)
 {
-	DBusMessage *msg, *reply;
-	DBusMessageIter args;
-	DBusError error;
-	char **blocks;
-	int n_blocks;
+	DHCPCD_OPTION *o;
 
-	msg = dbus_message_new_method_call(DHCPCD_SERVICE, DHCPCD_PATH,
-	    DHCPCD_SERVICE, "GetConfigBlocks");
-	if (msg == NULL) {
-		dhcpcd_error_set(con, NULL, errno);
-		return NULL;
-	}
-	dbus_message_iter_init_append(msg, &args);
-	dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &block);
-	reply = dhcpcd_send_reply(con, msg);
-	dbus_message_unref(msg);
-	if (reply == NULL)
-		return NULL;
-	dbus_error_init(&error);
-	blocks = NULL;
-	n_blocks = 0;
-	if (!dbus_message_get_args(reply, &error, DBUS_TYPE_ARRAY,
-		DBUS_TYPE_STRING, &blocks, &n_blocks,
-		DBUS_TYPE_INVALID))
-	{
-		dhcpcd_error_set(con, error.message, 0);
-		dbus_error_free(&error);
-	}
-	dbus_message_unref(reply);
-	return blocks;
-}
-
-DHCPCD_CONFIG *
-dhcpcd_config_load(DHCPCD_CONNECTION *con, const char *block, const char *name)
-{
-	DHCPCD_CONFIG *config, *c, *l;
-	DBusMessage *msg, *reply;
-	DBusMessageIter args, array, item;
-	const char ns[] = "", *option, *value;
-	int errors;
-
-	msg = dbus_message_new_method_call(DHCPCD_SERVICE, DHCPCD_PATH,
-	    DHCPCD_SERVICE, "GetConfig");
-	if (msg == NULL) {
-		dhcpcd_error_set(con, NULL, errno);
-		return NULL;
-	}
-	dbus_message_iter_init_append(msg, &args);
-	if (block == NULL)
-		block = ns;
-	if (name == NULL)
-		name = ns;
-	dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &block);
-	dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &name);
-	reply = dhcpcd_send_reply(con, msg);
-	dbus_message_unref(msg);
-	if (reply == NULL)
-		return NULL;
-	if (!dbus_message_iter_init(reply, &args) ||
-	    dbus_message_iter_get_arg_type(&args) != DBUS_TYPE_ARRAY)
-	{
-		dbus_message_unref(reply);
-		dhcpcd_error_set(con, NULL, EINVAL);
-		return NULL;
-	}
-	config = l = NULL;
-	errors = con->errors;
-	dbus_message_iter_recurse(&args, &array);
-	for (;
-	     dbus_message_iter_get_arg_type(&array) == DBUS_TYPE_STRUCT;
-	     dbus_message_iter_next(&array))
-	{
-		dbus_message_iter_recurse(&array, &item);
-		if (!dhcpcd_iter_get(con, &item, DBUS_TYPE_STRING, &option) ||
-		    !dhcpcd_iter_get(con, &item, DBUS_TYPE_STRING, &value))
-			break;
-		c = dhcpcd_config_new(option, value);
-		if (c == NULL) {
-			dhcpcd_error_set(con, NULL, errno);
-			break;
-		}
-		if (l == NULL)
-			config = c;
-		else
-			l->next = c;
-		l = c;
-	}
-	if (dbus_message_iter_get_arg_type(&array) != DBUS_TYPE_INVALID) {
-		if (con->errors == errors)
-			dhcpcd_error_set(con, NULL, EINVAL);
-		dhcpcd_config_free(config);
-		config = NULL;
-	}
-	dbus_message_unref(reply);
-	return config;
-}
-
-bool
-dhcpcd_config_save(DHCPCD_CONNECTION *con, const char *block, const char *name,
-    DHCPCD_CONFIG *config)
-{
-	DBusMessage *msg, *reply;
-	DBusMessageIter args, array, item;
-	DHCPCD_CONFIG *c;
-	const char ns[] = "", *p;
-	bool retval;
-
-	msg = dbus_message_new_method_call(DHCPCD_SERVICE, DHCPCD_PATH,
-	    DHCPCD_SERVICE, "SetConfig");
-	if (msg == NULL) {
-		dhcpcd_error_set(con, 0, errno);
-		return false;
-	}
-	dbus_message_iter_init_append(msg, &args);
-	dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &block);
-	dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &name);
-	dbus_message_iter_open_container(&args, DBUS_TYPE_ARRAY,
-	    DBUS_STRUCT_BEGIN_CHAR_AS_STRING
-	    DBUS_TYPE_STRING_AS_STRING
-	    DBUS_TYPE_STRING_AS_STRING
-	    DBUS_STRUCT_END_CHAR_AS_STRING,
-	    &array);
-	for (c = config; c; c = c->next) {
-		dbus_message_iter_open_container(&array,
-		    DBUS_TYPE_STRUCT, NULL, &item);
-		dbus_message_iter_append_basic(&item,
-		    DBUS_TYPE_STRING, &c->option);
-		if (c->value == NULL)
-			p = ns;
-		else
-			p = c->value;
-		dbus_message_iter_append_basic(&item, DBUS_TYPE_STRING, &p);
-		dbus_message_iter_close_container(&array, &item);
-	}
-	dbus_message_iter_close_container(&args, &array);
-
-	reply = dhcpcd_send_reply(con, msg);
-	dbus_message_unref(msg);
-	if (reply == NULL)
-		retval = false;
-	else {
-		dbus_message_unref(reply);
-		retval = true;
-	}
-	return retval;
-}
-
-static DHCPCD_CONFIG *
-dhcpcd_config_get1(DHCPCD_CONFIG *config, const char *opt, DHCPCD_CONFIG **lst)
-{
-	DHCPCD_CONFIG *c;
-
-	for (c = config; c; c = c->next) {
-		if (strcmp(c->option, opt) == 0)
-			return c;
+	for (o = config; o; o = o->next) {
+		if (strcmp(o->option, opt) == 0)
+			return o;
 		if (lst)
-			*lst = c;
+			*lst = o;
 	}
 	errno = ESRCH;
 	return NULL;
 }
 
 const char *
-dhcpcd_config_get(DHCPCD_CONFIG *config, const char *opt)
+dhcpcd_config_get(DHCPCD_OPTION *config, const char *opt)
 {
-	DHCPCD_CONFIG *c;
+	DHCPCD_OPTION *o;
 
-	c = dhcpcd_config_get1(config, opt, NULL);
-	if (c == NULL)
+	assert(opt);
+	o = dhcpcd_config_get1(config, opt, NULL);
+	if (o == NULL)
 		return NULL;
-	return c->value;
+	return o->value;
 }
 
-static DHCPCD_CONFIG *
-dhcpcd_config_get_static1(DHCPCD_CONFIG *config, const char *opt,
-    DHCPCD_CONFIG **lst)
+static DHCPCD_OPTION *
+dhcpcd_config_get_static1(DHCPCD_OPTION *config, const char *opt,
+    DHCPCD_OPTION **lst)
 {
-	DHCPCD_CONFIG *c;
+	DHCPCD_OPTION *o;
 	size_t len;
 
-	c = config;
+	o = config;
 	len = strlen(opt);
-	while ((c = dhcpcd_config_get1(c, "static", lst)) != NULL) {
-		if (strncmp(c->value, opt, len) == 0)
-			return c;
+	while ((o = dhcpcd_config_get1(o, "static", lst)) != NULL) {
+		if (strncmp(o->value, opt, len) == 0)
+			return o;
 		if (lst)
-			*lst = c;
-		c = c->next;
+			*lst = o;
+		o = o->next;
 	}
 	return NULL;
 }
 
 const char *
-dhcpcd_config_get_static(DHCPCD_CONFIG *config, const char *opt)
+dhcpcd_config_get_static(DHCPCD_OPTION *config, const char *opt)
 {
-	DHCPCD_CONFIG *c;
+	DHCPCD_OPTION *o;
 
-	c = dhcpcd_config_get_static1(config, opt, NULL);
-	if (c == NULL)
+	assert(opt);
+	o = dhcpcd_config_get_static1(config, opt, NULL);
+	if (o == NULL)
 		return NULL;
-	return c->value + strlen(opt);
+	return o->value + strlen(opt);
 }
 
 static bool
-dhcpcd_config_set1(DHCPCD_CONFIG **config, const char *opt, const char *val,
+dhcpcd_config_set1(DHCPCD_OPTION **config, const char *opt, const char *val,
     bool s)
 {
-	DHCPCD_CONFIG *c, *l;
+	DHCPCD_OPTION *o, *l;
 	char *t;
 	size_t len;
 
 	l = NULL;
 	if (s)
-		c = dhcpcd_config_get_static1(*config, opt, &l);
+		o = dhcpcd_config_get_static1(*config, opt, &l);
 	else
-		c = dhcpcd_config_get1(*config, opt, &l);
+		o = dhcpcd_config_get1(*config, opt, &l);
 	if (val == NULL) {
-		if (c == NULL)
+		if (o == NULL)
 			return true;
-		if (c == *config)
-			*config = c->next;
+		if (o == *config)
+			*config = o->next;
 		else if (l != NULL)
-			l->next = c->next;
-		free(c->option);
-		free(c->value);
-		free(c);
+			l->next = o->next;
+		free(o->option);
+		free(o->value);
+		free(o);
 		return true;
 	}
 	if (s) {
@@ -314,33 +172,251 @@ dhcpcd_config_set1(DHCPCD_CONFIG **config, const char *opt, const char *val,
 		if (t == NULL)
 			return false;
 	}
-	if (c == NULL) {
+	if (o == NULL) {
 		if (s)
-			c = dhcpcd_config_new("static", t);
+			o = dhcpcd_option_new("static", t);
 		else
-			c = dhcpcd_config_new(opt, val);
-		if (c == NULL)
+			o = dhcpcd_option_new(opt, val);
+		if (o == NULL)
 			return false;
 		if (l == NULL)
-			*config = c;
+			*config = o;
 		else
-			l->next = c;
+			l->next = o;
 		return true;
 	}
-	free(c->value);
-	c->value = t;
+	free(o->value);
+	o->value = t;
 	return true;
 }
 
 bool
-dhcpcd_config_set(DHCPCD_CONFIG **config, const char *opt, const char *val)
+dhcpcd_config_set(DHCPCD_OPTION **config, const char *opt, const char *val)
 {
+
+	assert(config);
+	assert(opt);
 	return dhcpcd_config_set1(config, opt, val, false);
 }
 
 bool
-dhcpcd_config_set_static(DHCPCD_CONFIG **config,
+dhcpcd_config_set_static(DHCPCD_OPTION **config,
     const char *opt, const char *val)
 {
+
+	assert(config);
+	assert(opt);
 	return dhcpcd_config_set1(config, opt, val, true);
+}
+
+#define ACT_READ  (1 << 0)
+#define ACT_WRITE (1 << 1)
+#define ACT_LIST  (1 << 2)
+
+static DHCPCD_OPTION *
+config(DHCPCD_CONNECTION *con, int action, const char *block, const char *name,
+    const DHCPCD_OPTION *no, char ***list)
+{
+	FILE *fp;
+	DHCPCD_OPTION *options, *o;
+	const DHCPCD_OPTION *co;
+	char *line, *option, *p;
+	char **buf, **nbuf;
+	int skip, free_opts;
+	size_t len, buf_size, buf_len, i;
+
+	fp = fopen(con->cffile, "r");
+	if (fp == NULL)
+		return NULL;
+	options = o = NULL;
+	skip = block && !(action & ACT_LIST) ? 1 : 0;
+	buf = NULL;
+	buf_len = buf_size = 0;
+	free_opts = 1;
+	while (getline(&con->buf, &con->buflen, fp) != -1) {
+		line = con->buf;
+		/* Trim leading trailing newline and whitespace */
+		while (*line == ' ' || *line == '\n' || *line == '\t')
+			line++;
+		/* Trim trailing newline and whitespace */
+		if (line && *line) {
+			p = line + strlen(line) - 1;
+			while (p != line &&
+			    (*p == ' ' || *p == '\n' || *p == '\t') &&
+			    *(p - 1) != '\\')
+				*p-- = '\0';
+		}
+		option = strsep(&line, " \t");
+		/* Trim trailing whitespace */
+		if (line && *line) {
+			p = line + strlen(line) - 1;
+			while (p != line &&
+			    (*p == ' ' || *p == '\n' || *p == '\t') &&
+			    *(p - 1) != '\\')
+				*p-- = '\0';
+		}
+		if (action & ACT_LIST) {
+			if (strcmp(option, block) == 0)
+				skip = 0;
+			else
+				skip = 1;
+		} else {
+			/* Start of a block, skip if not ours */
+			if (strcmp(option, "interface") == 0 ||
+			    strcmp(option, "ssid") == 0)
+			{
+				if (block && name && line &&
+				    strcmp(option, block) == 0 &&
+				    strcmp(line, name) == 0)
+					skip = 0;
+				else
+					skip = 1;
+				if (!(action & ACT_WRITE))
+					continue;
+			}
+		}
+		if ((action & ACT_WRITE && skip) ||
+		    (action & ACT_LIST && !skip))
+		{
+			if (buf_len + 2 > buf_size) {
+				buf_size += 32;
+				nbuf = realloc(buf, sizeof(char *) * buf_size);
+				if (nbuf == NULL)
+					goto exit;
+				buf = nbuf;
+			}
+			if (action & ACT_WRITE && line && *line != '\0') {
+				len = strlen(option) + strlen(line) + 2;
+				buf[buf_len] = malloc(len);
+				if (buf[buf_len] == NULL)
+					goto exit;
+				snprintf(buf[buf_len], len,
+				    "%s %s", option, line);
+			} else {
+				if (action & ACT_LIST)
+					buf[buf_len] = strdup(line);
+				else
+					buf[buf_len] = strdup(option);
+				if (buf[buf_len] == NULL)
+					goto exit;
+			}
+			buf_len++;
+		}
+		if (skip || action & ACT_LIST)
+			continue;
+		if (*option == '\0' || *option == '#' || *option == ';')
+			continue;
+		if (o == NULL)
+			options = o = malloc(sizeof(*options));
+		else {
+			o->next = malloc(sizeof(*o));
+			o = o->next;
+		}
+		if (o == NULL)
+			goto exit;
+		o->next = NULL;
+		o->option = strdup(option);
+		if (o->option == NULL) {
+			o->value = NULL;
+			goto exit;
+		}
+		if (line == NULL || *line == '\0')
+			o->value = NULL;
+		else {
+			o->value = strdup(line);
+			if (o->value == NULL)
+				goto exit;
+		}
+	}
+
+	if (action & ACT_WRITE) {
+		fp = freopen(con->cffile, "w", fp);
+		if (fp == NULL)
+			goto exit;
+		if (block) {
+			skip = 0;
+			for (i = 0; i < buf_len; i++) {
+				fputs(buf[i], fp);
+				fputc('\n', fp);
+				skip = buf[i][0] == '\0' ? 1 : 0;
+			}
+		} else
+			skip = 1;
+		if (no && block) {
+			if (!skip)
+				fputc('\n', fp);
+			fprintf(fp, "%s %s\n", block, name);
+		}
+		skip = 0;
+		for (co = no; co; co = co->next) {
+			if (co->value)
+				fprintf(fp, "%s %s\n", co->option, co->value);
+			else
+				fprintf(fp, "%s\n", co->option);
+			skip = 1;
+		}
+		if (block == NULL) {
+			if (!skip)
+				fputc('\n', fp);
+			for (i = 0; i < buf_len; i++) {
+				fputs(buf[i], fp);
+				fputc('\n', fp);
+			}
+		}
+	} else
+		free_opts = 0;
+
+exit:
+	if (fp != NULL)
+		fclose(fp);
+	if (action & ACT_LIST) {
+		if (buf)
+			buf[buf_len] = NULL;
+		*list = buf;
+	} else {
+		for (i = 0; i < buf_len; i++)
+			free(buf[i]);
+		free(buf);
+	}
+	if (free_opts) {
+		dhcpcd_config_free(options);
+		options = NULL;
+	}
+	return options;
+}
+
+DHCPCD_OPTION *
+dhcpcd_config_read(DHCPCD_CONNECTION *con, const char *block, const char *name)
+{
+
+	assert(con);
+	return config(con, ACT_READ, block, name, NULL, NULL);
+}
+
+bool
+dhcpcd_config_write(DHCPCD_CONNECTION *con,
+    const char *block, const char *name,
+    const DHCPCD_OPTION *opts)
+{
+	int serrno;
+
+	assert(con);
+	serrno = errno;
+	errno = 0;
+	config(con, ACT_WRITE, block, name, opts, NULL);
+	if (errno)
+		return false;
+	errno = serrno;
+	return true;
+}
+
+char **
+dhcpcd_config_blocks(DHCPCD_CONNECTION *con, const char *block)
+{
+	char **blocks;
+
+	assert(con);
+	blocks = NULL;
+	config(con, ACT_LIST, block, NULL, NULL, &blocks);
+	return blocks;
 }

@@ -24,27 +24,144 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/un.h>
+
+#include <assert.h>
 #include <errno.h>
+#include <limits.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define IN_LIBDHCPCD
-#include "libdhcpcd.h"
 #include "config.h"
+#include "dhcpcd.h"
 
-#define HIST_MAX 10 /* Max history per ssid/bssid */
+#ifndef SUN_LEN
+#define SUN_LEN(su) \
+	(sizeof(*(su)) - sizeof((su)->sun_path) + strlen((su)->sun_path))
+#endif
 
-void
-dhcpcd_wi_history_clear(DHCPCD_CONNECTION *con)
+static int
+wpa_open(const char *ifname, char **path)
 {
-	DHCPCD_WI_HIST *h;
+	static int counter;
+	int fd;
+	socklen_t len;
+	struct sockaddr_un sun;
 
-	while (con->wi_history) {
-		h = con->wi_history->next;
-		free(con->wi_history);
-		con->wi_history = h;
+	if ((fd = socket(AF_UNIX,
+	    SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0)) == -1)
+		return -1;
+	memset(&sun, 0, sizeof(sun));
+	sun.sun_family = AF_UNIX;
+	snprintf(sun.sun_path, sizeof(sun.sun_path),
+	    "/tmp/libdhcpcd-wpa-%d.%d", getpid(), counter++);
+	*path = strdup(sun.sun_path);
+	len = (socklen_t)SUN_LEN(&sun);
+	if (bind(fd, (struct sockaddr *)&sun, len) == -1) {
+		close(fd);
+		unlink(*path);
+		free(*path);
+		*path = NULL;
+		return -1;
 	}
+	snprintf(sun.sun_path, sizeof(sun.sun_path),
+	    WPA_CTRL_DIR "/%s", ifname);
+	len = (socklen_t)SUN_LEN(&sun);
+	if (connect(fd, (struct sockaddr *)&sun, len) == -1) {
+		close(fd);
+		unlink(*path);
+		free(*path);
+		*path = NULL;
+		return -1;
+	}
+
+	return fd;
+}
+
+static ssize_t
+wpa_cmd(int fd, const char *cmd, char *buffer, size_t len)
+{
+	int retval;
+	ssize_t bytes;
+	struct pollfd pfd;
+
+	if (buffer)
+		*buffer = '\0';
+	bytes = write(fd, cmd, strlen(cmd));
+	if (bytes == -1 || bytes == 0)
+		return -1;
+	if (buffer == NULL || len == 0)
+		return 0;
+	pfd.fd = fd;
+	pfd.events = POLLIN | POLLHUP;
+	pfd.revents = 0;
+	retval = poll(&pfd, 1, 2000);
+	if (retval == -1)
+		return -1;
+	if (retval == 0 || !(pfd.revents & (POLLIN | POLLHUP)))
+		return -1;
+
+	bytes = read(fd, buffer, len == 1 ? 1 : len - 1);
+	if (bytes != -1)
+		buffer[bytes] = '\0';
+	return bytes;
+}
+
+bool
+dhcpcd_wpa_command(DHCPCD_WPA *wpa, const char *cmd)
+{
+	char buf[10];
+	ssize_t bytes;
+
+	bytes = wpa_cmd(wpa->command_fd, cmd, buf, sizeof(buf));
+	return (bytes == -1 || bytes == 0 ||
+	    strcmp(buf, "OK\n")) ? false : true;
+}
+
+bool
+dhcpcd_wpa_command_arg(DHCPCD_WPA *wpa, const char *cmd, const char *arg)
+{
+	size_t cmdlen, nlen;
+
+	cmdlen = strlen(cmd);
+	nlen = cmdlen + strlen(arg) + 2;
+	if (!dhcpcd_realloc(wpa->con, nlen))
+		return -1;
+	strlcpy(wpa->con->buf, cmd, wpa->con->buflen);
+	wpa->con->buf[cmdlen] = ' ';
+	strlcpy(wpa->con->buf + cmdlen + 1, arg, wpa->con->buflen - 1 - cmdlen);
+	return dhcpcd_wpa_command(wpa, wpa->con->buf);
+}
+
+static bool
+dhcpcd_attach_detach(DHCPCD_WPA *wpa, int attach)
+{
+	char buf[10];
+	ssize_t bytes;
+
+	if (wpa->attached == attach)
+		return true;
+
+	bytes = wpa_cmd(wpa->listen_fd, attach > 0 ? "ATTACH" : "DETACH",
+	    buf, sizeof(buf));
+	if (bytes == -1 || bytes == 0 || strcmp(buf, "OK\n"))
+		return false;
+
+	wpa->attached = attach;
+	return true;
+}
+
+bool
+dhcpcd_wpa_scan(DHCPCD_WPA *wpa)
+{
+
+	return dhcpcd_wpa_command(wpa, "SCAN");
 }
 
 void
@@ -59,114 +176,96 @@ dhcpcd_wi_scans_free(DHCPCD_WI_SCAN *wis)
 	}
 }
 
-static DHCPCD_WI_SCAN *
-dhcpcd_scanresult_new(DHCPCD_CONNECTION *con, DBusMessageIter *array)
+static void
+dhcpcd_strtoi(int *val, const char *s)
 {
-	DBusMessageIter dict, entry, var;
-	DHCPCD_WI_SCAN *wis;
-	char *s;
-	int32_t i32;
-	int errors;
+	long l;
 
-	wis = calloc(1, sizeof(*wis));
-	if (wis == NULL) {
-		dhcpcd_error_set(con, NULL, errno);
+	l = strtol(s, NULL, 0);
+	if (l >= INT_MIN && l <= INT_MAX)
+		*val = (int)l;
+	else
+		errno = ERANGE;
+}
+
+static DHCPCD_WI_SCAN *
+dhcpcd_wpa_scans_read(DHCPCD_WPA *wpa)
+{
+	size_t i;
+	ssize_t bytes;
+	DHCPCD_WI_SCAN *wis, *w, *l;
+	char *s, *p, buf[32];
+
+	if (!dhcpcd_realloc(wpa->con, 2048))
 		return NULL;
-	}
-	errors = con->errors;
-	dbus_message_iter_recurse(array, &dict);
-	for (;
-	     dbus_message_iter_get_arg_type(&dict) == DBUS_TYPE_DICT_ENTRY;
-	     dbus_message_iter_next(&dict))
-	{
-		dbus_message_iter_recurse(&dict, &entry);
-		if (!dhcpcd_iter_get(con, &entry, DBUS_TYPE_STRING, &s))
-		    break;
-		if (dbus_message_iter_get_arg_type(&entry) !=
-		    DBUS_TYPE_VARIANT)
+	wis = NULL;
+	for (i = 0; i < 1000; i++) {
+		snprintf(buf, sizeof(buf), "BSS %zu", i);
+		bytes = wpa_cmd(wpa->command_fd, buf,
+		    wpa->con->buf, wpa->con->buflen);
+		if (bytes == 0 || bytes == -1 ||
+		    strncmp(wpa->con->buf, "FAIL", 4) == 0)
 			break;
-		dbus_message_iter_recurse(&entry, &var);
-		if (strcmp(s, "BSSID") == 0) {
-			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_STRING, &s))
-				break;
-			strlcpy(wis->bssid, s, sizeof(wis->bssid));
-		} else if (strcmp(s, "Frequency") == 0) {
-			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_INT32, &i32))
-				break;
-			wis->frequency = i32;
-		} else if (strcmp(s, "Quality") == 0) {
-			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_INT32, &i32))
-				break;
-			wis->quality.value = i32;
-		} else if (strcmp(s, "Noise") == 0) {
-			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_INT32, &i32))
-				break;
-			wis->noise.value = i32;
-		} else if (strcmp(s, "Level") == 0) {
-			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_INT32, &i32))
-				break;
-			wis->level.value = i32;
-		} else if (strcmp(s, "Flags") == 0) {
-			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_STRING, &s))
-				break;
-			strlcpy(wis->flags, s, sizeof(wis->flags));
-		} else if (strcmp(s, "SSID") == 0) {
-			if (!dhcpcd_iter_get(con, &var, DBUS_TYPE_STRING, &s))
-				break;
-			strlcpy(wis->ssid, s, sizeof(wis->ssid));
+		p = wpa->con->buf;
+		w = calloc(1, sizeof(*w));
+		if (w == NULL)
+			break;
+		if (wis == NULL)
+			wis = w;
+		else
+			l->next = w;
+		l = w;
+		while ((s = strsep(&p, "\n"))) {
+			if (*s == '\0')
+				continue;
+			if (strncmp(s, "bssid=", 6) == 0)
+				strlcpy(w->bssid, s + 6, sizeof(w->bssid));
+			else if (strncmp(s, "freq=", 5) == 0)
+				dhcpcd_strtoi(&w->frequency, s + 5);
+//			else if (strncmp(s, "beacon_int=", 11) == 0)
+//				;
+			else if (strncmp(s, "qual=", 5) == 0)
+				dhcpcd_strtoi(&w->quality.value, s + 5);
+			else if (strncmp(s, "noise=", 6) == 0)
+				dhcpcd_strtoi(&w->noise.value, s + 6);
+			else if (strncmp(s, "level=", 6) == 0)
+				dhcpcd_strtoi(&w->level.value, s + 6);
+			else if (strncmp(s, "flags=", 6) == 0)
+				strlcpy(w->flags, s + 6, sizeof(w->flags));
+			else if (strncmp(s, "ssid=", 5) == 0)
+				strlcpy(w->ssid, s + 5, sizeof(w->ssid));
 		}
-	}
-	if (dbus_message_iter_get_arg_type(&dict) != DBUS_TYPE_INVALID) {
-		if (con->errors == errors)
-			dhcpcd_error_set(con, NULL, EINVAL);
-		free(wis);
-		return NULL;
 	}
 	return wis;
 }
 
 DHCPCD_WI_SCAN *
-dhcpcd_wi_scans(DHCPCD_CONNECTION *con, DHCPCD_IF *i)
+dhcpcd_wi_scans(DHCPCD_IF *i)
 {
-	DBusMessage *msg;
-	DBusMessageIter args, array;
-	DHCPCD_WI_SCAN *wis, *scans, *l;
+	DHCPCD_WPA *wpa;
+	DHCPCD_WI_SCAN *wis, *w;
+	int nh;
 	DHCPCD_WI_HIST *h, *hl;
-	int errors, nh;
 
-	msg = dhcpcd_message_reply(con, "ScanResults", i->ifname);
-	if (msg == NULL)
+	wpa = dhcpcd_wpa_find(i->con, i->ifname);
+	if (wpa == NULL)
 		return NULL;
-	if (!dbus_message_iter_init(msg, &args) ||
-	    dbus_message_iter_get_arg_type(&args) != DBUS_TYPE_ARRAY)
-	{
-		dhcpcd_error_set(con, NULL, EINVAL);
-		return NULL;
-	}
-
-	scans = l = NULL;
-	errors = con->errors;
-	dbus_message_iter_recurse(&args, &array);
-	for(;
-	    dbus_message_iter_get_arg_type(&array) == DBUS_TYPE_ARRAY;
-	    dbus_message_iter_next(&array))
-	{
-		wis = dhcpcd_scanresult_new(con, &array);
-		if (wis == NULL)
-			break;
+	wis = dhcpcd_wpa_scans_read(wpa);
+	for (w = wis; w; w = w->next) {
 		nh = 1;
 		hl = NULL;
-		wis->quality.average = wis->quality.value;
-		wis->noise.average = wis->noise.value;
-		wis->level.average = wis->level.value;
-		for (h = con->wi_history; h; h = h->next) {
+		w->quality.average = w->quality.value;
+		w->noise.average = w->noise.value;
+		w->level.average = w->level.value;
+
+		for (h = wpa->con->wi_history; h; h = h->next) {
 			if (strcmp(h->ifname, i->ifname) == 0 &&
 			    strcmp(h->bssid, wis->bssid) == 0)
 			{
-				wis->quality.average += h->quality;
-				wis->noise.average += h->noise;
-				wis->level.average += h->level;
-				if (++nh == HIST_MAX) {
+				w->quality.average += h->quality;
+				w->noise.average += h->noise;
+				w->level.average += h->level;
+				if (++nh == DHCPCD_WI_HIST_MAX) {
 					hl->next = h->next;
 					free(h);
 					break;
@@ -174,196 +273,364 @@ dhcpcd_wi_scans(DHCPCD_CONNECTION *con, DHCPCD_IF *i)
 			}
 			hl = h;
 		}
+
 		if (nh != 1) {
-			wis->quality.average /= nh;
-			wis->noise.average /= nh;
-			wis->level.average /= nh;
+			w->quality.average /= nh;
+			w->noise.average /= nh;
+			w->level.average /= nh;
 		}
 		h = malloc(sizeof(*h));
 		if (h) {
 			strlcpy(h->ifname, i->ifname, sizeof(h->ifname));
-			strlcpy(h->bssid, wis->bssid, sizeof(h->bssid));
-			h->quality = wis->quality.value;
-			h->noise = wis->noise.value;
-			h->level = wis->level.value;
-			h->next = con->wi_history;
-			con->wi_history = h;
-		}
-		if (l == NULL)
-			scans = l = wis;
-		else {
-			l->next = wis;
-			l = l->next;
+			strlcpy(h->bssid, w->bssid, sizeof(h->bssid));
+			h->quality = w->quality.value;
+			h->noise = w->noise.value;
+			h->level = w->level.value;
+			h->next = wpa->con->wi_history;
+			wpa->con->wi_history = h;
 		}
 	}
-	if (dbus_message_iter_get_arg_type(&array) != DBUS_TYPE_INVALID) {
-		if (con->errors == errors)
-			dhcpcd_error_set(con, NULL, EINVAL);
-		dhcpcd_wi_scans_free(scans);
-		scans = NULL;
+
+	return wis;
+}
+
+bool
+dhcpcd_wpa_reassociate(DHCPCD_WPA *wpa)
+{
+
+	return dhcpcd_wpa_command(wpa, "REASSOCIATE");
+}
+
+bool
+dhcpcd_wpa_disconnect(DHCPCD_WPA *wpa)
+{
+
+	return dhcpcd_wpa_command(wpa, "DISCONNECT");
+}
+
+bool
+dhcpcd_wpa_config_write(DHCPCD_WPA *wpa)
+{
+
+	return dhcpcd_wpa_command(wpa, "SAVE_CONFIG");
+}
+
+static bool
+dhcpcd_wpa_network(DHCPCD_WPA *wpa, const char *cmd, int id)
+{
+	size_t len;
+
+	len = strlen(cmd) + 32;
+	if (!dhcpcd_realloc(wpa->con, len))
+		return false;
+	snprintf(wpa->con->buf, wpa->con->buflen, "%s %d", cmd, id);
+	return dhcpcd_wpa_command(wpa, wpa->con->buf);
+}
+
+bool
+dhcpcd_wpa_network_disable(DHCPCD_WPA *wpa, int id)
+{
+
+	return dhcpcd_wpa_network(wpa, "DISABLE_NETWORK", id);
+}
+
+bool
+dhcpcd_wpa_network_enable(DHCPCD_WPA *wpa, int id)
+{
+
+	return dhcpcd_wpa_network(wpa, "ENABLE_NETWORK", id);
+}
+
+bool
+dhcpcd_wpa_network_remove(DHCPCD_WPA *wpa, int id)
+{
+
+	return dhcpcd_wpa_network(wpa, "REMOVE_NETWORK", id);
+}
+
+char *
+dhcpcd_wpa_network_get(DHCPCD_WPA *wpa, int id, const char *param)
+{
+	ssize_t bytes;
+
+	if (!dhcpcd_realloc(wpa->con, 2048))
+		return NULL;
+	snprintf(wpa->con->buf, wpa->con->buflen, "GET_NETWORK %d %s",
+	    id, param);
+	bytes = wpa_cmd(wpa->command_fd, wpa->con->buf,
+	    wpa->con->buf, wpa->con->buflen);
+	if (bytes == 0 || bytes == -1)
+		return NULL;
+	if (strcmp(wpa->con->buf, "FAIL\n") == 0) {
+		errno = EINVAL;
+		return NULL;
 	}
-	dbus_message_unref(msg);
-	return scans;
+	return wpa->con->buf;
+}
+
+bool
+dhcpcd_wpa_network_set(DHCPCD_WPA *wpa, int id,
+    const char *param, const char *value)
+{
+	size_t len;
+
+	len = strlen("SET_NETWORK") + 32 + strlen(param) + strlen(value) + 3;
+	if (!dhcpcd_realloc(wpa->con, len))
+		return false;
+	snprintf(wpa->con->buf, wpa->con->buflen, "SET_NETWORK %d %s %s",
+	    id, param, value);
+	return dhcpcd_wpa_command(wpa, wpa->con->buf);
 }
 
 static int
-dhcpcd_wpa_find_network(DHCPCD_CONNECTION *con, DHCPCD_IF *i, const char *ssid)
+dhcpcd_wpa_network_find(DHCPCD_WPA *wpa, const char *fssid)
 {
-	DBusMessage *msg;
-	DBusMessageIter args, array, entry;
-	int32_t id;
-	char *s;
-	int errors;
+	ssize_t bytes;
+	char *s, *t, *ssid, *bssid, *flags;
+	long l;
 
-	msg = dhcpcd_message_reply(con, "ListNetworks", i->ifname);
-	if (msg == NULL)
+	dhcpcd_realloc(wpa->con, 2048);
+	bytes = wpa_cmd(wpa->command_fd, "LIST_NETWORKS",
+	    wpa->con->buf, wpa->con->buflen);
+	if (bytes == 0 || bytes == -1)
 		return -1;
-	if (!dbus_message_iter_init(msg, &args)) {
-		dhcpcd_error_set(con, NULL, EINVAL);
-		return -1;
-	}
 
-	errors = con->errors;
-	for(;
-	    dbus_message_iter_get_arg_type(&args) == DBUS_TYPE_ARRAY;
-	    dbus_message_iter_next(&args))
-	{
-		dbus_message_iter_recurse(&args, &array);
-		for(;
-		    dbus_message_iter_get_arg_type(&array) == DBUS_TYPE_STRUCT;
-		    dbus_message_iter_next(&array))
-		{
-			dbus_message_iter_recurse(&array, &entry);
-			if (!dhcpcd_iter_get(con, &entry,
-				DBUS_TYPE_INT32, &id) ||
-			    !dhcpcd_iter_get(con, &entry,
-				DBUS_TYPE_STRING, &s))
-				break;
-			if (strcmp(s, ssid) == 0) {
-				dbus_message_unref(msg);
-				return (int)id;
-			}
+	s = strchr(wpa->con->buf, '\n');
+	if (s == NULL)
+		return -1;
+	while ((t = strsep(&s, "\b"))) {
+		if (*t == '\0')
+			continue;
+		ssid = strchr(t, '\t');
+		if (ssid == NULL)
+			break;
+		*ssid++ = '\0';
+		bssid = strchr(ssid, '\t');
+		if (bssid == NULL)
+			break;
+		*bssid++ = '\0';
+		flags = strchr(bssid, '\t');
+		if (flags == NULL)
+			break;
+		*flags++ = '\0';
+		l = strtol(t, NULL, 0);
+		if (l < 0 || l > INT_MAX) {
+			errno = ERANGE;
+			break;
 		}
+		if (strcmp(ssid, fssid) == 0)
+			return (int)l;
 	}
-	if (dbus_message_iter_get_arg_type(&args) != DBUS_TYPE_INVALID &&
-	    con->errors == errors)
-		dhcpcd_error_set(con, NULL, EINVAL);
-	dbus_message_unref(msg);
+	errno = ENOENT;
 	return -1;
 }
 
 static int
-dhcpcd_wpa_add_network(DHCPCD_CONNECTION *con, DHCPCD_IF *i)
+dhcpcd_wpa_network_new(DHCPCD_WPA *wpa)
 {
-	DBusMessage *msg;
-	DBusMessageIter args;
-	int32_t id;
-	int ret;
+	ssize_t bytes;
+	long l;
 
-	msg = dhcpcd_message_reply(con, "AddNetwork", i->ifname);
-	if (msg == NULL)
+	dhcpcd_realloc(wpa->con, 32);
+	bytes = wpa_cmd(wpa->command_fd, "ADD_NETWORK",
+	    wpa->con->buf, sizeof(wpa->con->buf));
+	if (bytes == 0 || bytes == -1)
 		return -1;
-	ret = -1;
-	if (dbus_message_iter_init(msg, &args)) {
-		if (dhcpcd_iter_get(con, &args, DBUS_TYPE_INT32, &id))
-			ret = id;
-	} else
-		dhcpcd_error_set(con, NULL, EINVAL);
-	dbus_message_unref(msg);
-	return ret;
-}
-
-bool
-dhcpcd_wpa_set_network(DHCPCD_CONNECTION *con, DHCPCD_IF *i, int id,
-    const char *opt, const char *val)
-{
-	DBusMessage *msg, *reply;
-	DBusMessageIter args;
-	bool retval;
-	char *ifname;
-
-	msg = dbus_message_new_method_call(DHCPCD_SERVICE, DHCPCD_PATH,
-	    DHCPCD_SERVICE, "SetNetwork");
-	if (msg == NULL) {
-		dhcpcd_error_set(con, 0, errno);
-		return false;
+	l = strtol(wpa->con->buf, NULL, 0);
+	if (l < 0 || l > INT_MAX) {
+		errno = ERANGE;
+		return -1;
 	}
-	dbus_message_iter_init_append(msg, &args);
-	ifname = i->ifname;
-	dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &ifname);
-	dbus_message_iter_append_basic(&args, DBUS_TYPE_INT32, &id);
-	dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &opt);
-	dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &val);
-	reply = dhcpcd_send_reply(con, msg);
-	dbus_message_unref(msg);
-	if (reply == NULL)
-		retval = false;
-	else {
-		dbus_message_unref(reply);
-		retval = true;
-	}
-	return retval;
+	return (int)l;
 }
 
 int
-dhcpcd_wpa_find_network_new(DHCPCD_CONNECTION *con, DHCPCD_IF *i,
-    const char *ssid)
+dhcpcd_wpa_network_find_new(DHCPCD_WPA *wpa, const char *ssid)
 {
-	int errors, id;
-	char *q;
-	size_t len;
-	bool retval;
+	int id;
 
-	len = strlen(ssid) + 3;
-	q = malloc(len);
-	if (q == NULL) {
-		dhcpcd_error_set(con, 0, errno);
-		return -1;
-	}
-	errors = con->errors;
-	id = dhcpcd_wpa_find_network(con, i, ssid);
-	if (id != -1 || con->errors != errors) {
-		free(q);
-		return id;
-	}
-	id = dhcpcd_wpa_add_network(con, i);
-	if (id == -1) {
-		free(q);
-		return -1;
-	}
-	snprintf(q, len, "\"%s\"", ssid);
-	retval = dhcpcd_wpa_set_network(con, i, id, "ssid", q);
-	free(q);
-	return retval;
+	id = dhcpcd_wpa_network_find(wpa, ssid);
+	if (id == -1)
+		id = dhcpcd_wpa_network_new(wpa);
+	return id;
 }
 
-bool
-dhcpcd_wpa_command(DHCPCD_CONNECTION *con, DHCPCD_IF *i,
-    const char *cmd, int id)
+void
+dhcpcd_wpa_close(DHCPCD_WPA *wpa)
 {
-	DBusMessage *msg, *reply;
-	DBusMessageIter args;
-	char *ifname;
-	bool retval;
 
-	msg = dbus_message_new_method_call(DHCPCD_SERVICE, DHCPCD_PATH,
-	    DHCPCD_SERVICE, cmd);
-	if (msg == NULL) {
-		dhcpcd_error_set(con, 0, errno);
-		return false;
+	if (wpa->command_fd == -1)
+		return;
+
+	dhcpcd_attach_detach(wpa, -1);
+	shutdown(wpa->command_fd, SHUT_RDWR);
+	wpa->command_fd = -1;
+	shutdown(wpa->listen_fd, SHUT_RDWR);
+	wpa->listen_fd = -1;
+	unlink(wpa->command_path);
+	free(wpa->command_path);
+	wpa->command_path = NULL;
+	unlink(wpa->listen_path);
+	free(wpa->listen_path);
+	wpa->listen_path = NULL;
+
+	if (wpa->con->wpa_status_cb)
+		wpa->con->wpa_status_cb(wpa, "down",
+		    wpa->con->wpa_status_context);
+
+}
+
+DHCPCD_WPA *
+dhcpcd_wpa_find(DHCPCD_CONNECTION *con, const char *ifname)
+{
+	DHCPCD_WPA *wpa;
+
+	for (wpa = con->wpa; wpa; wpa = wpa->next) {
+		if (strcmp(wpa->ifname, ifname) == 0)
+			return wpa;
 	}
-	dbus_message_iter_init_append(msg, &args);
-	ifname = i->ifname;
-	dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &ifname);
-	if (id != -1)
-		dbus_message_iter_append_basic(&args, DBUS_TYPE_INT32, &id);
-	reply = dhcpcd_send_reply(con, msg);
-	dbus_message_unref(msg);
-	if (reply == NULL)
-		retval = false;
-	else {
-		dbus_message_unref(reply);
-		retval = true;
+	return NULL;
+}
+
+DHCPCD_WPA *
+dhcpcd_wpa_new(DHCPCD_CONNECTION *con, const char *ifname)
+{
+	DHCPCD_WPA *wpa;
+
+	wpa = dhcpcd_wpa_find(con, ifname);
+	if (wpa)
+		return wpa;
+
+	wpa = malloc(sizeof(*wpa));
+	if (wpa == NULL)
+		return NULL;
+
+	wpa->con = con;
+	strlcpy(wpa->ifname, ifname, sizeof(wpa->ifname));
+	wpa->command_fd = wpa->listen_fd = -1;
+	wpa->command_path = wpa->listen_path = NULL;
+	wpa->next = con->wpa;
+	con->wpa = wpa;
+	return wpa;
+}
+
+DHCPCD_CONNECTION *
+dhcpcd_wpa_connection(DHCPCD_WPA *wpa)
+{
+
+	return wpa->con;
+}
+
+DHCPCD_IF *
+dhcpcd_wpa_if(DHCPCD_WPA *wpa)
+{
+
+	return dhcpcd_get_if(wpa->con, wpa->ifname, "link");
+}
+
+int
+dhcpcd_wpa_open(DHCPCD_WPA *wpa)
+{
+	int cmd_fd, list_fd = -1;
+	char *cmd_path = NULL, *list_path = NULL;
+
+	if (wpa->listen_fd != -1)
+		return wpa->listen_fd;
+
+	cmd_fd = wpa_open(wpa->ifname, &cmd_path);
+	if (cmd_fd == -1)
+		goto fail;
+
+	list_fd = wpa_open(wpa->ifname, &list_path);
+	if (list_fd == -1)
+		goto fail;
+
+	wpa->attached = 0;
+	wpa->command_fd = cmd_fd;
+	wpa->command_path = cmd_path;
+	wpa->listen_fd = list_fd;
+	wpa->listen_path = list_path;
+	if (!dhcpcd_attach_detach(wpa, 1)) {
+		dhcpcd_wpa_close(wpa);
+		return -1;
 	}
-	return retval;
+
+	if (wpa->con->wi_scanresults_cb)
+		wpa->con->wi_scanresults_cb(wpa,
+		    wpa->con->wi_scanresults_context);
+
+	return wpa->listen_fd;
+
+fail:
+	if (cmd_fd != -1)
+		close(cmd_fd);
+	if (list_fd != -1)
+		close(list_fd);
+	if (cmd_path)
+		unlink(cmd_path);
+	free(cmd_path);
+	if (list_path)
+		free(list_path);
+	return -1;
+}
+
+int
+dhcpcd_wpa_get_fd(DHCPCD_WPA *wpa)
+{
+
+	return wpa->listen_fd;
+}
+
+void
+dhcpcd_wpa_set_scan_callback(DHCPCD_CONNECTION *con,
+    void (*cb)(DHCPCD_WPA *, void *), void *context)
+{
+
+	con->wi_scanresults_cb = cb;
+	con->wi_scanresults_context = context;
+}
+
+void
+dhcpcd_wpa_dispatch(DHCPCD_WPA *wpa)
+{
+	char buffer[256], *p;
+	size_t bytes;
+
+	bytes = (size_t)read(wpa->listen_fd, buffer, sizeof(buffer));
+	if ((ssize_t)bytes == -1 || bytes == 0) {
+		dhcpcd_wpa_close(wpa);
+		return;
+	}
+
+	buffer[bytes] = '\0';
+	bytes = strlen(buffer);
+	if (buffer[bytes - 1] == ' ')
+		buffer[--bytes] = '\0';
+	for (p = buffer + 1; *p != '\0'; p++)
+		if (*p == '>') {
+			p++;
+			break;
+		}
+	if (strcmp(p, "CTRL-EVENT-SCAN-RESULTS") == 0 &&
+	    wpa->con->wi_scanresults_cb)
+		wpa->con->wi_scanresults_cb(wpa,
+		    wpa->con->wi_scanresults_context);
+	return;
+}
+
+void
+dhcpcd_wpa_if_event(DHCPCD_IF *i)
+{
+	DHCPCD_WPA *wpa;
+
+	if (i->wireless) {
+		if (strcmp(i->reason, "STOPPING") == 0) {
+			wpa = dhcpcd_wpa_find(i->con, i->ifname);
+			if (wpa)
+				dhcpcd_wpa_close(wpa);
+		} else if (i->up) {
+			wpa = dhcpcd_wpa_new(i->con, i->ifname);
+			dhcpcd_wpa_open(wpa);
+		}
+	}
 }

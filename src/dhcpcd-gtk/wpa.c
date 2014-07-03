@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#include <errno.h>
+
 #include "dhcpcd-gtk.h"
 
 static void
@@ -39,32 +41,36 @@ wpa_dialog(const char *title, const char *txt)
 }
 
 static bool
-configure_network(DHCPCD_CONNECTION *con, DHCPCD_IF *i,
+configure_network(DHCPCD_WPA *wpa,
     int id, const char *mgmt, const char *var, const char *val, bool quote)
 {
 	char *str;
 	static bool warned = false;
 
-	if (!dhcpcd_wpa_set_network(con, i, id, "key_mgmt", mgmt))
+	if (!dhcpcd_wpa_network_set(wpa, id, "key_mgmt", mgmt)) {
+		g_warning("libdhcpcd: %s", strerror(errno));
+		wpa_dialog(_("Error"),
+		    _("Failed to set key management"));
 		return false;
+	}
 	if (quote)
 		str = g_strconcat("\"", val, "\"", NULL);
 	else
 		str = NULL;
-	if (!dhcpcd_wpa_set_network(con, i, id, var, quote ? str : val)) {
-		g_warning("libdhcpcd: %s", dhcpcd_error(con));
-		dhcpcd_error_clear(con);
+	if (!dhcpcd_wpa_network_set(wpa, id, var, quote ? str : val)) {
+		g_warning("libdhcpcd: %s", strerror(errno));
 		g_free(str);
 		wpa_dialog(_("Error setting password"),
 		    _("Failed to set password, probably too short."));
 		return false;
 	}
 	g_free(str);
-	if (!dhcpcd_wpa_command(con, i, "EnableNetwork", id))
+	if (!dhcpcd_wpa_network_enable(wpa, id)) {
+		wpa_dialog(_("Error enabling network"), strerror(errno));
 		return false;
-	if (!dhcpcd_wpa_command(con, i, "SaveConfig", -1)) {
-		g_warning("libdhcpcd: %s", dhcpcd_error(con));
-		dhcpcd_error_clear(con);
+	}
+	if (!dhcpcd_wpa_config_write(wpa)) {
+		g_warning("libdhcpcd: %s", strerror(errno));
 		if (!warned) {
 			warned = true;
 			wpa_dialog(_("Error saving configuration"),
@@ -72,19 +78,7 @@ configure_network(DHCPCD_CONNECTION *con, DHCPCD_IF *i,
 		}
 		return false;
 	}
-/*
-  if (!dbus_g_proxy_call(dbus, "Disconnect", &error,
-  G_TYPE_STRING, ifname,
-  G_TYPE_INVALID,
-  G_TYPE_INVALID))
-  {
-  g_warning("Disconnect: %s", error->message);
-  g_error_free(error);
-  }
-*/
-	if (!dhcpcd_wpa_command(con, i, "Reassociate", -1))
-		return false;
-	return true;
+	return dhcpcd_wpa_reassociate(wpa);
 }
 
 static void
@@ -94,7 +88,7 @@ onEnter(_unused GtkWidget *widget, gpointer *data)
 }
 
 bool
-wpa_configure(DHCPCD_CONNECTION *con, DHCPCD_IF *i, DHCPCD_WI_SCAN *s)
+wpa_configure(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s)
 {
 	GtkWidget *dialog, *label, *psk, *vbox, *hbox;
 	const char *var, *mgt;
@@ -131,7 +125,7 @@ again:
 	id = -1;
 	retval = false;
 	if (result == GTK_RESPONSE_ACCEPT) {
-		id = dhcpcd_wpa_find_network_new(con, i, s->ssid);
+		id = dhcpcd_wpa_network_find_new(wpa, s->ssid);
 		if (g_strcmp0(s->flags, "[WEP]") == 0) {
 			mgt = "NONE";
 			var = "wep_key0";
@@ -140,13 +134,11 @@ again:
 			var = "psk";
 		}
 		if (id != -1) {
-			retval = configure_network(con, i, id, mgt, var,
+			configure_network(wpa, id, mgt, var,
 			    gtk_entry_get_text(GTK_ENTRY(psk)), true);
 		}
-		if (!retval && dhcpcd_error(con)) {
-			wpa_dialog(_("Error"), dhcpcd_error(con));
+		if (!retval)
 			goto again;
-		}
 	}
 	gtk_widget_destroy(dialog);
 	return retval;

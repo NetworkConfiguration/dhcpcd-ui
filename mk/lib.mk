@@ -1,7 +1,5 @@
 # rules to build a library
 
-include ${TOPDIR}/iconfig.mk
-
 SHLIB=			lib${LIB}.so.${SHLIB_MAJOR}
 SHLIB_LINK=		lib${LIB}.so
 LIBNAME=		lib${LIB}.a

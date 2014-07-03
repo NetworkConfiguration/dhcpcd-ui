@@ -25,6 +25,7 @@
  */
 
 #include <sys/types.h>
+#include <arpa/inet.h>
 #include <net/if.h>
 
 #include <errno.h>
@@ -33,12 +34,28 @@
 
 static GtkWidget *dialog, *blocks, *names, *controls, *clear, *rebind;
 static GtkWidget *autoconf, *address, *router, *dns_servers, *dns_search;
-static DHCPCD_CONFIG *config;
+static DHCPCD_OPTION *config;
 static char *block, *name;
 static DHCPCD_IF *iface;
 
 static void
-show_config(DHCPCD_CONFIG *conf)
+config_err_dialog(DHCPCD_CONNECTION *con, bool writing, const char *txt)
+{
+	GtkWidget *edialog;
+	char *t;
+
+	t = g_strconcat(_(writing ? "Error saving" : "Error reading"), " ",
+	    dhcpcd_cffile(con), "\n\n", txt, NULL);
+	edialog = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL,
+	    GTK_MESSAGE_ERROR, GTK_BUTTONS_OK, "%s", t);
+	gtk_window_set_title(GTK_WINDOW(edialog), _("Config error"));
+	gtk_dialog_run(GTK_DIALOG(edialog));
+	gtk_widget_destroy(edialog);
+	g_free(t);
+}
+
+static void
+show_config(DHCPCD_OPTION *conf)
 {
 	const char *val;
 	bool autocnf;
@@ -81,25 +98,31 @@ combo_active_text(GtkWidget *widget)
 }
 
 static bool
-set_option(DHCPCD_CONFIG **conf, bool s, const char *opt, const char *val,
+set_option(DHCPCD_OPTION **conf, bool s, const char *opt, const char *val,
 	bool *ret)
 {
-	bool r;
 
-	if (s)
-		r = dhcpcd_config_set_static(conf, opt, val);
-	else
-		r = dhcpcd_config_set(conf, opt, val);
-	if (r)
-		return true;
-	g_error("libdhcpcd: %s", strerror(errno));
+	if (s) {
+		if (!dhcpcd_config_set_static(conf, opt, val))
+			g_critical("dhcpcd_config_set_static: %s",
+			    strerror(errno));
+		else
+			return true;
+	} else {
+		if (!dhcpcd_config_set(conf, opt, val))
+			g_critical("dhcpcd_config_set: %s",
+			    strerror(errno));
+		else
+			return true;
+	}
+
 	if (ret)
 		*ret = false;
 	return false;
 }
 
 static bool
-make_config(DHCPCD_CONFIG **conf)
+make_config(DHCPCD_OPTION **conf)
 {
 	const char *val, ns[] = "";
 	bool a, ret;
@@ -132,6 +155,23 @@ make_config(DHCPCD_CONFIG **conf)
 	set_option(conf, true, "domain_search=", val, &ret);
 
 	return ret;
+}
+
+static bool
+write_config(DHCPCD_CONNECTION *con, DHCPCD_OPTION **conf)
+{
+
+	if (make_config(conf) &&
+	    !dhcpcd_config_write(con, block, name, *conf))
+	{
+		const char *s;
+
+		s = strerror(errno);
+		g_warning("dhcpcd_config_write: %s", s);
+		config_err_dialog(con, true, s);
+		return false;
+	}
+	return true;
 }
 
 static GdkPixbuf *
@@ -175,7 +215,7 @@ list_interfaces(DHCPCD_CONNECTION *con)
 	list = NULL;
 	for (i = dhcpcd_interfaces(con); i; i = i->next)
 		if (strcmp(i->type, "ipv4") == 0)
-			list = g_slist_append(list, i->ifname);
+			list = g_slist_append(list, UNCONST(i->ifname));
 	return list;
 }
 
@@ -214,8 +254,7 @@ blocks_on_change(GtkWidget *widget, gpointer data)
 
 	con = (DHCPCD_CONNECTION *)data;
 	if (name) {
-		if (make_config(&config))
-			dhcpcd_config_save(con, block, name, config);
+		write_config(con, &config);
 		dhcpcd_config_free(config);
 		config = NULL;
 		show_config(config);
@@ -226,7 +265,7 @@ blocks_on_change(GtkWidget *widget, gpointer data)
 	block = combo_active_text(widget);
 	store = GTK_LIST_STORE(gtk_combo_box_get_model(GTK_COMBO_BOX(names)));
 	gtk_list_store_clear(store);
-	list = dhcpcd_config_blocks_get(con, block);
+	list = dhcpcd_config_blocks(con, block);
 
 	if (g_strcmp0(block, "interface") == 0)
 		new_names = list_interfaces(con);
@@ -236,12 +275,15 @@ blocks_on_change(GtkWidget *widget, gpointer data)
 	n = 0;
 	for (l = new_names; l; l = l->next) {
 		nn = (const char *)l->data;
-		for (lp = list; *lp; lp++)
-			if (g_strcmp0(nn, *lp) == 0)
-				break;
-		if (*lp)
-			iname = "document-save";
-		else
+		if (list) {
+			for (lp = list; *lp; lp++)
+				if (g_strcmp0(nn, *lp) == 0)
+					break;
+			if (*lp)
+				iname = "document-save";
+			else
+				iname = "document-new";
+		} else
 			iname = "document-new";
 		pb = load_icon(iname);
 		gtk_list_store_append(store, &iter);
@@ -250,7 +292,7 @@ blocks_on_change(GtkWidget *widget, gpointer data)
 		n++;
 	}
 
-	for (lp = list; *lp; lp++) {
+	for (lp = list; lp && *lp; lp++) {
 		for (l = new_names; l; l = l->next)
 			if (g_strcmp0((const char *)l->data, *lp) == 0)
 				break;
@@ -275,8 +317,7 @@ names_on_change(_unused GtkWidget *widget, gpointer data)
 
 	con = (DHCPCD_CONNECTION *)data;
 	if (name) {
-		if (make_config(&config))
-			dhcpcd_config_save(con, block, name, config);
+		write_config(con, &config);
 		g_free(name);
 	}
 	name = combo_active_text(names);
@@ -292,9 +333,15 @@ names_on_change(_unused GtkWidget *widget, gpointer data)
 	gtk_widget_set_sensitive(address,
 	    iface && (iface->flags & IFF_POINTOPOINT) == 0);
 	if (block && name) {
-		config = dhcpcd_config_load(con, block, name);
-		if (config == NULL && dhcpcd_error(con))
-			g_error("libdhcpcd: %s", dhcpcd_error(con));
+		errno = 0;
+		config = dhcpcd_config_read(con, block, name);
+		if (config == NULL && errno) {
+			const char *s;
+
+			s = strerror(errno);
+			g_warning("dhcpcd_config_read: %s", s);
+			config_err_dialog(con, false, s);
+		}
 	} else
 		config = NULL;
 	show_config(config);
@@ -371,10 +418,11 @@ on_clear(_unused GtkWidget *o, gpointer data)
 	con = (DHCPCD_CONNECTION *)data;
 	dhcpcd_config_free(config);
 	config = NULL;
-	if (dhcpcd_config_save(con, block, name, config)) {
+	if (dhcpcd_config_write(con, block, name, config)) {
 		set_name_active_icon("document-new");
 		show_config(config);
-	}
+	} else
+		g_critical("dhcpcd_config_write: %s", strerror(errno));
 }
 
 static void
@@ -384,21 +432,25 @@ on_rebind(_unused GObject *widget, gpointer data)
 	DHCPCD_IF *i;
 
 	con = (DHCPCD_CONNECTION *)data;
-	if (make_config(&config) &&
-	    dhcpcd_config_save(con, block, name, config)) {
+	if (write_config(con, &config)) {
 		set_name_active_icon(config == NULL ?
 		    "document-new" : "document-save");
 		show_config(config);
-		if (g_strcmp0(block, "interface") == 0)
-			dhcpcd_rebind(con, iface);
-		else {
+		if (g_strcmp0(block, "interface") == 0) {
+			if (dhcpcd_rebind(con, iface->ifname) == -1)
+				g_critical("dhcpcd_rebind %s: %s",
+				    iface->ifname, strerror(errno));
+		} else {
 			for (i = dhcpcd_interfaces(con); i; i = i->next) {
-				if (g_strcmp0(i->ssid, name) == 0)
-					dhcpcd_rebind(con, i);
+				if (g_strcmp0(i->ssid, name) == 0) {
+					if (dhcpcd_rebind(con, i->ifname) == -1)
+						g_critical(
+						    "dhcpcd_rebind %s: %s",
+						    i->ifname,
+						    strerror(errno));
+				}
 			}
 		}
-		if (dhcpcd_error(con))
-			g_warning("libdhcpcd: %s", dhcpcd_error(con));
 	}
 }
 
@@ -407,9 +459,7 @@ on_destroy(_unused GObject *o, gpointer data)
 {
 
 	if (name != NULL) {
-		if (make_config(&config))
-			dhcpcd_config_save((DHCPCD_CONNECTION *)data,
-			    block, name, config);
+		write_config((DHCPCD_CONNECTION *)data, &config);
 		g_free(block);
 		g_free(name);
 		block = name = NULL;

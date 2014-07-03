@@ -170,8 +170,18 @@ if ! type "$CC" >/dev/null 2>&1; then
 fi
 
 echo "Using compiler .. $CC"
-if ! type "$CC" >/dev/null 2>&1; then
-	echo "$CC is not an executable"
+cat <<EOF >_test.c
+int main(void) {
+	return 0;
+}
+EOF
+_CC=false
+if $CC _test.c -o _test >/dev/null 2>&1; then
+	[ -x _test ] && _CC=true
+fi
+rm -f _test.c _test
+if ! $_CC; then
+	echo "$CC does not create executables"
 	exit 1
 fi
 [ "$CC" != cc ] && echo "CC=	$CC" >>$CONFIG_MK
@@ -218,6 +228,9 @@ EOF
 	mirbsd*|openbsd*);; # OpenBSD has many redundant decs in system headers
 	*)		echo "CFLAGS+=	-Wredundant-decls" >>$CONFIG_MK;;
 	esac
+else
+	# Disable assertations
+	echo "CFLAGS+=	-DNDEBUG" >>$CONFIG_MK
 fi
 
 # Add CPPFLAGS and CFLAGS to CC for testing features
@@ -274,14 +287,6 @@ echo "LIB_DHCPCD=	$x" >>$CONFIG_MK
 # Due to our use of pkg-config, pass --as-needed to ld so we only link
 # what we actually need.
 echo "LDADD+=	-Wl,--as-needed" >>$CONFIG_MK
-
-# Get DBus CFLAGS
-DBUS_CFLAGS=$(pkg-config --cflags dbus-1) || exit 1
-DBUS_LIBS=$(pkg-config --libs dbus-1) || exit 1
-echo "DBus CFLAGS=$DBUS_CFLAGS"
-echo "DBus LIBS=$DBUS_LIBS"
-echo "DBUS_CFLAGS=	$DBUS_CFLAGS" >>$CONFIG_MK
-echo "DBUS_LIBS=	$DBUS_LIBS" >>$CONFIG_MK
 
 UI=
 if [ "$WITH_GTK" = yes -o -z "$WITH_GTK" ]; then

@@ -80,8 +80,18 @@ ssid_hook(_unused GtkMenuItem *item, gpointer data)
 
 	scan = (DHCPCD_WI_SCAN *)data;
 	wi = wi_scan_find(scan);
-	if (wi)
-		wpa_configure(wi->connection, wi->interface, scan);
+	if (wi) {
+		DHCPCD_CONNECTION *con;
+
+		con = dhcpcd_if_connection(wi->interface);
+		if (con) {
+			DHCPCD_WPA *wpa;
+
+			wpa = dhcpcd_wpa_find(con, wi->interface->ifname);
+			if (wpa)
+				wpa_configure(wpa, scan);
+		}
+	}
 }
 
 static void

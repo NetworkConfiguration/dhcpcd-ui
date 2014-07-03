@@ -27,8 +27,6 @@
 #ifndef DHCPCD_GTK_H
 #define DHCPCD_GTK_H
 
-#include <arpa/inet.h>
-
 #include <stdbool.h>
 
 #include <glib.h>
@@ -36,23 +34,9 @@
 #include <gtk/gtk.h>
 #include <libintl.h>
 
-#include "libdhcpcd.h"
+#include "dhcpcd.h"
 
 #define PACKAGE "dhcpcd-gtk"
-
-/* Work out if we have a private address or not
- * 10/8
- * 172.16/12
- * 192.168/16
- */
-#ifndef IN_PRIVATE
-#  define IN_PRIVATE(addr) (((addr & IN_CLASSA_NET) == 0x0a000000) ||	      \
-	    ((addr & 0xfff00000)    == 0xac100000) ||			      \
-	    ((addr & IN_CLASSB_NET) == 0xc0a80000))
-#endif
-#ifndef IN_LINKLOCAL
-#  define IN_LINKLOCAL(addr) ((addr & IN_CLASSB_NET) == 0xa9fe0000)
-#endif
 
 #define UNCONST(a)              ((void *)(unsigned long)(const void *)(a))
 
@@ -63,7 +47,6 @@
 #endif
 
 typedef struct wi_scan {
-	DHCPCD_CONNECTION *connection;
 	DHCPCD_IF *interface;
 	DHCPCD_WI_SCAN *scans;
 	struct wi_scan *next;
@@ -80,7 +63,7 @@ void notify_close(void);
 void dhcpcd_prefs_show(DHCPCD_CONNECTION *con);
 void dhcpcd_prefs_abort(void);
 
-bool wpa_configure(DHCPCD_CONNECTION *, DHCPCD_IF *, DHCPCD_WI_SCAN *);
+bool wpa_configure(DHCPCD_WPA *, DHCPCD_WI_SCAN *);
 
 #if GTK_MAJOR_VERSION == 2
 GtkWidget *gtk_box_new(GtkOrientation, gint);
