@@ -303,7 +303,7 @@ elif [ -n "$WITH_GTK" -a "$WITH_GTK" != no ]; then
 fi
 
 if [ -n "$WITH_GTK" ]; then
-	PKG="dbus-1 $WITH_GTK"
+	PKG="$WITH_GTK"
 	if [ "$NOTIFY" = yes ]; then
 		PKG="$PKG${PKG:+ }libnotify"
 		echo "NOTIFY=		-DNOTIFY" >>$CONFIG_MK
