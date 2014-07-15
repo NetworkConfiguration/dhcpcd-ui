@@ -270,6 +270,8 @@ dhcpcd_status_cb(DHCPCD_CONNECTION *con, const char *status, _unused void *data)
 			refresh = false;
 		update_online(con, refresh);
 	}
+
+	g_free(last);
 	last = g_strdup(status);
 }
 
