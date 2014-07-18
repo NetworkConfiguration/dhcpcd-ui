@@ -623,14 +623,16 @@ dhcpcd_wpa_if_event(DHCPCD_IF *i)
 {
 	DHCPCD_WPA *wpa;
 
-	if (i->wireless) {
-		if (strcmp(i->reason, "STOPPING") == 0) {
+	assert(i);
+	if (i->wireless && strcmp(i->type, "link") == 0) {
+		if (strcmp(i->reason, "STOPPED") == 0) {
 			wpa = dhcpcd_wpa_find(i->con, i->ifname);
 			if (wpa)
 				dhcpcd_wpa_close(wpa);
 		} else if (i->up) {
 			wpa = dhcpcd_wpa_new(i->con, i->ifname);
-			dhcpcd_wpa_open(wpa);
+			if (wpa && wpa->listen_fd == -1)
+				dhcpcd_wpa_open(wpa);
 		}
 	}
 }
