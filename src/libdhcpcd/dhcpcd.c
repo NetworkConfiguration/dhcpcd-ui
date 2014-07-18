@@ -292,7 +292,7 @@ dhcpcd_get_if(DHCPCD_CONNECTION *con, const char *ifname, const char *type)
 static DHCPCD_IF *
 dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 {
-	const char *ifname, *reason, *type, *order, *flags;
+	const char *ifname, *ifclass, *reason, *type, *order, *flags;
 	char *orderdup, *o, *p;
 	DHCPCD_IF *e, *i, *l, *n, *nl;
 	int ti;
@@ -305,6 +305,12 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 	reason = get_value(data, len, "reason=");
 	if (reason == NULL || *reason == '\0') {
 		errno = ESRCH;
+		return NULL;
+	}
+	ifclass = get_value(data, len, "ifclass=");
+	/* Skip pseudo interfaces */
+	if (ifclass && *ifclass != '\0') {
+		errno = ENOTSUP;
 		return NULL;
 	}
 	if (strcmp(reason, "RECONFIGURE") == 0) {
