@@ -792,6 +792,7 @@ dhcpcd_free(DHCPCD_CONNECTION *con)
 {
 	DHCPCD_IF *nif;
 	DHCPCD_WPA *nwpa;
+	DHCPCD_WI_HIST *nh;
 
 	assert(con);
 	while (con->interfaces) {
@@ -805,6 +806,11 @@ dhcpcd_free(DHCPCD_CONNECTION *con)
 		dhcpcd_wpa_close(con->wpa);
 		free(con->wpa);
 		con->wpa = nwpa;
+	}
+	while (con->wi_history) {
+		nh = con->wi_history->next;
+		free(con->wi_history);
+		con->wi_history = nh;
 	}
 	free(con);
 }
