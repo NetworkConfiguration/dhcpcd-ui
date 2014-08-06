@@ -32,6 +32,10 @@
 
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef DHCPCD_SOCKET
 #define DHCPCD_SOCKET		"/var/run/dhcpcd.sock"
 #endif
@@ -79,6 +83,8 @@ typedef struct dhcpcd_if {
 
 	char *data;
 	size_t data_len;
+
+	char *last_message;
 
 	struct dhcpcd_connection *con;
 } DHCPCD_IF;
@@ -180,7 +186,7 @@ DHCPCD_CONNECTION * dhcpcd_if_connection(DHCPCD_IF *);
 const char *dhcpcd_get_value(const DHCPCD_IF *, const char *);
 const char *dhcpcd_get_prefix_value(const DHCPCD_IF *, const char *,
     const char *);
-char * dhcpcd_if_message(const DHCPCD_IF *i);
+char * dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg);
 
 ssize_t dhcpcd_command(DHCPCD_CONNECTION *, const char *, char **);
 ssize_t dhcpcd_command_arg(DHCPCD_CONNECTION *, const char *, const char *,
@@ -230,5 +236,9 @@ bool dhcpcd_config_set(DHCPCD_OPTION **, const char *, const char *);
 bool dhcpcd_config_set_static(DHCPCD_OPTION **, const char *, const char *);
 bool dhcpcd_config_write(DHCPCD_CONNECTION *,
     const char *, const char *, const DHCPCD_OPTION *);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

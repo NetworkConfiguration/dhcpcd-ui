@@ -394,6 +394,7 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 		else
 			con->interfaces = i;
 		i->next = NULL;
+		i->last_message = NULL;
 	} else
 		free(i->data);
 
@@ -448,6 +449,7 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
         while (con->interfaces) {
                 e = con->interfaces->next;
 		free(con->interfaces->data);
+		free(con->interfaces->last_message);
                 free(con->interfaces);
                 con->interfaces = e;
         }
@@ -706,7 +708,7 @@ dhcpcd_if_connection(DHCPCD_IF *i)
 }
 
 char *
-dhcpcd_if_message(const DHCPCD_IF *i)
+dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 {
 	const char *ip, *iplen, *pfx;
 	char *msg, *p;
@@ -784,6 +786,16 @@ dhcpcd_if_message(const DHCPCD_IF *i)
 		p += snprintf(p, len - (size_t)(p - msg), " %s/%s", ip, iplen);
 	else if (ip)
 		p += snprintf(p, len - (size_t)(p - msg), " %s", ip);
+
+	if (new_msg) {
+		if (i->last_message == NULL || strcmp(i->last_message, msg))
+			*new_msg = true;
+		else
+			*new_msg = false;
+	}
+	free(i->last_message);
+	i->last_message = strdup(msg);
+
 	return msg;
 }
 
@@ -798,6 +810,7 @@ dhcpcd_free(DHCPCD_CONNECTION *con)
 	while (con->interfaces) {
 		nif = con->interfaces->next;
 		free(con->interfaces->data);
+		free(con->interfaces->last_message);
 		free(con->interfaces);
 		con->interfaces = nif;
 	}

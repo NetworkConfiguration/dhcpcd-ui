@@ -141,7 +141,7 @@ update_online(DHCPCD_CONNECTION *con, bool showif)
 			if (i->up)
 				ison = true;
 		}
-		msg = dhcpcd_if_message(i);
+		msg = dhcpcd_if_message(i, NULL);
 		if (msg) {
 			if (showif)
 				g_message("%s", msg);
@@ -407,6 +407,7 @@ dhcpcd_if_cb(DHCPCD_IF *i, _unused void *data)
 	DHCPCD_CONNECTION *con;
 	char *msg;
 	const char *icon;
+	bool new_msg;
 
 	/* Update the tooltip with connection information */
 	con = dhcpcd_if_connection(i);
@@ -418,16 +419,18 @@ dhcpcd_if_cb(DHCPCD_IF *i, _unused void *data)
 	    g_strcmp0(i->reason, "STOPPED") == 0)
 		return;
 
-	msg = dhcpcd_if_message(i);
+	msg = dhcpcd_if_message(i, &new_msg);
 	if (msg) {
 		g_message("%s", msg);
-		if (i->up)
-			icon = "network-transmit-receive";
-		//else
-		//	icon = "network-transmit";
-		if (!i->up)
-			icon = "network-offline";
-		notify(_("Network event"), msg, icon);
+		if (new_msg) {
+			if (i->up)
+				icon = "network-transmit-receive";
+			//else
+			//	icon = "network-transmit";
+			if (!i->up)
+				icon = "network-offline";
+			notify(_("Network event"), msg, icon);
+		}
 		g_free(msg);
 	}
 }
