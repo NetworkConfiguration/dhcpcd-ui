@@ -257,8 +257,9 @@ EOF
 	rm -f _strlcpy.c _strlcpy
 fi
 if [ "$STRLCPY" = no ]; then
-	echo "#define strlcpy(dst, src, n) snprintf(dst, n, \"%s\", src)" \
-	>>$CONFIG_H
+	echo "#define strlcpy(dst, src, n) " \
+	    "((size_t)snprintf(dst, n, \"%s\", src))" \
+	    >>$CONFIG_H
 fi
 
 if [ -z "$LIBDIR" ]; then
@@ -301,7 +302,7 @@ elif [ -n "$WITH_GTK" -a "$WITH_GTK" != no ]; then
 		exit 1
 	fi
 fi
-
+	
 if [ -n "$WITH_GTK" ]; then
 	PKG="$WITH_GTK"
 	if [ "$NOTIFY" = yes ]; then
@@ -317,6 +318,22 @@ if [ -n "$WITH_GTK" ]; then
 	echo "GTK_CFLAGS=	$GTK_CFLAGS" >>$CONFIG_MK
 	echo "GTK_LIBS=	$GTK_LIBS" >>$CONFIG_MK
 	UI="$UI${UI:+ }dhcpcd-gtk"
+fi
+
+DHCPCD_QT=false
+if [ "WITH_QT" = yes -o -z "$WITH_QT" ]; then
+	if type qmake >/dev/null 2>&1; then
+		UI="$UI${UI+ }dhcpcd-qt"
+		DHCPCD_QT=true
+	fi
+elif [ -n "$WITH_QT" -a "$WITH_QT" != no ]; then
+	if type qmake >/dev/null 2>&1; then
+		UI="$UI${UI+ }dhcpcd-qt"
+		DHCPCD_QT=true
+	else
+		echo "$0: no suitable QT library has been found" >&2
+		exit 1
+	fi
 fi
 
 if [ -z "$UI" ]; then
@@ -335,3 +352,10 @@ echo "   UI =			$UI"
 echo
 
 echo "MKDIR=		\${TOPDIR}/mk" >>$CONFIG_MK
+
+if $DHCPCD_QT; then
+	if ! (cd src/dhcpcd-qt; qmake dhcpcd-qt.pro); then
+		echo "$0: failed to configure dhcpcd-qt" >&2
+		exit 1
+	fi
+fi
