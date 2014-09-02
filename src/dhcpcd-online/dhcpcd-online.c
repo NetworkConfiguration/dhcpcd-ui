@@ -186,8 +186,8 @@ main(int argc, char **argv)
 			    (t.tv_nsec + 999999) / 1000000 > INT_MAX % 1000000))
 				timeout = INT_MAX;
 			else
-				timeout = (int)t.tv_sec * 1000 +
-				    (t.tv_nsec + 999999) / 1000000;
+				timeout = (int)(t.tv_sec * 1000 +
+				    (t.tv_nsec + 999999) / 1000000);
 			n = poll(&pfd, 1, timeout);
 		}
 		if (n == -1) {
