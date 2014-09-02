@@ -37,6 +37,8 @@ for x; do
 	--icondir) ICONDIR=$var;;
 	--with-gtk|--with-gtk+) WITH_GTK=${var:-yes};;
 	--without-gtk|--without-gtk+) WITH_GTK=no;;
+	--with-qt) WITH_QT=${var:-yes};;
+	--without-qt) WITH_QT=no;;
 	--enable-notification) NOTIFY=yes;;
 	--disable-notification) NOTIFY=no;;
 	--help) echo "See the README file for available options"; exit 0;;
@@ -329,7 +331,7 @@ elif [ -n "$WITH_GTK" -a "$WITH_GTK" != no ]; then
 	fi
 fi
 	
-if [ -n "$WITH_GTK" ]; then
+if [ -n "$WITH_GTK" -a "$WITH_GTK" != no ]; then
 	PKG="$WITH_GTK"
 	if [ "$NOTIFY" = yes ]; then
 		PKG="$PKG${PKG:+ }libnotify"
