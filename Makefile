@@ -21,9 +21,6 @@ SNAP=		${_SNAP}$(shell ${_SNAP_SH})
 SNAPDIR=	${DISTPREFIX}-${SNAP}
 SNAPFILE=	${SNAPDIR}.tar.bz2
 
-proginstall:
-	cd src && make $@
-
 dist:
 	mkdir /tmp/${DISTPREFIX}
 	cp -RPp * /tmp/${DISTPREFIX}

@@ -20,6 +20,8 @@ _iconinstall: ${ICONS}
 	${INSTALL} -d ${DESTDIR}${IDIR}
 	${INSTALL} -m ${NONBINMODE} ${ICONS} ${DESTDIR}${IDIR}
 
+proginstall:
+
 install: _iconinstall
 
 clean:
