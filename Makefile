@@ -1,13 +1,13 @@
 PROG=		dhcpcd-ui
 VERSION=	0.7.0
 
-.PHONY:		icons
-
-SUBDIR=		src icons
-
 TOPDIR=		.
 include ${TOPDIR}/iconfig.mk
 include ${MKDIR}/subdir.mk
+
+.PHONY:		icons
+
+SUBDIR=		src ${ICONS}
 
 GITREF?=	HEAD
 DISTPREFIX?=	${PROG}-${VERSION}

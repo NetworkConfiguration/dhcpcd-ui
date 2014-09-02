@@ -49,6 +49,7 @@ DhcpcdQt::DhcpcdQt()
 	lastStatus = NULL;
 	aniTimer = new QTimer(this);
 	connect(aniTimer, SIGNAL(timeout()), this, SLOT(animate()));
+	notifier = NULL;
 	retryOpenTimer = NULL;
 
 	about = NULL;
@@ -169,14 +170,14 @@ void DhcpcdQt::statusCallback(const char *status)
 
 	qDebug("Status changed to %s", status);
 	if (strcmp(status, "down") == 0) {
-		QString msg;
-		if (lastStatus)
-			msg = tr("Connection to dhcpcd lost");
-		else
-			msg = tr("dhcpcd not running");
 		aniTimer->stop();
 		aniCounter = 0;
 		setIcon("status", "network-offline");
+		if (notifier) {
+			delete notifier;
+			notifier = NULL;
+		}
+		trayIcon->setToolTip(tr("Not connected to dhcpcd"));
 	} else {
 		bool refresh;
 
@@ -190,6 +191,15 @@ void DhcpcdQt::statusCallback(const char *status)
 
 	free(lastStatus);
 	lastStatus = strdup(status);
+
+	if (strcmp(status, "down") == 0) {
+		if (retryOpenTimer == NULL) {
+			retryOpenTimer = new QTimer(this);
+			connect(retryOpenTimer, SIGNAL(timeout()),
+			    this, SLOT(tryOpen()));
+			retryOpenTimer->start(DHCPCD_RETRYOPEN);
+		}
+	}
 }
 
 void DhcpcdQt::dhcpcd_status_cb(_unused DHCPCD_CONNECTION *con,
@@ -302,7 +312,7 @@ void DhcpcdQt::dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, void *d)
 	dhcpcdQt->scanCallback(wpa);
 }
 
-bool DhcpcdQt::tryOpen() {
+void DhcpcdQt::tryOpen() {
 	int fd = dhcpcd_open(con);
 	static int last_error;
 
@@ -317,7 +327,7 @@ bool DhcpcdQt::tryOpen() {
 			    this, SLOT(tryOpen()));
 			retryOpenTimer->start(DHCPCD_RETRYOPEN);
 		}
-		return false;
+		return;
 	}
 
 	if (retryOpenTimer) {
@@ -327,8 +337,6 @@ bool DhcpcdQt::tryOpen() {
 
 	notifier = new QSocketNotifier(fd, QSocketNotifier::Read);
 	connect(notifier, SIGNAL(activated(int)), this, SLOT(dispatch()));
-
-	return true;
 }
 
 void DhcpcdQt::dispatch() {

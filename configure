@@ -254,6 +254,7 @@ EOF
 	elif $XCC _gettext.c -o _gettext -lintl 2>/dev/null; then
 		GETTEXT="yes (-lintl)"
 		LIB_INTL=-lintl
+		QMAKE_CONFIG="CONFIG+=has_libintl"
 	else
 		GETTEXT=no
 	fi
@@ -364,11 +365,10 @@ elif [ -n "$WITH_QT" -a "$WITH_QT" != no ]; then
 	fi
 fi
 
-if [ -z "$UI" ]; then
-	echo "$0: no UI is available, not building." >&2
-	exit 1
+if [ -n "$UI" ]; then
+	echo "ICONS=		icons" >>$CONFIG_MK
 fi
-echo "UI=		$UI" >>config.mk
+echo "UI=		$UI" >>$CONFIG_MK
 
 echo
 echo "   SYSCONFDIR =		$SYSCONFDIR"
@@ -382,7 +382,7 @@ echo
 echo "MKDIR=		\${TOPDIR}/mk" >>$CONFIG_MK
 
 if $DHCPCD_QT; then
-	if ! (cd src/dhcpcd-qt; qmake dhcpcd-qt.pro); then
+	if ! (cd src/dhcpcd-qt; qmake $QMAKE_CONFIG dhcpcd-qt.pro); then
 		echo "$0: failed to configure dhcpcd-qt" >&2
 		exit 1
 	fi

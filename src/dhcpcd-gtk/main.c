@@ -233,48 +233,6 @@ notify(const char *title, const char *msg, const char *icon)
 #  define notify(a, b, c)
 #endif
 
-static void
-dhcpcd_status_cb(DHCPCD_CONNECTION *con, const char *status, _unused void *data)
-{
-	static char *last = NULL;
-	const char *msg;
-	bool refresh;
-	WI_SCAN *w;
-
-	g_message("Status changed to %s", status);
-	if (g_strcmp0(status, "down") == 0) {
-		msg = N_(last ?
-		    "Connection to dhcpcd lost" : "dhcpcd not running");
-		if (ani_timer != 0) {
-			g_source_remove(ani_timer);
-			ani_timer = 0;
-			ani_counter = 0;
-		}
-		gtk_status_icon_set_from_icon_name(status_icon,
-		    "network-offline");
-		gtk_status_icon_set_tooltip_text(status_icon, msg);
-		notify(_("No network"), msg, "network-offline");
-		dhcpcd_prefs_abort();
-		while (wi_scans) {
-			w = wi_scans->next;
-			dhcpcd_wi_scans_free(wi_scans->scans);
-			g_free(wi_scans);
-			wi_scans = w;
-		}
-	} else {
-		if ((last == NULL || g_strcmp0(last, "down") == 0)) {
-			g_message(_("Connected to %s-%s"), "dhcpcd",
-			    dhcpcd_version(con));
-			refresh = true;
-		} else
-			refresh = false;
-		update_online(con, refresh);
-	}
-
-	g_free(last);
-	last = g_strdup(status);
-}
-
 static struct watch *
 dhcpcd_findwatch(int fd, gpointer data, struct watch **last)
 {
@@ -358,6 +316,50 @@ dhcpcd_watch(int fd,
 	watches = w;
 
 	return TRUE;
+}
+
+static void
+dhcpcd_status_cb(DHCPCD_CONNECTION *con, const char *status, _unused void *data)
+{
+	static char *last = NULL;
+	const char *msg;
+	bool refresh;
+	WI_SCAN *w;
+
+	g_message("Status changed to %s", status);
+	if (g_strcmp0(status, "down") == 0) {
+		msg = N_(last ?
+		    "Connection to dhcpcd lost" : "dhcpcd not running");
+		if (ani_timer != 0) {
+			g_source_remove(ani_timer);
+			ani_timer = 0;
+			ani_counter = 0;
+		}
+		gtk_status_icon_set_from_icon_name(status_icon,
+		    "network-offline");
+		gtk_status_icon_set_tooltip_text(status_icon, msg);
+		notify(_("No network"), msg, "network-offline");
+		dhcpcd_prefs_abort();
+		while (wi_scans) {
+			w = wi_scans->next;
+			dhcpcd_wi_scans_free(wi_scans->scans);
+			g_free(wi_scans);
+			wi_scans = w;
+		}
+		dhcpcd_unwatch(-1, con);
+		g_timeout_add(DHCPCD_RETRYOPEN, dhcpcd_try_open, con);
+	} else {
+		if ((last == NULL || g_strcmp0(last, "down") == 0)) {
+			g_message(_("Connected to %s-%s"), "dhcpcd",
+			    dhcpcd_version(con));
+			refresh = true;
+		} else
+			refresh = false;
+		update_online(con, refresh);
+	}
+
+	g_free(last);
+	last = g_strdup(status);
 }
 
 static gboolean

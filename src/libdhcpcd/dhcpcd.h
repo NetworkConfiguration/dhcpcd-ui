@@ -44,7 +44,7 @@ extern "C" {
 #define WPA_CTRL_DIR		"/var/run/wpa_supplicant"
 #endif
 
-#define DHCPCD_RETRYOPEN	1	/* seconds */
+#define DHCPCD_RETRYOPEN	100	/* milliseconds */
 #define DHCPCD_WI_HIST_MAX	10	/* Recall 10 scans for averages */
 
 #define IF_SSIDSIZE		33
@@ -121,16 +121,18 @@ typedef struct dhcpcd_wi_hist {
 typedef struct dhcpcd_wpa {
 	struct dhcpcd_wpa *next;
 	char ifname[IF_NAMESIZE];
+	bool open;
 	int command_fd;
 	char *command_path;
 	int listen_fd;
 	char *listen_path;
-	int attached;
+	bool attached;
 	struct dhcpcd_connection *con;
 } DHCPCD_WPA;
 
 typedef struct dhcpcd_connection {
 	struct dhcpcd_connection *next;
+	bool open;
 	int command_fd;
 	int listen_fd;
 

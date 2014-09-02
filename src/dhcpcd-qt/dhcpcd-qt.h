@@ -74,6 +74,7 @@ protected:
 	void closeEvent(QCloseEvent *event);
 
 private slots:
+	void tryOpen();
 	void animate();
 	void dispatch();
 	void showAbout();
@@ -84,7 +85,6 @@ private slots:
 
 private:
 	DHCPCD_CONNECTION *con;
-	bool tryOpen();
 	QSocketNotifier *notifier;
 	QTimer *retryOpenTimer;
 	QList<DhcpcdWi *> *wis;

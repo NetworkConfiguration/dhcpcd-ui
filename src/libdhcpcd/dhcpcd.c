@@ -225,7 +225,8 @@ dhcpcd_get_prefix_value(const DHCPCD_IF *i, const char *prefix, const char *var)
 	return dhcpcd_get_value(i, pvar);
 }
 
-static bool strtobool(const char *var)
+static bool
+strtobool(const char *var)
 {
 
 	if (var == NULL)
@@ -260,12 +261,12 @@ get_status(DHCPCD_CONNECTION *con)
 }
 
 static void
-update_status(DHCPCD_CONNECTION *con)
+update_status(DHCPCD_CONNECTION *con, const char *nstatus)
 {
-	const char *nstatus;
 
 	assert(con);
-	nstatus = get_status(con);
+	if (nstatus == NULL)
+		nstatus = get_status(con);
 	if (con->status == NULL || strcmp(nstatus, con->status)) {
 		con->status = nstatus;
 		if (con->status_cb)
@@ -521,7 +522,7 @@ dhcpcd_dispatch(DHCPCD_CONNECTION *con)
 
 	/* Have to call update_status last as it could
 	 * cause the interface to be destroyed. */
-	update_status(con);
+	update_status(con, NULL);
 }
 
 DHCPCD_CONNECTION *
@@ -531,6 +532,7 @@ dhcpcd_new(void)
 
 	con = calloc(1, sizeof(*con));
 	con->command_fd = con->listen_fd = -1;
+	con->open = false;
 	return con;
 }
 
@@ -568,52 +570,51 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 	DHCPCD_IF *i;
 
 	assert(con);
-	if (con->listen_fd != -1)
+	if (con->listen_fd != -1) {
+		if (!con->open) {
+			errno = EISCONN;
+			return -1;
+		}
 		return con->listen_fd;
-	con->command_fd = dhcpcd_connect();
-	if (con->command_fd == -1) {
-		update_status(con);
-		return -1;
 	}
+	con->command_fd = dhcpcd_connect();
+	if (con->command_fd == -1)
+		goto err_exit;
 
 	con->terminate_commands = false;
 	if (dhcpcd_command(con, "--version", &con->version) <= 0)
-		return -1;
+		goto err_exit;
 	con->terminate_commands =
 	    strverscmp(con->version, "6.4.1") >= 0 ? true : false;
 
 	if (dhcpcd_command(con, "--getconfigfile", &con->cffile) <= 0)
-		return -1;
+		goto err_exit;
 
 	con->listen_fd = dhcpcd_connect();
-	if (con->listen_fd == -1) {
-		close(con->command_fd);
-		con->command_fd = -1;
-		update_status(con);
-		return -1;
-	}
+	if (con->listen_fd == -1)
+		goto err_exit;
 	dhcpcd_command_fd(con, con->listen_fd, "--listen", NULL);
 
 	dhcpcd_command_fd(con, con->command_fd, "--getinterfaces", NULL);
 	bytes = read(con->command_fd, cmd, sizeof(nifs));
-	if (bytes != sizeof(nifs)) {
-		close(con->command_fd);
-		con->command_fd = -1;
-		close(con->listen_fd);
-		con->listen_fd = -1;
-	} else {
-		memcpy(&nifs, cmd, sizeof(nifs));
-		/* We don't dispatch each interface here as that
-		 * causes too much notification spam when the GUI starts */
-		for (n = 0; n < nifs; n++) {
-			i = dhcpcd_read_if(con, con->command_fd);
-			if (i)
-				dhcpcd_wpa_if_event(i);
-		}
-	}
-	update_status(con);
+	if (bytes != sizeof(nifs))
+		goto err_exit;
 
+	memcpy(&nifs, cmd, sizeof(nifs));
+	/* We don't dispatch each interface here as that
+	 * causes too much notification spam when the GUI starts */
+	for (n = 0; n < nifs; n++) {
+		i = dhcpcd_read_if(con, con->command_fd);
+		if (i)
+			dhcpcd_wpa_if_event(i);
+	}
+	update_status(con, NULL);
+	con->open = true;
 	return con->listen_fd;
+
+err_exit:
+	dhcpcd_close(con);
+	return -1;
 }
 
 int
@@ -675,17 +676,26 @@ dhcpcd_close(DHCPCD_CONNECTION *con)
 
 	assert(con);
 
+	con->open = false;
+
 	/* Shut down WPA listeners as they aren't much good without dhcpcd.
 	 * They'll be restarted anyway when dhcpcd comes back up. */
 	for (wpa = con->wpa; wpa; wpa = wpa->next)
 		dhcpcd_wpa_close(con->wpa);
 
-	if (con->command_fd != -1) {
+	if (con->command_fd != -1)
 		shutdown(con->command_fd, SHUT_RDWR);
+	if (con->listen_fd != -1)
+		shutdown(con->listen_fd, SHUT_RDWR);
+
+	update_status(con, "down");
+
+	if (con->command_fd != -1) {
+		close(con->command_fd);
 		con->command_fd = -1;
 	}
 	if (con->listen_fd != -1) {
-		shutdown(con->listen_fd, SHUT_RDWR);
+		close(con->listen_fd);
 		con->listen_fd = -1;
 	}
 

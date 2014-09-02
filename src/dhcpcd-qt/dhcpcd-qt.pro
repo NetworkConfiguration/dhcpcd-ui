@@ -11,4 +11,8 @@ INCLUDEPATH+=		../libdhcpcd/
 
 LIBS+=			-L../libdhcpcd ../libdhcpcd/libdhcpcd.a
 
+has_libintl {
+	LIBS +=		-lintl
+}
+
 QMAKE_CLEAN+=		${TARGET}
