@@ -75,18 +75,26 @@ static void __dead
 do_exit(DHCPCD_CONNECTION *con, int code)
 {
 
+	/* Unregister the status callback so that close doesn't spam. */
+	dhcpcd_set_status_callback(con, NULL, NULL);
+
 	dhcpcd_close(con);
 	dhcpcd_free(con);
 	exit(code);
 }
 
 static void
-do_status_cb(DHCPCD_CONNECTION *con, const char *status, void __unused *arg)
+do_status_cb(DHCPCD_CONNECTION *con, const char *status, void *arg)
 {
+	struct pollfd *pfd;
 
 	syslog(LOG_INFO, "%s", status);
 	if (strcmp(status, "connected") == 0)
 		do_exit(con, EXIT_SUCCESS);
+	if (strcmp(status, "down") == 0) {
+		pfd = arg;
+		pfd->fd = -1;
+	}
 }
 
 int
@@ -140,7 +148,7 @@ main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	dhcpcd_set_status_callback(con, do_status_cb, NULL);
+	dhcpcd_set_status_callback(con, do_status_cb, &pfd);
 
 	if ((pfd.fd = dhcpcd_open(con)) == -1) {
 		lerrno = errno;
