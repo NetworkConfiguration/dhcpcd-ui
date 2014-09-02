@@ -159,7 +159,7 @@ dhcpcd_connect(void)
 	socklen_t len;
 	struct sockaddr_un sun;
 
-	fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+	fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
 	if (fd == -1)
 		return -1;
 
