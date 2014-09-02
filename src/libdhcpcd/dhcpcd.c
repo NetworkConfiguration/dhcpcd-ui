@@ -153,13 +153,13 @@ dhcpcd_command_arg(DHCPCD_CONNECTION *con, const char *cmd, const char *arg,
 
 
 static int
-dhcpcd_connect(void)
+dhcpcd_connect(int opts)
 {
 	int fd;
 	socklen_t len;
 	struct sockaddr_un sun;
 
-	fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
+	fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | opts, 0);
 	if (fd == -1)
 		return -1;
 
@@ -577,7 +577,8 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 		}
 		return con->listen_fd;
 	}
-	con->command_fd = dhcpcd_connect();
+	/* We need to block the command fd */
+	con->command_fd = dhcpcd_connect(0);
 	if (con->command_fd == -1)
 		goto err_exit;
 
@@ -590,7 +591,7 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 	if (dhcpcd_command(con, "--getconfigfile", &con->cffile) <= 0)
 		goto err_exit;
 
-	con->listen_fd = dhcpcd_connect();
+	con->listen_fd = dhcpcd_connect(SOCK_NONBLOCK);
 	if (con->listen_fd == -1)
 		goto err_exit;
 	dhcpcd_command_fd(con, con->listen_fd, "--listen", NULL);
