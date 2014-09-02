@@ -48,7 +48,12 @@
 #include "config.h"
 #include "dhcpcd.h"
 
+#ifdef HAS_GETTEXT
+#include <libintl.h>
 #define _ gettext
+#else
+#define _(a) (a)
+#endif
 
 #ifndef SUN_LEN
 #define SUN_LEN(su) \

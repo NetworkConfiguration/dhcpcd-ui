@@ -7,6 +7,7 @@ TOPDIR=		../..
 include ${TOPDIR}/iconfig.mk
 
 CPPFLAGS+=	-I${TOPDIR}
+LDADD+=		${LIB_INTL}
 
 # Don't install
 LIBINSTALL=	${LIB_DHCPCD_INSTALL}

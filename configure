@@ -237,6 +237,32 @@ fi
 XCC="$CC `$SED -n -e 's/CPPLAGS+=*\(.*\)/\1/p' $CONFIG_MK`"
 XCC="$XCC `$SED -n -e 's/CFLAGS+=*\(.*\)/\1/p' $CONFIG_MK`"
 
+if [ -z "$GETTEXT" ]; then
+	printf "Testing for gettext ... "
+	cat <<EOF >_gettext.c
+#include <libintl.h>
+int main(void) {
+	gettext("foo");
+	return 0;
+}
+EOF
+	LIB_INTL=
+	if $XCC _gettext.c -o _gettext 2>/dev/null; then
+		GETTEXT=yes
+	elif $XCC _gettext.c -o _gettext -lintl 2>/dev/null; then
+		GETTEXT="yes (-lintl)"
+		LIB_INTL=-lintl
+	else
+		GETTEXT=no
+	fi
+	echo "$GETTEXT"
+	rm -f _gettext.c _gettext
+fi
+if [ "$GETTEXT" != no ]; then
+	echo "#define HAS_GETTEXT" >>$CONFIG_H
+	echo "LIB_INTL=	$LIB_INTL" >>$CONFIG_MK
+fi
+
 if [ -z "$STRLCPY" ]; then
 	printf "Testing for strlcpy ... "
 	cat <<EOF >_strlcpy.c
@@ -287,7 +313,7 @@ echo "LIB_DHCPCD=	$x" >>$CONFIG_MK
 
 # Due to our use of pkg-config, pass --as-needed to ld so we only link
 # what we actually need.
-echo "LDADD+=	-Wl,--as-needed" >>$CONFIG_MK
+echo "LDADD+=		-Wl,--as-needed" >>$CONFIG_MK
 
 UI=
 if [ "$WITH_GTK" = yes -o -z "$WITH_GTK" ]; then
