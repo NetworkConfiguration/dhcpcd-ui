@@ -494,6 +494,7 @@ dhcpcd_wpa_find(DHCPCD_CONNECTION *con, const char *ifname)
 		if (strcmp(wpa->ifname, ifname) == 0)
 			return wpa;
 	}
+	errno = ENOENT;
 	return NULL;
 }
 
@@ -644,7 +645,7 @@ dhcpcd_wpa_if_event(DHCPCD_IF *i)
 			wpa = dhcpcd_wpa_find(i->con, i->ifname);
 			if (wpa)
 				dhcpcd_wpa_close(wpa);
-		} else if (i->up && i->con->wpa_started) {
+		} else if (i->con->wpa_started) {
 			wpa = dhcpcd_wpa_new(i->con, i->ifname);
 			if (wpa && wpa->listen_fd == -1)
 				dhcpcd_wpa_open(wpa);
