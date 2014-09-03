@@ -144,6 +144,7 @@ typedef struct dhcpcd_connection {
 	void *if_context;
 	void (*status_cb)(struct dhcpcd_connection *, const char *, void *);
 	void *status_context;
+	bool wpa_started;
 	void (*wi_scanresults_cb)(DHCPCD_WPA *, void *);
 	void *wi_scanresults_context;
 	void (*wpa_status_cb)(DHCPCD_WPA *, const char *, void *);
@@ -196,6 +197,7 @@ ssize_t dhcpcd_command_arg(DHCPCD_CONNECTION *, const char *, const char *,
 #define dhcpcd_rebind(c, i)	dhcpcd_command_arg((c), "-n", (i), NULL)
 #define dhcpcd_release(c, i)	dhcpcd_command_arg((c), "-k", (i), NULL)
 
+void dhcpcd_wpa_start(DHCPCD_CONNECTION *);
 DHCPCD_WPA *dhcpcd_wpa_find(DHCPCD_CONNECTION *, const char *);
 DHCPCD_WPA *dhcpcd_wpa_new(DHCPCD_CONNECTION *, const char *);
 DHCPCD_CONNECTION *dhcpcd_wpa_connection(DHCPCD_WPA *);

@@ -644,10 +644,22 @@ dhcpcd_wpa_if_event(DHCPCD_IF *i)
 			wpa = dhcpcd_wpa_find(i->con, i->ifname);
 			if (wpa)
 				dhcpcd_wpa_close(wpa);
-		} else if (i->up) {
+		} else if (i->up && i->con->wpa_started) {
 			wpa = dhcpcd_wpa_new(i->con, i->ifname);
 			if (wpa && wpa->listen_fd == -1)
 				dhcpcd_wpa_open(wpa);
 		}
 	}
+}
+
+void
+dhcpcd_wpa_start(DHCPCD_CONNECTION *con)
+{
+	DHCPCD_IF *i;
+
+	assert(con);
+	con->wpa_started = true;
+
+	for (i = con->interfaces; i; i = i->next)
+		dhcpcd_wpa_if_event(i);
 }

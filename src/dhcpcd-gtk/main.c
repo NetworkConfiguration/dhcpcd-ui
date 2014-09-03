@@ -354,7 +354,7 @@ dhcpcd_status_cb(DHCPCD_CONNECTION *con, const char *status, _unused void *data)
 			    dhcpcd_version(con));
 			refresh = true;
 		} else
-			refresh = false;
+			refresh = g_strcmp0(last, "opened") ? false : true;
 		update_online(con, refresh);
 	}
 
@@ -389,9 +389,10 @@ dhcpcd_try_open(gpointer data)
 	con = (DHCPCD_CONNECTION *)data;
 	fd = dhcpcd_open(con);
 	if (fd == -1) {
-		if (errno != last_error)
+		if (errno != last_error) {
 			g_critical("dhcpcd_open: %s", strerror(errno));
-		last_error = errno;
+			last_error = errno;
+		}
 		return TRUE;
 	}
 
@@ -399,6 +400,9 @@ dhcpcd_try_open(gpointer data)
 		dhcpcd_close(con);
 		return TRUE;
 	}
+
+	/* Start listening to WPA events */
+	dhcpcd_wpa_start(con);
 
 	return FALSE;
 }

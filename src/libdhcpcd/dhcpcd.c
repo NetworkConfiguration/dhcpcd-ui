@@ -244,8 +244,14 @@ get_status(DHCPCD_CONNECTION *con)
 	const char *status;
 
 	assert(con);
-	if (con->command_fd == -1 || con->listen_fd == -1)
+	if (con->command_fd == -1)
 		return "down";
+
+	if (con->listen_fd == -1)
+		return "opened";
+
+	if (con->interfaces == NULL)
+		return "initialised";
 
 	status = "disconnected";
 	for (i = con->interfaces; i; i = i->next) {
@@ -570,12 +576,11 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 	DHCPCD_IF *i;
 
 	assert(con);
-	if (con->listen_fd != -1) {
-		if (!con->open) {
-			errno = EISCONN;
-			return -1;
-		}
-		return con->listen_fd;
+	if (con->open) {
+		if (con->listen_fd != -1)
+			return con->listen_fd;
+		errno = EISCONN;
+		return -1;
 	}
 	/* We need to block the command fd */
 	con->command_fd = dhcpcd_connect(0);
@@ -591,26 +596,26 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 	if (dhcpcd_command(con, "--getconfigfile", &con->cffile) <= 0)
 		goto err_exit;
 
+	con->open = true;
+	update_status(con, NULL);
+
 	con->listen_fd = dhcpcd_connect(SOCK_NONBLOCK);
 	if (con->listen_fd == -1)
 		goto err_exit;
-	dhcpcd_command_fd(con, con->listen_fd, "--listen", NULL);
 
+	dhcpcd_command_fd(con, con->listen_fd, "--listen", NULL);
 	dhcpcd_command_fd(con, con->command_fd, "--getinterfaces", NULL);
 	bytes = read(con->command_fd, cmd, sizeof(nifs));
 	if (bytes != sizeof(nifs))
 		goto err_exit;
-
 	memcpy(&nifs, cmd, sizeof(nifs));
 	/* We don't dispatch each interface here as that
 	 * causes too much notification spam when the GUI starts */
-	for (n = 0; n < nifs; n++) {
+	for (n = 0; n < nifs; n++)
 		i = dhcpcd_read_if(con, con->command_fd);
-		if (i)
-			dhcpcd_wpa_if_event(i);
-	}
+
 	update_status(con, NULL);
-	con->open = true;
+
 	return con->listen_fd;
 
 err_exit:

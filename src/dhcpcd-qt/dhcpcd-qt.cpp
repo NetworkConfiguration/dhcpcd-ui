@@ -181,12 +181,14 @@ void DhcpcdQt::statusCallback(const char *status)
 	} else {
 		bool refresh;
 
-		if ((lastStatus == NULL || strcmp(lastStatus, "down") == 0)) {
+		if (lastStatus == NULL || strcmp(lastStatus, "down") == 0) {
 			qDebug("Connected to dhcpcd-%s", dhcpcd_version(con));
 			refresh = true;
 		} else
-			refresh = false;
+			refresh = strcmp(lastStatus, "opened") ? false : true;
+		printf ("refresh %d\n", refresh);
 		updateOnline(refresh);
+		printf ("updated\n");
 	}
 
 	free(lastStatus);
@@ -329,6 +331,9 @@ void DhcpcdQt::tryOpen() {
 		}
 		return;
 	}
+
+	/* Start listening to WPA events */
+	dhcpcd_wpa_start(con);
 
 	if (retryOpenTimer) {
 		delete retryOpenTimer;
