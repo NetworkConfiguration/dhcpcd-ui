@@ -573,7 +573,6 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 	char cmd[128];
 	ssize_t bytes;
 	size_t nifs, n;
-	DHCPCD_IF *i;
 
 	assert(con);
 	if (con->open) {
@@ -612,7 +611,7 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 	/* We don't dispatch each interface here as that
 	 * causes too much notification spam when the GUI starts */
 	for (n = 0; n < nifs; n++)
-		i = dhcpcd_read_if(con, con->command_fd);
+		dhcpcd_read_if(con, con->command_fd);
 
 	update_status(con, NULL);
 
