@@ -64,13 +64,7 @@ DhcpcdSsidMenu::DhcpcdSsidMenu(QWidget *parent, DHCPCD_IF *ifp, DHCPCD_WI_SCAN *
 	licon->setPixmap(picon);
 	layout->addWidget(licon);
 	bar = new QProgressBar(this);
-	bar->setMinimum(0);
-	bar->setMaximum(100);
-	if (scan->quality.value == 0)
-	    strength = scan->level.average;
-	else
-	    strength = scan->quality.average;
-	bar->setValue(strength < 0 ? 0 : strength > 100 ? 100 : strength);
+	bar->setValue(scan->strength.value);
 	layout->addWidget(bar);
 
 	button->installEventFilter(this);

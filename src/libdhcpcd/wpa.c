@@ -46,6 +46,9 @@
 	(sizeof(*(su)) - sizeof((su)->sun_path) + strlen((su)->sun_path))
 #endif
 
+#define CLAMP(x, low, high) \
+	(((x) > (high)) ? (high) : (((x) < (low)) ? (low) : (x)))
+
 static int
 wpa_open(const char *ifname, char **path)
 {
@@ -235,6 +238,23 @@ dhcpcd_wpa_scans_read(DHCPCD_WPA *wpa)
 			else if (strncmp(s, "ssid=", 5) == 0)
 				strlcpy(w->ssid, s + 5, sizeof(w->ssid));
 		}
+
+		w->strength.value = w->level.value;
+		if (w->strength.value > 110 && w->strength.value < 256)
+			/* Convert WEXT level to dBm */
+			w->strength.value -= 256;
+
+		if (w->strength.value < 0) {
+			/* Assume dBm */
+			w->strength.value =
+			    abs(CLAMP(w->strength.value, -100, -40) + 40);
+			w->strength.value =
+			    100 - ((100 * w->strength.value) / 60);
+		} else {
+			/* Assume quality percentage */
+			w->strength.value = CLAMP(w->strength.value, 0, 100);
+		}
+
 	}
 	return wis;
 }
@@ -257,6 +277,7 @@ dhcpcd_wi_scans(DHCPCD_IF *i)
 		w->quality.average = w->quality.value;
 		w->noise.average = w->noise.value;
 		w->level.average = w->level.value;
+		w->strength.average = w->strength.value;
 
 		for (h = wpa->con->wi_history; h; h = h->next) {
 			if (strcmp(h->ifname, i->ifname) == 0 &&
@@ -265,6 +286,7 @@ dhcpcd_wi_scans(DHCPCD_IF *i)
 				w->quality.average += h->quality;
 				w->noise.average += h->noise;
 				w->level.average += h->level;
+				w->strength.average += h->strength;
 				if (++nh == DHCPCD_WI_HIST_MAX) {
 					hl->next = h->next;
 					free(h);
@@ -278,6 +300,7 @@ dhcpcd_wi_scans(DHCPCD_IF *i)
 			w->quality.average /= nh;
 			w->noise.average /= nh;
 			w->level.average /= nh;
+			w->strength.average /= nh;
 		}
 		h = malloc(sizeof(*h));
 		if (h) {
@@ -286,6 +309,7 @@ dhcpcd_wi_scans(DHCPCD_IF *i)
 			h->quality = w->quality.value;
 			h->noise = w->noise.value;
 			h->level = w->level.value;
+			h->strength = w->strength.value;
 			h->next = wpa->con->wi_history;
 			wpa->con->wi_history = h;
 		}

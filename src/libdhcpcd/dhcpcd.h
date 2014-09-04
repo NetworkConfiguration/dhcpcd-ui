@@ -65,6 +65,7 @@ typedef struct dhcpcd_wi_scan {
 	DHCPCD_WI_AV quality;
 	DHCPCD_WI_AV noise;
 	DHCPCD_WI_AV level;
+	DHCPCD_WI_AV strength;
 	char ssid[IF_SSIDSIZE];
 	char flags[FLAGSIZE];
 } DHCPCD_WI_SCAN;
@@ -116,6 +117,7 @@ typedef struct dhcpcd_wi_hist {
 	int quality;
 	int noise;
 	int level;
+	int strength;
 } DHCPCD_WI_HIST;
 
 typedef struct dhcpcd_wpa {

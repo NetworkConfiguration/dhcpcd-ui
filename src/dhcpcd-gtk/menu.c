@@ -120,7 +120,6 @@ add_scans(WI_SCAN *scan)
 	DHCPCD_WI_SCAN *wis;
 	GtkWidget *menu, *item, *image, *box, *label, *bar;
 	double perc;
-	int strength;
 	const char *icon;
 	char *tip;
 
@@ -150,11 +149,7 @@ add_scans(WI_SCAN *scan)
 		bar = gtk_progress_bar_new();
 		gtk_widget_set_size_request(bar, 100, -1);
 		gtk_box_pack_end(GTK_BOX(box), bar, FALSE, TRUE, 0);
-		if (wis->quality.value == 0)
-			strength = wis->level.average;
-		else
-			strength = wis->quality.average;
-		perc = CLAMP(strength, 0, 100) / 100.0;
+		perc = wis->strength.value / 100.0;
 		gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(bar), perc);
 
 		if (wis->flags[0] == '\0')
