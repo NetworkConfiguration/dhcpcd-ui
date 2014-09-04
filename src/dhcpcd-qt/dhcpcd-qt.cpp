@@ -186,9 +186,7 @@ void DhcpcdQt::statusCallback(const char *status)
 			refresh = true;
 		} else
 			refresh = strcmp(lastStatus, "opened") ? false : true;
-		printf ("refresh %d\n", refresh);
 		updateOnline(refresh);
-		printf ("updated\n");
 	}
 
 	free(lastStatus);
