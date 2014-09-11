@@ -79,12 +79,12 @@ DhcpcdQt::~DhcpcdQt()
 	qDeleteAll(*wis);
 	delete wis;
 
-	free(lastStatus);
-
 	if (con != NULL) {
 		dhcpcd_close(con);
 		dhcpcd_free(con);
 	}
+
+	free(lastStatus);
 }
 
 void DhcpcdQt::animate()
