@@ -308,6 +308,7 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 	char *orderdup, *o, *p;
 	DHCPCD_IF *e, *i, *l, *n, *nl;
 	int ti;
+	bool addedi;
 
 	ifname = get_value(data, len, "interface=");
 	if (ifname == NULL || *ifname == '\0') {
@@ -432,6 +433,7 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
        /* Sort! */
 	n = nl = NULL;
 	p = orderdup;
+	addedi = false;
         while ((o = strsep(&p, " ")) != NULL) {
                 for (ti = 0; dhcpcd_types[ti]; ti++) {
                         l = NULL;
@@ -443,6 +445,8 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
                         }
                         if (e == NULL)
                                 continue;
+			if (i == e)
+				addedi = true;
                         if (l)
                                 l->next = e->next;
                         else
@@ -467,7 +471,7 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
         }
         con->interfaces = n;
 
-	return i;
+	return addedi ? i : NULL;
 }
 
 static DHCPCD_IF *
