@@ -338,7 +338,6 @@ dhcpcd_status_cb(DHCPCD_CONNECTION *con, const char *status, _unused void *data)
 		gtk_status_icon_set_from_icon_name(status_icon,
 		    "network-offline");
 		gtk_status_icon_set_tooltip_text(status_icon, msg);
-		notify(_("No network"), msg, "network-offline");
 		dhcpcd_prefs_abort();
 		while (wi_scans) {
 			w = wi_scans->next;
