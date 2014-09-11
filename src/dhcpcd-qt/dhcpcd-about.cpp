@@ -42,7 +42,7 @@ DhcpcdAbout::DhcpcdAbout(DhcpcdQt *parent)
 
 	this->parent = parent;
 	resize(300, 200);
-	setWindowTitle("About dhcpcd-qt");
+	setWindowTitle(tr("About Network Configurator"));
 	layout = new QVBoxLayout(this);
 
 	QIcon icon = DhcpcdQt::getIcon("status", "network-transmit-receive");
@@ -55,7 +55,7 @@ DhcpcdAbout::DhcpcdAbout(DhcpcdQt *parent)
 	aboutLabel = new QLabel("<h1>Network Configurator "  VERSION "</h1>", this);
 	aboutLabel->setAlignment(Qt::AlignCenter);
 	layout->addWidget(aboutLabel);
-	partLabel = new QLabel("Part of the dhcpcd project", this);
+	partLabel = new QLabel(tr("Part of the dhcpcd project"), this);
 	partLabel->setAlignment(Qt::AlignCenter);
 	layout->addWidget(partLabel);
 	copyrightLabel = new QLabel("Copyright (c) 2009-2014 Roy Marples", this);
@@ -70,7 +70,7 @@ DhcpcdAbout::DhcpcdAbout(DhcpcdQt *parent)
 	urlLabel->setOpenExternalLinks(true);
 	layout->addWidget(urlLabel);
 
-	closeButton = new QPushButton("Close", this);
+	closeButton = new QPushButton(tr("Close"), this);
 	closeButton->setIcon(QIcon::fromTheme("window-close"));
 	layout->addWidget(closeButton);
 	connect(closeButton, SIGNAL(clicked()), this, SLOT(close()));
