@@ -25,19 +25,28 @@
  */
 
 #include <QObject>
+#include <QInputDialog>
+#include <QLineEdit>
+#include <QMenu>
+#include <QMessageBox>
 #include <QSocketNotifier>
 #include <QTimer>
+#include <QWidgetAction>
 
 #include <cerrno>
 
 #include "config.h"
 #include "dhcpcd-wi.h"
+#include "dhcpcd-qt.h"
+#include "dhcpcd-ifmenu.h"
+#include "dhcpcd-ssidmenu.h"
 
 DhcpcdWi::DhcpcdWi(DhcpcdQt *parent, DHCPCD_WPA *wpa)
 {
 
 	this->dhcpcdQt = parent;
 	this->wpa = wpa;
+	menu = NULL;
 	scans = NULL;
 
 	int fd = dhcpcd_wpa_get_fd(wpa);
@@ -54,7 +63,7 @@ DhcpcdWi::~DhcpcdWi()
 		delete notifier;
 }
 
-DHCPCD_WPA * DhcpcdWi::getWpa()
+DHCPCD_WPA *DhcpcdWi::getWpa()
 {
 
 	return wpa;
@@ -65,11 +74,62 @@ DHCPCD_WI_SCAN *DhcpcdWi::getScans()
 
 	return scans;
 }
+
 void DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
 {
 
+	if (menu) {
+		QList<DhcpcdSsidMenu*> lst;
+		DHCPCD_WI_SCAN *scan;
+
+		lst = menu->findChildren<DhcpcdSsidMenu*>();
+		for (scan = scans; scan; scan = scan->next) {
+			foreach(DhcpcdSsidMenu *sm, lst) {
+				DHCPCD_WI_SCAN *s = sm->getScan();
+				if (memcmp(scan->bssid, s->bssid,
+				    sizeof(scan->bssid)) == 0)
+				{
+					sm->setScan(scan);
+					break;
+				}
+			}
+		}
+	}
+		
 	dhcpcd_wi_scans_free(this->scans);
 	this->scans = scans;
+}
+
+void DhcpcdWi::createMenu1(QMenu *menu)
+{
+	DHCPCD_WI_SCAN *scan;
+
+	for (scan = scans; scan; scan = scan->next) {
+		QWidgetAction *wa = new QWidgetAction(menu);
+		DhcpcdSsidMenu *ssidMenu = new DhcpcdSsidMenu(menu, this, scan);
+		wa->setDefaultWidget(ssidMenu);
+		menu->addAction(wa);
+		connect(ssidMenu, SIGNAL(selected(DHCPCD_WI_SCAN *)),
+		    this, SLOT(connectSsid(DHCPCD_WI_SCAN *)));
+	}
+}
+
+void DhcpcdWi::createMenu(QMenu *menu)
+{
+
+	this->menu = menu;
+	createMenu1(menu);
+}
+
+QMenu *DhcpcdWi::createIfMenu(QMenu *parent)
+{
+	DHCPCD_IF *ifp;
+
+	ifp = dhcpcd_wpa_if(wpa);
+	menu = new DhcpcdIfMenu(ifp, parent);
+	menu->setIcon(QIcon::fromTheme("network-wireless"));
+	createMenu1(menu);
+	return menu;
 }
 
 void DhcpcdWi::wpaOpen()
@@ -119,4 +179,48 @@ void DhcpcdWi::dispatch()
 	}
 
 	dhcpcd_wpa_dispatch(wpa);
+}
+
+void DhcpcdWi::connectSsid(DHCPCD_WI_SCAN *scan)
+{
+	bool ok;
+	DHCPCD_WI_SCAN s;
+
+	/* Take a copy of scan incase it's destroyed by a scan update */
+	memcpy(&s, scan, sizeof(s));
+	s.next = NULL;
+
+	QString psk = QInputDialog::getText(dhcpcdQt, s.ssid,
+	    tr("Pre Shared key"), QLineEdit::Normal, NULL, &ok);
+
+	if (!ok)
+		return;
+
+	QString errt;
+
+	switch (dhcpcd_wpa_configure_psk(wpa, &s, psk.toAscii())) {
+	case DHCPCD_WPA_SUCCESS:
+		return;
+	case DHCPCD_WPA_ERR_SET:
+		errt = tr("Failed to set key management.");
+		break;
+	case DHCPCD_WPA_ERR_SET_PSK:
+		errt = tr("Failed to set password, probably too short.");
+		break;
+	case DHCPCD_WPA_ERR_ENABLE:
+		errt = tr("Failed to enable the network.");
+		break;
+	case DHCPCD_WPA_ERR_ASSOC:
+		errt = tr("Failed to start association.");
+		break;
+	case DHCPCD_WPA_ERR_WRITE:
+		errt = tr("Failed to save wpa_supplicant configuration.\n\nYou should add update_config=1 to /etc/wpa_supplicant.conf.");
+		break;
+	default:
+		errt = strerror(errno);
+		break;
+	}
+
+	QMessageBox::critical(dhcpcdQt, tr("Error setting wireless properties"),
+	    errt);
 }

@@ -30,6 +30,8 @@
 static const char *copyright = "Copyright (c) 2009-2014 Roy Marples";
 static const char *authors[] = { "Roy Marples <roy@marples.name>", NULL };
 
+static GtkWidget *menu;
+
 static void
 on_pref(_unused GObject *o, gpointer data)
 {
@@ -73,12 +75,12 @@ url_hook(GtkAboutDialog *dialog, const char *url, _unused gpointer data)
 #endif
 
 static void
-ssid_hook(_unused GtkMenuItem *item, gpointer data)
+ssid_hook(GtkMenuItem *item, _unused gpointer data)
 {
 	DHCPCD_WI_SCAN *scan;
 	WI_SCAN *wi;
 
-	scan = (DHCPCD_WI_SCAN *)data;
+	scan = g_object_get_data(G_OBJECT(item), "dhcpcd_wi_scan");
 	wi = wi_scan_find(scan);
 	if (wi) {
 		DHCPCD_CONNECTION *con;
@@ -114,11 +116,36 @@ on_about(_unused GtkMenuItem *item)
 	    NULL);
 }
 
+void
+menu_update_scans(DHCPCD_IF *i, DHCPCD_WI_SCAN *scan)
+{
+	GList *lst, *l;
+	DHCPCD_WI_SCAN *s, *wis;
+
+	if (menu == NULL)
+		return;
+	lst = gtk_container_get_children(GTK_CONTAINER(menu));
+	for (s = scan; s; s = s->next) {
+		for (l = lst; l; l = l->next) {
+			wis = g_object_get_data(G_OBJECT(l->data), "dhcpcd_wi_scan");
+			if (wis) {
+				if (memcmp(wis->bssid, s->bssid,
+				    sizeof(s->bssid)) == 0)
+				{
+					g_object_set_data(G_OBJECT(l->data),
+					    "dhcpcd_wi_scan", s);
+					break;
+				}
+			}
+		}
+	}
+}
+
 static GtkWidget *
 add_scans(WI_SCAN *scan)
 {
 	DHCPCD_WI_SCAN *wis;
-	GtkWidget *menu, *item, *image, *box, *label, *bar;
+	GtkWidget *item, *image, *box, *label, *bar;
 	double perc;
 	const char *icon;
 	char *tip;
@@ -165,7 +192,8 @@ add_scans(WI_SCAN *scan)
 		gtk_widget_show(image);
 		gtk_widget_show(box);
 		g_signal_connect(G_OBJECT(item), "activate",
-		    G_CALLBACK(ssid_hook), wis);
+		    G_CALLBACK(ssid_hook), NULL);
+		g_object_set_data(G_OBJECT(item), "dhcpcd_wi_scan", wis);
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 	}
 	return menu;
@@ -175,7 +203,7 @@ static void
 on_activate(GtkStatusIcon *icon)
 {
 	WI_SCAN *w;
-	GtkWidget *menu, *item, *image;
+	GtkWidget *item, *image;
 
 	notify_close();
 	if (wi_scans == NULL)
@@ -208,13 +236,13 @@ static void
 on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 {
 	DHCPCD_CONNECTION *con;
-	GtkMenu *menu;
+	GtkMenu *mnu;
 	GtkWidget *item, *image;
 
 	notify_close();
 
 	con = (DHCPCD_CONNECTION *)data;
-	menu = (GtkMenu *)gtk_menu_new();
+	mnu = (GtkMenu *)gtk_menu_new();
 
 	item = gtk_image_menu_item_new_with_mnemonic(_("_Preferences"));
 	image = gtk_image_new_from_icon_name(GTK_STOCK_PREFERENCES,
@@ -225,10 +253,10 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 	else
 		g_signal_connect(G_OBJECT(item), "activate",
 		    G_CALLBACK(on_pref), data);
-	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+	gtk_menu_shell_append(GTK_MENU_SHELL(mnu), item);
 
 	item = gtk_separator_menu_item_new();
-	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+	gtk_menu_shell_append(GTK_MENU_SHELL(mnu), item);
 
 	item = gtk_image_menu_item_new_with_mnemonic(_("_About"));
 	image = gtk_image_new_from_icon_name(GTK_STOCK_ABOUT,
@@ -236,7 +264,7 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
 	g_signal_connect(G_OBJECT(item), "activate",
 	    G_CALLBACK(on_about), icon);
-	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+	gtk_menu_shell_append(GTK_MENU_SHELL(mnu), item);
 
 	item = gtk_image_menu_item_new_with_mnemonic(_("_Quit"));
 	image = gtk_image_new_from_icon_name(GTK_STOCK_QUIT,
@@ -244,13 +272,13 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
 	g_signal_connect(G_OBJECT(item), "activate",
 	    G_CALLBACK(on_quit), icon);
-	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+	gtk_menu_shell_append(GTK_MENU_SHELL(mnu), item);
 
-	gtk_widget_show_all(GTK_WIDGET(menu));
-	gtk_menu_popup(GTK_MENU(menu), NULL, NULL,
+	gtk_widget_show_all(GTK_WIDGET(mnu));
+	gtk_menu_popup(GTK_MENU(mnu), NULL, NULL,
 	    gtk_status_icon_position_menu, icon, button, atime);
 	if (button == 0)
-		gtk_menu_shell_select_first(GTK_MENU_SHELL(menu), FALSE);
+		gtk_menu_shell_select_first(GTK_MENU_SHELL(mnu), FALSE);
 }
 
 void

@@ -37,19 +37,44 @@
 #include "dhcpcd-qt.h"
 #include "dhcpcd-ssidmenu.h"
 
-DhcpcdSsidMenu::DhcpcdSsidMenu(QWidget *parent, DHCPCD_IF *ifp, DHCPCD_WI_SCAN *scan)
+DhcpcdSsidMenu::DhcpcdSsidMenu(QWidget *parent, DhcpcdWi *wi, DHCPCD_WI_SCAN *scan)
     : QWidget(parent, NULL)
 {
-	int strength;
-	QIcon icon;
 
-	this->ifp = ifp;
-	this->scan = scan;
+	this->wi = wi;
 
 	QHBoxLayout *layout = new QHBoxLayout(this);
-	button = new QRadioButton(scan->ssid, this);
-	button->setChecked(strcmp(scan->ssid, ifp->ssid) == 0);
+	button = new QRadioButton(this);
 	layout->addWidget(button);
+	licon = new QLabel(this);
+	layout->addWidget(licon);
+	bar = new QProgressBar(this);
+	layout->addWidget(bar);
+	setScan(scan);
+
+	button->installEventFilter(this);
+	licon->installEventFilter(this);
+	bar->installEventFilter(this);
+}
+
+DHCPCD_WI_SCAN *DhcpcdSsidMenu::getScan()
+{
+
+	return scan;
+}
+
+void DhcpcdSsidMenu::setScan(DHCPCD_WI_SCAN *scan)
+{
+	DHCPCD_WPA *wpa;
+	DHCPCD_IF *ifp;
+	QIcon icon;
+
+	this->scan = scan;
+	wpa = wi->getWpa();
+	ifp = dhcpcd_wpa_if(wpa);
+
+	button->setChecked(strcmp(scan->ssid, ifp->ssid) == 0);
+	button->setText(scan->ssid);
 	if (scan->flags[0] == '\0') {
 		icon = DhcpcdQt::getIcon("devices", "network-wireless");
 		setToolTip(scan->bssid);
@@ -60,22 +85,14 @@ DhcpcdSsidMenu::DhcpcdSsidMenu(QWidget *parent, DHCPCD_IF *ifp, DHCPCD_WI_SCAN *
 		setToolTip(tip);
 	}
 	QPixmap picon = icon.pixmap(22, 22);
-	licon = new QLabel(this);
 	licon->setPixmap(picon);
-	layout->addWidget(licon);
-	bar = new QProgressBar(this);
 	bar->setValue(scan->strength.value);
-	layout->addWidget(bar);
-
-	button->installEventFilter(this);
-	licon->installEventFilter(this);
-	bar->installEventFilter(this);
 }
 
 bool DhcpcdSsidMenu::eventFilter(QObject *, QEvent *event)
 {
 
 	if (event->type() == QEvent::MouseButtonPress)
-		emit selected(ifp, scan);
+		emit selected(scan);
 	return false;
 }

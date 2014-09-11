@@ -37,6 +37,7 @@
 #include "dhcpcd-about.h"
 #include "dhcpcd-preferences.h"
 #include "dhcpcd-wi.h"
+#include "dhcpcd-ifmenu.h"
 #include "dhcpcd-ssidmenu.h"
 
 DhcpcdQt::DhcpcdQt()
@@ -290,18 +291,19 @@ void DhcpcdQt::scanCallback(DHCPCD_WPA *wpa)
 			for (s2 = wi->getScans(); s2; s2 = s2->next) {
 				if (strcmp(s1->ssid, s2->ssid) == 0)
 					break;
-				if (s2 == NULL) {
-					if (!txt.isEmpty()) {
-						title = tr("New Access Points");
-						txt += '\n';
-					}
-					txt += s1->ssid;
+			}
+			if (s2 == NULL) {
+				if (!txt.isEmpty()) {
+					title = tr("New Access Points");
+					txt += '\n';
 				}
+				txt += s1->ssid;
 			}
 		}
 		if (!txt.isEmpty())
 			notify(title, txt);
 	}
+
 	wi->setScans(scans);
 }
 
@@ -394,31 +396,8 @@ QIcon DhcpcdQt::icon()
 	return getIcon("status", "network-transmit-receive");
 }
 
-void DhcpcdQt::addSsidMenu(QMenu *&menu, DHCPCD_IF *ifp, DhcpcdWi *&wi)
-{
-	DHCPCD_WI_SCAN *scan;
-
-	for (scan = wi->getScans(); scan; scan = scan->next) {
-		QWidgetAction *wa = new QWidgetAction(menu);
-		DhcpcdSsidMenu *ssidMenu = new DhcpcdSsidMenu(menu, ifp, scan);
-		wa->setDefaultWidget(ssidMenu);
-		menu->addAction(wa);
-		connect(ssidMenu, SIGNAL(selected(DHCPCD_IF *, DHCPCD_WI_SCAN *)),
-		    this, SLOT(connectSsid(DHCPCD_IF *, DHCPCD_WI_SCAN *)));
-	}
-}
-
-void DhcpcdQt::connectSsid(DHCPCD_IF *, DHCPCD_WI_SCAN *)
-{
-
-	QMessageBox::information(this, "Not implemented",
-	    "SSID selection is not yet implemented");
-}
-
 void DhcpcdQt::createSsidMenu()
 {
-	DHCPCD_WPA *wpa;
-	DHCPCD_IF *ifp;
 
 	if (ssidMenu) {
 		delete ssidMenu;
@@ -428,20 +407,11 @@ void DhcpcdQt::createSsidMenu()
 		return;
 
 	ssidMenu = new QMenu(this);
-	if (wis->size() == 1) {
-		DhcpcdWi *wi = wis->first();
-		wpa = wi->getWpa();
-		ifp = dhcpcd_wpa_if(wpa);
-		addSsidMenu(ssidMenu, ifp, wi);
-	} else {
-		for (auto &wi : *wis) {
-			wpa = wi->getWpa();
-			ifp = dhcpcd_wpa_if(wpa);
-			if (ifp) {
-				QMenu *ifmenu = ssidMenu->addMenu(ifp->ifname);
-				addSsidMenu(ifmenu, ifp, wi);
-			}
-		}
+	if (wis->size() == 1)
+		wis->first()->createMenu(ssidMenu);
+	else {
+		for (auto &wi : *wis)
+			ssidMenu->addMenu(wi->createIfMenu(ssidMenu));
 	}
 	ssidMenu->popup(QCursor::pos());
 }

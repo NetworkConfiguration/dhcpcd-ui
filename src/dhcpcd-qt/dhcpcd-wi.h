@@ -32,6 +32,7 @@
 #include "dhcpcd.h"
 
 class DhcpcdQt;
+class QMenu;
 class QSocketNotifier;
 class QTimer;
 
@@ -47,9 +48,13 @@ public:
 	DHCPCD_WI_SCAN *getScans();
 	void setScans(DHCPCD_WI_SCAN *scans);
 
+	void createMenu(QMenu *parent);
+	QMenu *createIfMenu(QMenu *parent);
+
 private slots:
 	void dispatch();
 	void wpaOpen();
+	void connectSsid(DHCPCD_WI_SCAN *scan);
 
 private:
 	DhcpcdQt *dhcpcdQt;
@@ -58,6 +63,9 @@ private:
 
 	QSocketNotifier *notifier;
 	QTimer *retryOpenTimer;
+
+	QMenu *menu;
+	void createMenu1(QMenu *parent);
 };
 
 #endif

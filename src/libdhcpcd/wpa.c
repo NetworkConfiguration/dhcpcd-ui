@@ -688,3 +688,56 @@ dhcpcd_wpa_start(DHCPCD_CONNECTION *con)
 	for (i = con->interfaces; i; i = i->next)
 		dhcpcd_wpa_if_event(i);
 }
+
+int
+dhcpcd_wpa_configure_psk(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s, const char *psk)
+{
+	const char *mgmt, *var;
+	int id;
+	char *npsk;
+	size_t psk_len;
+	bool r;
+
+	assert(wpa);
+	assert(s);
+
+	id = dhcpcd_wpa_network_find_new(wpa, s->ssid);
+	if (id == -1)
+		return DHCPCD_WPA_ERR;
+
+	if (strcmp(s->flags, "[WEP]") == 0) {
+		mgmt = "NONE";
+		var = "wep_key0";
+	} else {
+		mgmt = "WPA-PSK";
+		var = "psk";
+	}
+
+	if (!dhcpcd_wpa_network_set(wpa, id, "key_mgmt", mgmt))
+		return DHCPCD_WPA_ERR_SET;
+
+	if (psk)
+		psk_len = strlen(psk);
+	else
+		psk_len = 0;
+	npsk = malloc(psk_len + 3);
+	if (npsk == NULL)
+		return DHCPCD_WPA_ERR;
+	npsk[0] = '"';
+	if (psk_len)
+		memcpy(npsk + 1, psk, psk_len);
+	npsk[psk_len + 1] = '"';
+	npsk[psk_len + 2] = '\0';
+	r = dhcpcd_wpa_network_set(wpa, id, var, npsk);
+	free(npsk);
+	if (!r)
+		return DHCPCD_WPA_ERR_SET_PSK;
+
+	if (!dhcpcd_wpa_network_enable(wpa, id))
+		return DHCPCD_WPA_ERR_ENABLE;
+	if (!dhcpcd_wpa_reassociate(wpa))
+		return DHCPCD_WPA_ERR_ASSOC;
+	if (!dhcpcd_wpa_config_write(wpa))
+		return DHCPCD_WPA_ERR_WRITE;
+	return DHCPCD_WPA_SUCCESS;
+}

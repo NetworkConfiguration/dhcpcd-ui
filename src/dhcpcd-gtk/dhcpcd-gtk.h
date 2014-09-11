@@ -57,6 +57,7 @@ extern WI_SCAN *wi_scans;
 WI_SCAN * wi_scan_find(DHCPCD_WI_SCAN *);
 
 void menu_init(GtkStatusIcon *, DHCPCD_CONNECTION *);
+void menu_update_scans(DHCPCD_IF *, DHCPCD_WI_SCAN *);
 
 void notify_close(void);
 

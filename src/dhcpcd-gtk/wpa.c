@@ -40,47 +40,6 @@ wpa_dialog(const char *title, const char *txt)
 	gtk_widget_destroy(dialog);
 }
 
-static bool
-configure_network(DHCPCD_WPA *wpa,
-    int id, const char *mgmt, const char *var, const char *val, bool quote)
-{
-	char *str;
-	static bool warned = false;
-
-	if (!dhcpcd_wpa_network_set(wpa, id, "key_mgmt", mgmt)) {
-		g_warning("libdhcpcd: %s", strerror(errno));
-		wpa_dialog(_("Error"),
-		    _("Failed to set key management"));
-		return false;
-	}
-	if (quote)
-		str = g_strconcat("\"", val, "\"", NULL);
-	else
-		str = NULL;
-	if (!dhcpcd_wpa_network_set(wpa, id, var, quote ? str : val)) {
-		g_warning("libdhcpcd: %s", strerror(errno));
-		g_free(str);
-		wpa_dialog(_("Error setting password"),
-		    _("Failed to set password, probably too short."));
-		return false;
-	}
-	g_free(str);
-	if (!dhcpcd_wpa_network_enable(wpa, id)) {
-		wpa_dialog(_("Error enabling network"), strerror(errno));
-		return false;
-	}
-	if (!dhcpcd_wpa_config_write(wpa)) {
-		g_warning("libdhcpcd: %s", strerror(errno));
-		if (!warned) {
-			warned = true;
-			wpa_dialog(_("Error saving configuration"),
-			    _("Failed to save wpa_supplicant configuration.\n\nYou should add update_config=1 to /etc/wpa_supplicant.conf.\nThis warning will not appear again until program restarted."));
-		}
-		return false;
-	}
-	return dhcpcd_wpa_reassociate(wpa);
-}
-
 static void
 onEnter(_unused GtkWidget *widget, gpointer *data)
 {
@@ -88,14 +47,19 @@ onEnter(_unused GtkWidget *widget, gpointer *data)
 }
 
 bool
-wpa_configure(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s)
+wpa_configure(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *scan)
 {
+	DHCPCD_WI_SCAN s;
 	GtkWidget *dialog, *label, *psk, *vbox, *hbox;
-	const char *var, *mgt;
-	int result, id;
+	const char *var, *errt;
+	int result;
 	bool retval;
 
-	dialog = gtk_dialog_new_with_buttons(s->ssid,
+	/* Take a copy of scan incase it's destroyed by a scan update */
+	memcpy(&s, scan, sizeof(s));
+	s.next = NULL;
+
+	dialog = gtk_dialog_new_with_buttons(s.ssid,
 	    NULL,
 	    GTK_DIALOG_MODAL,
 	    GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
@@ -122,23 +86,36 @@ wpa_configure(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s)
 again:
 	result = gtk_dialog_run(GTK_DIALOG(dialog));
 
-	id = -1;
 	retval = false;
 	if (result == GTK_RESPONSE_ACCEPT) {
-		id = dhcpcd_wpa_network_find_new(wpa, s->ssid);
-		if (g_strcmp0(s->flags, "[WEP]") == 0) {
-			mgt = "NONE";
-			var = "wep_key0";
-		} else {
-			mgt = "WPA-PSK";
-			var = "psk";
+		var = gtk_entry_get_text(GTK_ENTRY(psk));
+		switch (dhcpcd_wpa_configure_psk(wpa, &s, var)) {
+		case DHCPCD_WPA_SUCCESS:
+			retval = true;
+			break;
+		case DHCPCD_WPA_ERR_SET:
+			errt = _("Failed to set key management.");
+			break;
+		case DHCPCD_WPA_ERR_SET_PSK:
+			errt = _("Failed to set password, probably too short.");
+			break;
+		case DHCPCD_WPA_ERR_ENABLE:
+			errt = _("Failed to enable the network.");
+			break;
+		case DHCPCD_WPA_ERR_ASSOC:
+			errt = _("Failed to start association.");
+			break;
+		case DHCPCD_WPA_ERR_WRITE:
+			errt =_("Failed to save wpa_supplicant configuration.\n\nYou should add update_config=1 to /etc/wpa_supplicant.conf.");
+			break;
+		default:
+			errt = strerror(errno);
+			break;
 		}
-		if (id != -1) {
-			configure_network(wpa, id, mgt, var,
-			    gtk_entry_get_text(GTK_ENTRY(psk)), true);
-		}
-		if (!retval)
+		if (!retval) {
+			wpa_dialog(_("Error enabling network"), errt);
 			goto again;
+		}
 	}
 	gtk_widget_destroy(dialog);
 	return retval;

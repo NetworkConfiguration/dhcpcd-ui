@@ -81,8 +81,6 @@ private slots:
 	void showPreferences();
 	void iconActivated(QSystemTrayIcon::ActivationReason reason);
 
-	void connectSsid(DHCPCD_IF *ifp, DHCPCD_WI_SCAN *scan);
-
 private:
 	DHCPCD_CONNECTION *con;
 	QSocketNotifier *notifier;

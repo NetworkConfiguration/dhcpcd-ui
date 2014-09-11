@@ -232,6 +232,15 @@ bool dhcpcd_wpa_network_remove(DHCPCD_WPA *, int);
 char * dhcpcd_wpa_network_get(DHCPCD_WPA *, int, const char *);
 bool dhcpcd_wpa_network_set(DHCPCD_WPA *, int, const char *, const char *);
 
+#define DHCPCD_WPA_SUCCESS	 0
+#define DHCPCD_WPA_ERR		-1
+#define DHCPCD_WPA_ERR_SET	-2
+#define DHCPCD_WPA_ERR_SET_PSK	-3
+#define DHCPCD_WPA_ERR_ENABLE	-4
+#define DHCPCD_WPA_ERR_WRITE	-5
+#define DHCPCD_WPA_ERR_ASSOC	-6
+int dhcpcd_wpa_configure_psk(DHCPCD_WPA *w, DHCPCD_WI_SCAN *s, const char *p);
+
 char ** dhcpcd_config_blocks(DHCPCD_CONNECTION *, const char *);
 DHCPCD_OPTION *dhcpcd_config_read(DHCPCD_CONNECTION *,
     const char *, const char *);

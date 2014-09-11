@@ -32,22 +32,27 @@ class QRadioButton;
 class QLabel;
 class QProgressBar;
 
+class DhcpcdWi;
+
 class DhcpcdSsidMenu : public QWidget
 {
 	Q_OBJECT
 
 public:
-	DhcpcdSsidMenu(QWidget *parent, DHCPCD_IF *ifp, DHCPCD_WI_SCAN *scan);
+	DhcpcdSsidMenu(QWidget *parent, DhcpcdWi *wi, DHCPCD_WI_SCAN *scan);
 	~DhcpcdSsidMenu() {};
 
+	DHCPCD_WI_SCAN *getScan();
+	void setScan(DHCPCD_WI_SCAN *scan);
+
 signals:
-	void selected(DHCPCD_IF *ifp, DHCPCD_WI_SCAN *scan);
+	void selected(DHCPCD_WI_SCAN *scan);
 
 private slots:
 	bool eventFilter(QObject *obj, QEvent *event);
 
 private:
-	DHCPCD_IF *ifp;
+	DhcpcdWi *wi;
 	DHCPCD_WI_SCAN *scan;
 
 	QRadioButton *button;

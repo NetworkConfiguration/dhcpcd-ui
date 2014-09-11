@@ -553,6 +553,7 @@ dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, _unused void *data)
 			notify(msg, txt, "network-wireless");
 			g_free(txt);
 		}
+		menu_update_scans(w->interface, scans);
 		dhcpcd_wi_scans_free(w->scans);
 	}
 	w->scans = scans;
