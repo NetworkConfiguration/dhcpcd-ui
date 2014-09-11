@@ -177,6 +177,7 @@ dhcpcd_config_set1(DHCPCD_OPTION **config, const char *opt, const char *val,
 			o = dhcpcd_option_new("static", t);
 		else
 			o = dhcpcd_option_new(opt, val);
+		free(t);
 		if (o == NULL)
 			return false;
 		if (l == NULL)

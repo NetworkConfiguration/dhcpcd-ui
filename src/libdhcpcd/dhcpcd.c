@@ -803,9 +803,9 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 	if (showssid)
 		p += snprintf(p, len - (size_t)(p - msg), " %s", i->ssid);
 	if (iplen)
-		p += snprintf(p, len - (size_t)(p - msg), " %s/%s", ip, iplen);
+		snprintf(p, len - (size_t)(p - msg), " %s/%s", ip, iplen);
 	else if (ip)
-		p += snprintf(p, len - (size_t)(p - msg), " %s", ip);
+		snprintf(p, len - (size_t)(p - msg), " %s", ip);
 
 	if (new_msg) {
 		if (i->last_message == NULL || strcmp(i->last_message, msg))
