@@ -63,10 +63,12 @@ DhcpcdWi::~DhcpcdWi()
 		menu = NULL;
 	}
 
-	dhcpcd_wi_scans_free(scans);
-
-	if (notifier)
+	if (notifier) {
 		delete notifier;
+		notifier = NULL;
+	}
+
+	dhcpcd_wi_scans_free(scans);
 }
 
 DHCPCD_WPA *DhcpcdWi::getWpa()

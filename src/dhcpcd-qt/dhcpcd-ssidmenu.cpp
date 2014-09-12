@@ -56,9 +56,7 @@ DhcpcdSsidMenu::DhcpcdSsidMenu(QWidget *parent, QWidgetAction *wa,
 	layout->setAlignment(bar, Qt::AlignRight);
 	setScan(scan);
 
-	button->installEventFilter(this);
-	licon->installEventFilter(this);
-	bar->installEventFilter(this);
+	this->installEventFilter(this);
 }
 
 QWidgetAction *DhcpcdSsidMenu::getWidgetAction()
