@@ -174,6 +174,7 @@ void DhcpcdQt::statusCallback(const char *status)
 	if (strcmp(status, "down") == 0) {
 		aniTimer->stop();
 		aniCounter = 0;
+		onLine = carrier = false;
 		setIcon("status", "network-offline");
 		if (notifier) {
 			delete notifier;

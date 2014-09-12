@@ -158,6 +158,7 @@ update_online(DHCPCD_CONNECTION *con, bool showif)
 
 	if (online != ison || carrier != iscarrier) {
 		online = ison;
+		carrier = iscarrier;
 		if (ani_timer != 0) {
 			g_source_remove(ani_timer);
 			ani_timer = 0;
@@ -319,7 +320,8 @@ dhcpcd_watch(int fd,
 }
 
 static void
-dhcpcd_status_cb(DHCPCD_CONNECTION *con, const char *status, _unused void *data)
+dhcpcd_status_cb(DHCPCD_CONNECTION *con, const char *status,
+    _unused void *data)
 {
 	static char *last = NULL;
 	const char *msg;
@@ -335,6 +337,7 @@ dhcpcd_status_cb(DHCPCD_CONNECTION *con, const char *status, _unused void *data)
 			ani_timer = 0;
 			ani_counter = 0;
 		}
+		online = carrier = false;
 		gtk_status_icon_set_from_icon_name(status_icon,
 		    "network-offline");
 		gtk_status_icon_set_tooltip_text(status_icon, msg);
@@ -414,30 +417,30 @@ dhcpcd_if_cb(DHCPCD_IF *i, _unused void *data)
 	const char *icon;
 	bool new_msg;
 
+	/* We should ignore renew and stop so we don't annoy the user */
+	if (g_strcmp0(i->reason, "RENEW") &&
+	    g_strcmp0(i->reason, "STOP") &&
+	    g_strcmp0(i->reason, "STOPPED"))
+	{
+		msg = dhcpcd_if_message(i, &new_msg);
+		if (msg) {
+			g_message("%s", msg);
+			if (new_msg) {
+				if (i->up)
+					icon = "network-transmit-receive";
+				//else
+				//	icon = "network-transmit";
+				if (!i->up)
+					icon = "network-offline";
+				notify(_("Network event"), msg, icon);
+			}
+			g_free(msg);
+		}
+	}
+
 	/* Update the tooltip with connection information */
 	con = dhcpcd_if_connection(i);
 	update_online(con, false);
-
-	/* We should ignore renew and stop so we don't annoy the user */
-	if (g_strcmp0(i->reason, "RENEW") == 0 ||
-	    g_strcmp0(i->reason, "STOP") == 0 ||
-	    g_strcmp0(i->reason, "STOPPED") == 0)
-		return;
-
-	msg = dhcpcd_if_message(i, &new_msg);
-	if (msg) {
-		g_message("%s", msg);
-		if (new_msg) {
-			if (i->up)
-				icon = "network-transmit-receive";
-			//else
-			//	icon = "network-transmit";
-			if (!i->up)
-				icon = "network-offline";
-			notify(_("Network event"), msg, icon);
-		}
-		g_free(msg);
-	}
 }
 
 static gboolean

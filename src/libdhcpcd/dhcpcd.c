@@ -681,7 +681,9 @@ dhcpcd_set_status_callback(DHCPCD_CONNECTION *con,
 void
 dhcpcd_close(DHCPCD_CONNECTION *con)
 {
-	DHCPCD_WPA *wpa;
+	DHCPCD_IF *nif;
+	DHCPCD_WPA *nwpa;
+	DHCPCD_WI_HIST *nh;
 
 	assert(con);
 
@@ -689,8 +691,24 @@ dhcpcd_close(DHCPCD_CONNECTION *con)
 
 	/* Shut down WPA listeners as they aren't much good without dhcpcd.
 	 * They'll be restarted anyway when dhcpcd comes back up. */
-	for (wpa = con->wpa; wpa; wpa = wpa->next)
+	while (con->wpa) {
+		nwpa = con->wpa->next;
 		dhcpcd_wpa_close(con->wpa);
+		free(con->wpa);
+		con->wpa = nwpa;
+	}
+	while (con->wi_history) {
+		nh = con->wi_history->next;
+		free(con->wi_history);
+		con->wi_history = nh;
+	}
+	while (con->interfaces) {
+		nif = con->interfaces->next;
+		free(con->interfaces->data);
+		free(con->interfaces->last_message);
+		free(con->interfaces);
+		con->interfaces = nif;
+	}
 
 	if (con->command_fd != -1)
 		shutdown(con->command_fd, SHUT_RDWR);
@@ -721,6 +739,14 @@ dhcpcd_close(DHCPCD_CONNECTION *con)
 		con->buf = NULL;
 		con->buflen = 0;
 	}
+}
+
+void
+dhcpcd_free(DHCPCD_CONNECTION *con)
+{
+
+	assert(con);
+	free(con);
 }
 
 DHCPCD_CONNECTION *
@@ -821,33 +847,4 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 	i->last_message = strdup(msg);
 
 	return msg;
-}
-
-void
-dhcpcd_free(DHCPCD_CONNECTION *con)
-{
-	DHCPCD_IF *nif;
-	DHCPCD_WPA *nwpa;
-	DHCPCD_WI_HIST *nh;
-
-	assert(con);
-	while (con->interfaces) {
-		nif = con->interfaces->next;
-		free(con->interfaces->data);
-		free(con->interfaces->last_message);
-		free(con->interfaces);
-		con->interfaces = nif;
-	}
-	while (con->wpa) {
-		nwpa = con->wpa->next;
-		dhcpcd_wpa_close(con->wpa);
-		free(con->wpa);
-		con->wpa = nwpa;
-	}
-	while (con->wi_history) {
-		nh = con->wi_history->next;
-		free(con->wi_history);
-		con->wi_history = nh;
-	}
-	free(con);
 }
