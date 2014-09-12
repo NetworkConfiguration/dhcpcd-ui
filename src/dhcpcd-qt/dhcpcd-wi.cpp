@@ -75,8 +75,9 @@ DHCPCD_WI_SCAN *DhcpcdWi::getScans()
 	return scans;
 }
 
-void DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
+bool DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
 {
+	int changed = 0;
 
 	if (menu) {
 		QList<DhcpcdSsidMenu*> lst;
@@ -84,34 +85,61 @@ void DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
 
 		lst = menu->findChildren<DhcpcdSsidMenu*>();
 		for (scan = scans; scan; scan = scan->next) {
+			bool found = false;
+
 			foreach(DhcpcdSsidMenu *sm, lst) {
 				DHCPCD_WI_SCAN *s = sm->getScan();
 				if (memcmp(scan->bssid, s->bssid,
 				    sizeof(scan->bssid)) == 0)
 				{
 					sm->setScan(scan);
+					found = true;
 					break;
 				}
 			}
+
+			if (!found) {
+				createMenuItem(menu, scan);
+				changed++;
+			}
+		}
+
+		foreach(DhcpcdSsidMenu *sm, lst) {
+			DHCPCD_WI_SCAN *s = sm->getScan();
+			for (scan = scans; scan; scan = scan->next) {
+				if (memcmp(scan->bssid, s->bssid,
+				    sizeof(scan->bssid)) == 0)
+					break;
+			}
+			if (scan == NULL) {
+				menu->removeAction(sm->getWidgetAction());
+				changed--;
+			}
 		}
 	}
-		
+
 	dhcpcd_wi_scans_free(this->scans);
 	this->scans = scans;
+
+	return !(changed == 0);
+}
+
+void DhcpcdWi::createMenuItem(QMenu *menu, DHCPCD_WI_SCAN *scan)
+{
+	QWidgetAction *wa = new QWidgetAction(menu);
+	DhcpcdSsidMenu *ssidMenu = new DhcpcdSsidMenu(menu, wa, this, scan);
+	wa->setDefaultWidget(ssidMenu);
+	menu->addAction(wa);
+	connect(ssidMenu, SIGNAL(selected(DHCPCD_WI_SCAN *)),
+	    this, SLOT(connectSsid(DHCPCD_WI_SCAN *)));
 }
 
 void DhcpcdWi::createMenu1(QMenu *menu)
 {
 	DHCPCD_WI_SCAN *scan;
 
-	for (scan = scans; scan; scan = scan->next) {
-		QWidgetAction *wa = new QWidgetAction(menu);
-		DhcpcdSsidMenu *ssidMenu = new DhcpcdSsidMenu(menu, this, scan);
-		wa->setDefaultWidget(ssidMenu);
-		menu->addAction(wa);
-		connect(ssidMenu, SIGNAL(selected(DHCPCD_WI_SCAN *)),
-		    this, SLOT(connectSsid(DHCPCD_WI_SCAN *)));
-	}
+	for (scan = scans; scan; scan = scan->next)
+		createMenuItem(menu, scan);
 }
 
 void DhcpcdWi::createMenu(QMenu *menu)

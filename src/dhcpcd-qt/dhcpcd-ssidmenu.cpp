@@ -37,10 +37,12 @@
 #include "dhcpcd-qt.h"
 #include "dhcpcd-ssidmenu.h"
 
-DhcpcdSsidMenu::DhcpcdSsidMenu(QWidget *parent, DhcpcdWi *wi, DHCPCD_WI_SCAN *scan)
+DhcpcdSsidMenu::DhcpcdSsidMenu(QWidget *parent, QWidgetAction *wa,
+    DhcpcdWi *wi, DHCPCD_WI_SCAN *scan)
     : QWidget(parent, NULL)
 {
 
+	this->wa = wa;
 	this->wi = wi;
 
 	QHBoxLayout *layout = new QHBoxLayout(this);
@@ -48,13 +50,21 @@ DhcpcdSsidMenu::DhcpcdSsidMenu(QWidget *parent, DhcpcdWi *wi, DHCPCD_WI_SCAN *sc
 	layout->addWidget(button);
 	licon = new QLabel(this);
 	layout->addWidget(licon);
+	layout->setAlignment(licon, Qt::AlignRight);
 	bar = new QProgressBar(this);
 	layout->addWidget(bar);
+	layout->setAlignment(bar, Qt::AlignRight);
 	setScan(scan);
 
 	button->installEventFilter(this);
 	licon->installEventFilter(this);
 	bar->installEventFilter(this);
+}
+
+QWidgetAction *DhcpcdSsidMenu::getWidgetAction()
+{
+
+	return wa;
 }
 
 DHCPCD_WI_SCAN *DhcpcdSsidMenu::getScan()
@@ -66,20 +76,21 @@ DHCPCD_WI_SCAN *DhcpcdSsidMenu::getScan()
 void DhcpcdSsidMenu::setScan(DHCPCD_WI_SCAN *scan)
 {
 	DHCPCD_WPA *wpa;
-	DHCPCD_IF *ifp;
+	DHCPCD_IF *i;
 	QIcon icon;
 
 	this->scan = scan;
 	wpa = wi->getWpa();
-	ifp = dhcpcd_wpa_if(wpa);
+	i = dhcpcd_wpa_if(wpa);
 
-	button->setChecked(strcmp(scan->ssid, ifp->ssid) == 0);
+	button->setChecked(i->up && strcmp(scan->ssid, i->ssid) == 0);
 	button->setText(scan->ssid);
 	if (scan->flags[0] == '\0') {
 		icon = DhcpcdQt::getIcon("devices", "network-wireless");
 		setToolTip(scan->bssid);
 	} else {
-		icon = DhcpcdQt::getIcon("status", "network-wireless-encrypted");
+		icon = DhcpcdQt::getIcon("status",
+		    "network-wireless-encrypted");
 		QString tip = QString::fromAscii(scan->bssid);
 		tip += " " + QString::fromAscii(scan->flags);
 		setToolTip(tip);

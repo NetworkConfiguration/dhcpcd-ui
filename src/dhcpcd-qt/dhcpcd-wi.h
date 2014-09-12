@@ -46,7 +46,7 @@ public:
 	DHCPCD_WPA *getWpa();
 
 	DHCPCD_WI_SCAN *getScans();
-	void setScans(DHCPCD_WI_SCAN *scans);
+	bool setScans(DHCPCD_WI_SCAN *scans);
 
 	void createMenu(QMenu *parent);
 	QMenu *createIfMenu(QMenu *parent);
@@ -65,6 +65,7 @@ private:
 	QTimer *retryOpenTimer;
 
 	QMenu *menu;
+	void createMenuItem(QMenu *menu, DHCPCD_WI_SCAN *scan);
 	void createMenu1(QMenu *parent);
 };
 

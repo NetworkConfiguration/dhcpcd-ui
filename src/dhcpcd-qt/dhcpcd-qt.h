@@ -43,6 +43,7 @@ class QAction;
 class QDialog;
 class QLabel;
 class QMenu;
+class QPoint;
 class QPushButton;
 class QSocketNotifier;
 class QTimer;
@@ -114,6 +115,7 @@ private:
 	QAction *aboutAction;
 	QMenu *trayIconMenu;
 	QMenu *ssidMenu;
+	QPoint ssidMenuPos;
 
 	void notify(QString &title, QString &msg,
 	    QSystemTrayIcon::MessageIcon icon = QSystemTrayIcon::Information);

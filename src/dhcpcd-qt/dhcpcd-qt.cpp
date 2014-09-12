@@ -70,7 +70,6 @@ DhcpcdQt::DhcpcdQt()
 	dhcpcd_set_if_callback(con, dhcpcd_if_cb, this);
 	dhcpcd_wpa_set_scan_callback(con, dhcpcd_wpa_scan_cb, this);
 	tryOpen();
-
 }
 
 DhcpcdQt::~DhcpcdQt()
@@ -151,6 +150,7 @@ void DhcpcdQt::updateOnline(bool showIf)
 
 	if (onLine != isOn || carrier != isCarrier) {
 		onLine = isOn;
+		carrier = isCarrier;
 		aniTimer->stop();
 		aniCounter = 0;
 		if (isOn) {
@@ -216,24 +216,25 @@ void DhcpcdQt::ifCallback(DHCPCD_IF *i)
 	char *msg;
 	bool new_msg;
 
-	updateOnline(false);
-
-	if (strcmp(i->reason, "RENEW") == 0 ||
-	    strcmp(i->reason, "STOP") == 0 ||
-	    strcmp(i->reason, "STOPPED") == 0)
-		return;
-
-	msg = dhcpcd_if_message(i, &new_msg);
-	if (msg) {
-		qDebug("%s", msg);
-		if (new_msg) {
-			QSystemTrayIcon::MessageIcon icon =
-			    i->up ? QSystemTrayIcon::Information :
-			    QSystemTrayIcon::Warning;
-			trayIcon->showMessage(tr("Network Event"), msg, icon);
+	if (strcmp(i->reason, "RENEW") &&
+	    strcmp(i->reason, "STOP") &&
+	    strcmp(i->reason, "STOPPED"))
+	{
+		msg = dhcpcd_if_message(i, &new_msg);
+		if (msg) {
+			qDebug("%s", msg);
+			if (new_msg) {
+				QSystemTrayIcon::MessageIcon icon =
+				    i->up ? QSystemTrayIcon::Information :
+				    QSystemTrayIcon::Warning;
+				trayIcon->showMessage(tr("Network Event"),
+				    msg, icon);
+			}
+			free(msg);
 		}
-		free(msg);
 	}
+
+	updateOnline(false);
 }
 
 void DhcpcdQt::dhcpcd_if_cb(DHCPCD_IF *i, void *d)
@@ -300,11 +301,13 @@ void DhcpcdQt::scanCallback(DHCPCD_WPA *wpa)
 				txt += s1->ssid;
 			}
 		}
-		if (!txt.isEmpty())
+		if (!txt.isEmpty() &&
+		    (ssidMenu == NULL || !ssidMenu->isVisible()))
 			notify(title, txt);
 	}
 
-	wi->setScans(scans);
+	if (wi->setScans(scans) && ssidMenu->isVisible())
+		ssidMenu->popup(ssidMenuPos);
 }
 
 void DhcpcdQt::dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, void *d)
@@ -413,7 +416,8 @@ void DhcpcdQt::createSsidMenu()
 		for (auto &wi : *wis)
 			ssidMenu->addMenu(wi->createIfMenu(ssidMenu));
 	}
-	ssidMenu->popup(QCursor::pos());
+	ssidMenuPos = QCursor::pos();
+	ssidMenu->popup(ssidMenuPos);
 }
 
 void DhcpcdQt::iconActivated(QSystemTrayIcon::ActivationReason reason)
