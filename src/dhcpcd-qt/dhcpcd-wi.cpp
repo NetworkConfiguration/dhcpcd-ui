@@ -158,10 +158,12 @@ void DhcpcdWi::createMenu(QMenu *menu)
 QMenu *DhcpcdWi::createIfMenu(QMenu *parent)
 {
 	DHCPCD_IF *ifp;
+	QIcon icon;
 
 	ifp = dhcpcd_wpa_if(wpa);
 	menu = new DhcpcdIfMenu(ifp, parent);
-	menu->setIcon(QIcon::fromTheme("network-wireless"));
+	icon = DhcpcdQt::getIcon("devices", "network-wireless");
+	menu->setIcon(icon);
 	createMenu1(menu);
 	return menu;
 }
