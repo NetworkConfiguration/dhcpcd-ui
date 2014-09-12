@@ -47,7 +47,8 @@ extern "C" {
 #define DHCPCD_RETRYOPEN	100	/* milliseconds */
 #define DHCPCD_WI_HIST_MAX	10	/* Recall 10 scans for averages */
 
-#define IF_SSIDSIZE		33
+/* Each non printable byte of the SSID is represented as \000 */
+#define IF_SSIDSIZE		((32 * 4) + 1)
 #define IF_BSSIDSIZE		64
 #define FLAGSIZE		64
 #define TYPESIZE		8
