@@ -375,7 +375,7 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
         } else if (strcmp(type, "link")) {
 		/* If link is down, ignore it */
 		e = dhcpcd_get_if(con, ifname, "link");
-		if (e && strcmp(e->reason, "NOCARRIER") == 0)
+		if (e && !e->up)
 			return NULL;
 	}
 
@@ -790,7 +790,9 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 				reason = _("Not associated");
 		} else
 			reason = _("Cable unplugged");
-	} else if (strcmp(i->reason, "UNKNOWN") == 0)
+	} else if (strcmp(i->reason, "DEPARTED") == 0)
+		reason = _("Departed");
+	else if (strcmp(i->reason, "UNKNOWN") == 0)
 		reason = _("Unknown link state");
 	else if (strcmp(i->reason, "FAIL") == 0)
 		reason = _("Automatic configuration not possible");

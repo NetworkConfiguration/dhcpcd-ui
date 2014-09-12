@@ -674,12 +674,14 @@ dhcpcd_wpa_if_event(DHCPCD_IF *i)
 	DHCPCD_WPA *wpa;
 
 	assert(i);
-	if (i->wireless && strcmp(i->type, "link") == 0) {
-		if (strcmp(i->reason, "STOPPED") == 0) {
+	if (strcmp(i->type, "link") == 0) {
+		if (strcmp(i->reason, "STOPPED") == 0 ||
+		    strcmp(i->reason, "DEPARTED") == 0)
+		{
 			wpa = dhcpcd_wpa_find(i->con, i->ifname);
 			if (wpa)
 				dhcpcd_wpa_close(wpa);
-		} else if (i->con->wpa_started) {
+		} else if (i->wireless && i->con->wpa_started) {
 			wpa = dhcpcd_wpa_new(i->con, i->ifname);
 			if (wpa && wpa->listen_fd == -1)
 				dhcpcd_wpa_open(wpa);
