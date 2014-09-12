@@ -58,8 +58,14 @@ DhcpcdWi::DhcpcdWi(DhcpcdQt *parent, DHCPCD_WPA *wpa)
 DhcpcdWi::~DhcpcdWi()
 {
 
+	if (menu) {
+		delete menu;
+		menu = NULL;
+	}
+
 	dhcpcd_wi_scans_free(scans);
-	if (notifier != NULL)
+
+	if (notifier)
 		delete notifier;
 }
 

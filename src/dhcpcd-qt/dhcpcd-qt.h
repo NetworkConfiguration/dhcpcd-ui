@@ -66,6 +66,9 @@ public:
 
 	static void dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, void *d);
 	void scanCallback(DHCPCD_WPA *wpa);
+	static void dhcpcd_wpa_status_cb(DHCPCD_WPA *wpa, const char *status,
+	    void *d);
+	void wpaStatusCallback(DHCPCD_WPA *wpa, const char *status);
 
 	static QIcon getIcon(QString category, QString name);
 

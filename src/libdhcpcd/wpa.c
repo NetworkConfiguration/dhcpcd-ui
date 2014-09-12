@@ -629,6 +629,16 @@ dhcpcd_wpa_set_scan_callback(DHCPCD_CONNECTION *con,
 	con->wi_scanresults_context = context;
 }
 
+
+void dhcpcd_wpa_set_status_callback(DHCPCD_CONNECTION * con,
+    void (*cb)(DHCPCD_WPA *, const char *, void *), void *context)
+{
+
+	assert(con);
+	con->wpa_status_cb = cb;
+	con->wpa_status_context = context;
+}
+
 void
 dhcpcd_wpa_dispatch(DHCPCD_WPA *wpa)
 {

@@ -69,6 +69,7 @@ DhcpcdQt::DhcpcdQt()
 	dhcpcd_set_status_callback(con, dhcpcd_status_cb, this);
 	dhcpcd_set_if_callback(con, dhcpcd_if_cb, this);
 	dhcpcd_wpa_set_scan_callback(con, dhcpcd_wpa_scan_cb, this);
+	dhcpcd_wpa_set_status_callback(con, dhcpcd_wpa_status_cb, this);
 	tryOpen();
 }
 
@@ -315,6 +316,29 @@ void DhcpcdQt::dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, void *d)
 	DhcpcdQt *dhcpcdQt = (DhcpcdQt *)d;
 
 	dhcpcdQt->scanCallback(wpa);
+}
+
+void DhcpcdQt::wpaStatusCallback(DHCPCD_WPA *wpa, const char *status)
+{
+	DHCPCD_IF *i;
+
+	i = dhcpcd_wpa_if(wpa);
+	qDebug("%s: WPA status %s", i->ifname, status);
+	if (strcmp(status, "down") == 0) {
+		DhcpcdWi *wi = findWi(wpa);
+		if (wi) {
+			wis->removeOne(wi);
+			delete wi;
+		}
+	}
+}
+
+void DhcpcdQt::dhcpcd_wpa_status_cb(DHCPCD_WPA *wpa, const char *status,
+    void *d)
+{
+	DhcpcdQt *dhcpcdQt = (DhcpcdQt *)d;
+
+	dhcpcdQt->wpaStatusCallback(wpa, status);
 }
 
 void DhcpcdQt::tryOpen() {
