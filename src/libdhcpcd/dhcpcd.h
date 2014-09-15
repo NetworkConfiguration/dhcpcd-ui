@@ -39,6 +39,9 @@ extern "C" {
 #ifndef DHCPCD_SOCKET
 #define DHCPCD_SOCKET		"/var/run/dhcpcd.sock"
 #endif
+#ifndef DHCPCD_UNPRIV_SOCKET
+#define DHCPCD_UNPRIV_SOCKET	"/var/run/dhcpcd.unpriv.sock"
+#endif
 
 #ifndef WPA_CTRL_DIR
 #define WPA_CTRL_DIR		"/var/run/wpa_supplicant"
@@ -136,6 +139,7 @@ typedef struct dhcpcd_wpa {
 typedef struct dhcpcd_connection {
 	struct dhcpcd_connection *next;
 	bool open;
+	bool privileged;
 	int command_fd;
 	int listen_fd;
 
@@ -177,7 +181,7 @@ const char * dhcpcd_version(DHCPCD_CONNECTION *);
 const char * dhcpcd_status(DHCPCD_CONNECTION *);
 const char * dhcpcd_cffile(DHCPCD_CONNECTION *);
 bool dhcpcd_realloc(DHCPCD_CONNECTION *, size_t);
-int dhcpcd_open(DHCPCD_CONNECTION *);
+int dhcpcd_open(DHCPCD_CONNECTION *, bool priv);
 void dhcpcd_close(DHCPCD_CONNECTION *);
 void dhcpcd_free(DHCPCD_CONNECTION *);
 void dhcpcd_set_if_callback(DHCPCD_CONNECTION *,
@@ -185,6 +189,7 @@ void dhcpcd_set_if_callback(DHCPCD_CONNECTION *,
 void dhcpcd_set_status_callback(DHCPCD_CONNECTION *,
     void (*)(DHCPCD_CONNECTION *, const char *, void *), void *);
 int dhcpcd_get_fd(DHCPCD_CONNECTION *);
+bool dhcpcd_privileged(DHCPCD_CONNECTION *);
 void dhcpcd_dispatch(DHCPCD_CONNECTION *);
 DHCPCD_IF * dhcpcd_interfaces(DHCPCD_CONNECTION *);
 DHCPCD_IF * dhcpcd_get_if(DHCPCD_CONNECTION *, const char *, const char *);

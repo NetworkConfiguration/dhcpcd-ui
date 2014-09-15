@@ -153,7 +153,7 @@ dhcpcd_command_arg(DHCPCD_CONNECTION *con, const char *cmd, const char *arg,
 
 
 static int
-dhcpcd_connect(int opts)
+dhcpcd_connect(const char *path, int opts)
 {
 	int fd;
 	socklen_t len;
@@ -165,7 +165,7 @@ dhcpcd_connect(int opts)
 
 	memset(&sun, 0, sizeof(sun));
 	sun.sun_family = AF_UNIX;
-	strlcpy(sun.sun_path, DHCPCD_SOCKET, sizeof(sun.sun_path));
+	strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
 	len = (socklen_t)SUN_LEN(&sun);
 	if (connect(fd, (struct sockaddr *)&sun, len) == 0)
 		return fd;
@@ -572,8 +572,9 @@ strverscmp(const char *s1, const char *s2)
 #endif
 
 int
-dhcpcd_open(DHCPCD_CONNECTION *con)
+dhcpcd_open(DHCPCD_CONNECTION *con, bool privileged)
 {
+	const char *path = privileged ? DHCPCD_SOCKET : DHCPCD_UNPRIV_SOCKET;
 	char cmd[128];
 	ssize_t bytes;
 	size_t nifs, n;
@@ -586,7 +587,7 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 		return -1;
 	}
 	/* We need to block the command fd */
-	con->command_fd = dhcpcd_connect(0);
+	con->command_fd = dhcpcd_connect(path, 0);
 	if (con->command_fd == -1)
 		goto err_exit;
 
@@ -600,9 +601,10 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 		goto err_exit;
 
 	con->open = true;
+	con->privileged = privileged;
 	update_status(con, NULL);
 
-	con->listen_fd = dhcpcd_connect(SOCK_NONBLOCK);
+	con->listen_fd = dhcpcd_connect(path, SOCK_NONBLOCK);
 	if (con->listen_fd == -1)
 		goto err_exit;
 
@@ -632,6 +634,14 @@ dhcpcd_get_fd(DHCPCD_CONNECTION *con)
 
 	assert(con);
 	return con->listen_fd;
+}
+
+bool
+dhcpcd_privileged(DHCPCD_CONNECTION *con)
+{
+
+	assert(con);
+	return con->privileged;
 }
 
 const char *

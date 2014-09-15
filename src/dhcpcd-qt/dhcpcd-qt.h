@@ -56,8 +56,7 @@ public:
 	DhcpcdQt();
 	~DhcpcdQt();
 
-	void closeAbout();
-
+	DHCPCD_CONNECTION *getConnection();
 	static void dhcpcd_status_cb(DHCPCD_CONNECTION *con,
 	    const char *status, void *d);
 	void statusCallback(const char *status);
@@ -71,7 +70,9 @@ public:
 	void wpaStatusCallback(DHCPCD_WPA *wpa, const char *status);
 
 	static QIcon getIcon(QString category, QString name);
+	QList<DhcpcdWi *> *getWis();
 
+	void closeAbout();
 	void dialogClosed(QDialog *dialog);
 
 protected:

@@ -150,7 +150,7 @@ main(int argc, char **argv)
 
 	dhcpcd_set_status_callback(con, do_status_cb, &pfd);
 
-	if ((pfd.fd = dhcpcd_open(con)) == -1) {
+	if ((pfd.fd = dhcpcd_open(con, false)) == -1) {
 		lerrno = errno;
 		syslog(LOG_WARNING, "dhcpcd_open: %m");
 		if (xflag)
@@ -195,7 +195,7 @@ main(int argc, char **argv)
 			do_exit(con, EXIT_FAILURE);
 		}
 		if (pfd.fd == -1) {
-			if ((pfd.fd = dhcpcd_open(con)) == -1) {
+			if ((pfd.fd = dhcpcd_open(con, false)) == -1) {
 				if (lerrno != errno) {
 					lerrno = errno;
 					syslog(LOG_WARNING, "dhcpcd_open: %m");

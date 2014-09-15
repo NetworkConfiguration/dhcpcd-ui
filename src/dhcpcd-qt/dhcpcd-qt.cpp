@@ -88,6 +88,18 @@ DhcpcdQt::~DhcpcdQt()
 
 }
 
+DHCPCD_CONNECTION *DhcpcdQt::getConnection()
+{
+
+	return con;
+}
+
+QList<DhcpcdWi *> *DhcpcdQt::getWis()
+{
+
+	return wis;
+}
+
 void DhcpcdQt::animate()
 {
 	const char *icon;
@@ -344,13 +356,20 @@ void DhcpcdQt::dhcpcd_wpa_status_cb(DHCPCD_WPA *wpa, const char *status,
 }
 
 void DhcpcdQt::tryOpen() {
-	int fd = dhcpcd_open(con);
+	int fd = dhcpcd_open(con, true);
 	static int last_error;
 
 	if (fd == -1) {
+		if (errno == EACCES || errno == EPERM) {
+			if ((fd = dhcpcd_open(con, false)) != -1)
+				goto unprived;
+		}
 		if (errno != last_error) {
 		        last_error = errno;
-			qCritical("dhcpcd_open: %s", strerror(errno));
+			const char *errt = strerror(errno);
+			qCritical("dhcpcd_open: %s", errt);
+			trayIcon->setToolTip(
+			    tr("Error connecting to dhcpcd: %1").arg(errt));
 		}
 		if (retryOpenTimer == NULL) {
 			retryOpenTimer = new QTimer(this);
@@ -361,6 +380,7 @@ void DhcpcdQt::tryOpen() {
 		return;
 	}
 
+unprived:
 	/* Start listening to WPA events */
 	dhcpcd_wpa_start(con);
 
@@ -371,6 +391,8 @@ void DhcpcdQt::tryOpen() {
 
 	notifier = new QSocketNotifier(fd, QSocketNotifier::Read);
 	connect(notifier, SIGNAL(activated(int)), this, SLOT(dispatch()));
+
+	preferencesAction->setEnabled(dhcpcd_privileged(con));
 }
 
 void DhcpcdQt::dispatch() {
@@ -487,6 +509,7 @@ void DhcpcdQt::createActions()
 
 	preferencesAction = new QAction(tr("&Preferences"), this);
 	preferencesAction->setIcon(QIcon::fromTheme("preferences-system-network"));
+	preferencesAction->setEnabled(false);
 	connect(preferencesAction, SIGNAL(triggered()),
 	    this, SLOT(showPreferences()));
 
