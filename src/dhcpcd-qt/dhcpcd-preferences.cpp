@@ -443,14 +443,17 @@ void DhcpcdPreferences::rebind()
 	DHCPCD_IF *i;
 	bool found = false;
 	bool worked;
-	if (strcmp(eWhat, "interface") == 0) {
+	if (iface && strcmp(eWhat, "interface") == 0) {
 		worked = tryRebind(iface ? iface->ifname : NULL);
 		goto done;
 	}
 	
 	worked = true;
 	for (i = dhcpcd_interfaces(con); i; i = i->next) {
-		if (strcmp(i->ssid, eBlock) == 0) {
+		if (strcmp(i->type, "link") == 0 &&
+		    (eBlock == NULL ||
+		    (i->ssid && strcmp(i->ssid, eBlock) == 0)))
+		{
 			found = true;
 			if (!tryRebind(i->ifname))
 				worked = false;
@@ -465,9 +468,7 @@ void DhcpcdPreferences::rebind()
 
 done:	   	
 	if (worked)
-		QMessageBox::information(this,
-		    tr("Rebind sent"),
-		    tr("The rebind signal has been sent to dhcpcd"));
+		close();
 }
 
 void DhcpcdPreferences::tryClose()
