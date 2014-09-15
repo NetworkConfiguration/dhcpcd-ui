@@ -1,10 +1,10 @@
-dhcpcd-ui is the graphical interface to dhcpcd
+dhcpcd-ui is the graphical interface to dhcpcd-5.x
 
-It has a helper library in C so you don't *have* to learn each toolkit
-DBus implementation, or depend on it (dbus-glib, edbus, qt-dbus, etc).
+It has a helper library in C to try and minimize any toolkit
+specific parts.
 
-Currently only a GTK+ front end is available, but there are plans to
-create an EWL (Enlightment E17) front end.
-I don't use KDE/QT much, but it should be quite easy.
+There are GTK+-2 (works with GTK+-3) and Qt-4 front ends.
+an EFL (e17) front end is planned.
 
-dhcpcd-ui depends on hicolor-icon-theme from freedesktop.org
+A basic command line tool, dhcpcd-online can report on network
+availability from dhcpcd (requires dhcpcd-6.4.4)
