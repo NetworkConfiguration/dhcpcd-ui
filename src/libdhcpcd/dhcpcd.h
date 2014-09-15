@@ -255,6 +255,7 @@ const char * dhcpcd_config_get(DHCPCD_OPTION *, const char *);
 const char * dhcpcd_config_get_static(DHCPCD_OPTION *, const char *);
 bool dhcpcd_config_set(DHCPCD_OPTION **, const char *, const char *);
 bool dhcpcd_config_set_static(DHCPCD_OPTION **, const char *, const char *);
+bool dhcpcd_config_writeable(DHCPCD_CONNECTION *con);
 bool dhcpcd_config_write(DHCPCD_CONNECTION *,
     const char *, const char *, const DHCPCD_OPTION *);
 

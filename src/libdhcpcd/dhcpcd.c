@@ -141,12 +141,17 @@ dhcpcd_command_arg(DHCPCD_CONNECTION *con, const char *cmd, const char *arg,
 	size_t cmdlen, len;
 
 	cmdlen = strlen(cmd);
-	len = cmdlen + strlen(arg) + 2;
+	if (arg)
+		len = cmdlen + strlen(arg) + 2;
+	else
+		len = cmdlen + 1;
 	if (!dhcpcd_realloc(con, len))
 		return -1;
 	strlcpy(con->buf, cmd, con->buflen);
-	con->buf[cmdlen] = ' ';
-	strlcpy(con->buf + cmdlen + 1, arg, con->buflen - 1 - cmdlen);
+	if (arg) {
+		con->buf[cmdlen] = ' ';
+		strlcpy(con->buf + cmdlen + 1, arg, con->buflen - 1 - cmdlen);
+	}
 
 	return dhcpcd_command_fd(con, con->command_fd, con->buf, buffer);
 }

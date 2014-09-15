@@ -24,64 +24,29 @@
  * SUCH DAMAGE.
  */
 
-#ifndef DHCPCD_PREFERENCES_H
-#define DHCPCD_PREFERENCES_H
+#ifndef DHCPCD_IPV4VALIDATOR_H
+#define DHCPCD_IPV4VALIDATOR_H
 
-#include <QDialog>
+#include <QValidator>
 
-#include "dhcpcd.h"
-
-class DhcpcdQt;
-class QCheckBox;
-class QComboBox;
-class QLabel;
-class QLineEdit;
-class QPushButton;
-
-class DhcpcdPreferences : public QDialog
+class DhcpcdIPv4Validator : public QValidator
 {
 	Q_OBJECT
 
 public:
-	DhcpcdPreferences(DhcpcdQt *parent = 0);
-	~DhcpcdPreferences();
-
-protected:
-	void closeEvent(QCloseEvent *e);
-
-private slots:
-	void clearConfig();
-	void showConfig();
-	void listBlocks(const QString &txt);
-	void showBlock(const QString &txt);
-	void rebind();
-	void tryClose();
+	enum Flag {
+		Plain = 0x0,
+		CIDR = 0x01,
+		Spaced = 0x02
+	};
+	Q_DECLARE_FLAGS(Flags, Flag)
+	explicit DhcpcdIPv4Validator(DhcpcdIPv4Validator::Flags flag = Plain, QObject *parent = 0);
+	QValidator::State validate(QString &input, int &pos) const;
 
 private:
-	DhcpcdQt *parent;
-	QComboBox *what;
-	QComboBox *blocks;
-	char *eBlock;
-	char *eWhat;
-
-	DHCPCD_IF *iface;
-	char *name;
-	DHCPCD_OPTION *config;
-	const char *getString(QLineEdit *le);
-	bool setOption(const char *opt, const char *val, bool *ret);
-	bool makeConfig();
-	bool changedConfig();
-	bool writeConfig(bool *cancel);
-	bool tryRebind(const char *ifname);
-
-	QCheckBox *autoConf;
-	QWidget *ipSetup;
-	QLineEdit *ip;
-	QLineEdit *router;
-	QLineEdit *rdnss;
-	QLineEdit *dnssl;
-
-	QPushButton *clear;
+	DhcpcdIPv4Validator::Flags flags;
+	QValidator::State validate1(QString &input) const;
 };
 
+Q_DECLARE_OPERATORS_FOR_FLAGS(DhcpcdIPv4Validator::Flags)
 #endif

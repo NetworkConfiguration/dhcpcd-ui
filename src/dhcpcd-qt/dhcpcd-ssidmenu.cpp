@@ -57,6 +57,7 @@ DhcpcdSsidMenu::DhcpcdSsidMenu(QWidget *parent, QWidgetAction *wa,
 	setScan(scan);
 
 	this->installEventFilter(this);
+	button->installEventFilter(this);
 }
 
 QWidgetAction *DhcpcdSsidMenu::getWidgetAction()
@@ -81,7 +82,8 @@ void DhcpcdSsidMenu::setScan(DHCPCD_WI_SCAN *scan)
 	wpa = wi->getWpa();
 	i = dhcpcd_wpa_if(wpa);
 
-	button->setChecked(i->up && strcmp(scan->ssid, i->ssid) == 0);
+	button->setChecked(i->up && i->ssid &&
+	    strcmp(scan->ssid, i->ssid) == 0);
 	button->setText(scan->ssid);
 	if (scan->flags[0] == '\0') {
 		icon = DhcpcdQt::getIcon("devices", "network-wireless");

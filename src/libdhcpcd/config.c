@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define IN_LIBDHCPCD
 
@@ -392,6 +393,13 @@ dhcpcd_config_read(DHCPCD_CONNECTION *con, const char *block, const char *name)
 
 	assert(con);
 	return config(con, ACT_READ, block, name, NULL, NULL);
+}
+
+bool
+dhcpcd_config_writeable(DHCPCD_CONNECTION *con)
+{
+
+	return (access(con->cffile, W_OK) == 0);
 }
 
 bool
