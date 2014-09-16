@@ -5,9 +5,12 @@ TOPDIR=		../..
 include ${TOPDIR}/iconfig.mk
 
 ICONDIR?=	${PREFIX}/share/dhcpcd/icons
+APPDIR?=	${PREFIX}/share/applications
 AUTOSTARTDIR?=	${PREFIX}/share/gnome/autostart
-FILESDIR=	${AUTOSTARTDIR}
+FILESDIR=	${APPDIR}
 FILES=		dhcpcd-gtk.desktop
+FILESDIR2=	${AUTOSTARTDIR}
+FILES2=		dhcpcd-gtk.desktop
 MAN8=		dhcpcd-gtk.8
 
 CPPFLAGS+=	${NOTIFY} -I${TOPDIR}

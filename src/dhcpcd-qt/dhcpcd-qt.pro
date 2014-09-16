@@ -28,7 +28,14 @@ isEmpty(MANDIR) {
 }
 
 target.path=		$$PREFIX/bin
+
 man8.path=		$$MANDIR/man8
 man8.files=		dhcpcd-qt.8
 
-INSTALLS+=		target man8
+desktop.path=		$$PREFIX/share/applications
+desktop.files=		dhcpcd-qt.desktop
+
+autostart.path=		$$PREFIX/share/autostart
+autostart.files=	dhcpcd-qt.desktop
+
+INSTALLS+=		target man8 desktop autostart

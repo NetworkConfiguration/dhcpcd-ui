@@ -2,7 +2,9 @@
 Name=Network Configurator
 Comment=Configure and monitor your network connections
 Exec=dhcpcd-gtk
-Icon=network-transmit-receive
+Icon=dhcpcd
 Terminal=false
 Type=Application
+Categories=GTK;System;TrayIcon;
 X-GNOME-Autostart-enabled=true
+OnlyShowIn=GNOME;LXDE;MATE;XFCE;ROX;Cinnamon;

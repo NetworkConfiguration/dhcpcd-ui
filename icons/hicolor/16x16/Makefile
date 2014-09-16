@@ -1,5 +1,5 @@
-SUBDIR=	apps actions devices status
+SUBDIR=	apps
 
-TOPDIR=		../..
+TOPDIR=		../../..
 include ${TOPDIR}/iconfig.mk
 include ${MKDIR}/subdir.mk
