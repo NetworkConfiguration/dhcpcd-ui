@@ -443,30 +443,33 @@ void DhcpcdPreferences::rebind()
 
 	DHCPCD_CONNECTION *con = parent->getConnection();
 	DHCPCD_IF *i;
-	bool found = false;
 	bool worked;
-	if (iface && strcmp(eWhat, "interface") == 0) {
+	if (strcmp(eWhat, "interface") == 0) {
 		worked = tryRebind(iface ? iface->ifname : NULL);
 		goto done;
 	}
 	
 	worked = true;
-	for (i = dhcpcd_interfaces(con); i; i = i->next) {
-		if (strcmp(i->type, "link") == 0 &&
-		    (eBlock == NULL ||
-		    (i->ssid && strcmp(i->ssid, eBlock) == 0)))
-		{
-			found = true;
-			if (!tryRebind(i->ifname))
-				worked = false;
+	if (eBlock) {
+		bool found = false;
+
+		for (i = dhcpcd_interfaces(con); i; i = i->next) {
+			if (strcmp(i->type, "link") == 0 &&
+			    (i->ssid && strcmp(i->ssid, eBlock) == 0))
+			{
+				found = true;
+				if (!tryRebind(i->ifname))
+					worked = false;
+			}
+		}
+		if (!found) {
+			QMessageBox::information(this,
+			    tr("No matching interface"),
+			    tr("No interface is bound to this SSID to rebind"));
+			return;
 		}
 	}
-	if (!found) {
-		QMessageBox::information(this,
-		    tr("No matching interface"),
-		    tr("No interface is bound to this SSID to rebind"));
-		return;
-	}
+	worked = tryRebind(NULL);
 
 done:	   	
 	if (worked)
