@@ -142,6 +142,7 @@ typedef struct dhcpcd_connection {
 	bool privileged;
 	int command_fd;
 	int listen_fd;
+	const char *progname;
 
 	DHCPCD_IF *interfaces;
 	DHCPCD_WPA *wpa;
@@ -178,6 +179,8 @@ typedef void *DHCPCD_CONNECTION;
 
 DHCPCD_CONNECTION * dhcpcd_new(void);
 const char * dhcpcd_version(DHCPCD_CONNECTION *);
+void dhcpcd_set_progname(DHCPCD_CONNECTION *, const char *);
+const char * dhcpcd_get_progname(const DHCPCD_CONNECTION *);
 const char * dhcpcd_status(DHCPCD_CONNECTION *);
 const char * dhcpcd_cffile(DHCPCD_CONNECTION *);
 bool dhcpcd_realloc(DHCPCD_CONNECTION *, size_t);

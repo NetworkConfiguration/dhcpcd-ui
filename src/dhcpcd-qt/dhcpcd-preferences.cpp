@@ -40,6 +40,8 @@
 #include <QStandardItemModel>
 #include <QVBoxLayout>
 
+#include <cerrno>
+
 #include "config.h"
 #include "dhcpcd-preferences.h"
 #include "dhcpcd-ipv4validator.h"
@@ -103,7 +105,7 @@ DhcpcdPreferences::DhcpcdPreferences(DhcpcdQt *parent)
 	dnssl = new QLineEdit();
 #if defined(__NetBSD__) || (__OpenBSD__)
 	dnssl->setMaxLength(1024);
-else
+#else
 	dnssl->setMaxLength(256);
 #endif
 	QFormLayout *ipLayout = new QFormLayout();

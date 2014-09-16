@@ -65,9 +65,9 @@ static const char * const dhcpcd_types[] =
 
 static ssize_t
 dhcpcd_command_fd(DHCPCD_CONNECTION *con,
-    int fd, const char *cmd, char **buffer)
+    int fd, bool progname, const char *cmd, char **buffer)
 {
-	size_t len;
+	size_t pl, cl, len;
 	ssize_t bytes;
 	char buf[1024], *p;
 	char *nbuf;
@@ -76,15 +76,28 @@ dhcpcd_command_fd(DHCPCD_CONNECTION *con,
 	 * Each argument is NULL seperated.
 	 * We may need to send a space one day, so the API
 	 * in this function may need to be improved */
-	len = strlen(cmd) + 1;
+	cl = strlen(cmd);
+	if (progname) {
+		pl = strlen(con->progname);
+		len = pl + 1 + cl + 1;
+	} else {
+		pl = 0;
+		len = cl + 1;
+	}
 	if (con->terminate_commands)
 		len++;
 	if (len > sizeof(buf)) {
 		errno = ENOBUFS;
 		return -1;
 	}
-	strlcpy(buf, cmd, sizeof(buf));
 	p = buf;
+	if (progname) {
+		memcpy(buf, con->progname, pl);
+		buf[pl] = '\0';
+		p = buf + pl + 1;
+	}
+	memcpy(p, cmd, cl);
+	p[cl] = '\0';
 	while ((p = strchr(p, ' ')) != NULL)
 		*p++ = '\0';
 	if (con->terminate_commands) {
@@ -115,7 +128,14 @@ ssize_t
 dhcpcd_command(DHCPCD_CONNECTION *con, const char *cmd, char **buffer)
 {
 
-	return dhcpcd_command_fd(con, con->command_fd, cmd, buffer);
+	return dhcpcd_command_fd(con, con->command_fd, true, cmd, buffer);
+}
+
+static ssize_t
+dhcpcd_ctrl_command(DHCPCD_CONNECTION *con, const char *cmd, char **buffer)
+{
+
+	return dhcpcd_command_fd(con, con->command_fd, false, cmd, buffer);
 }
 
 bool
@@ -153,7 +173,7 @@ dhcpcd_command_arg(DHCPCD_CONNECTION *con, const char *cmd, const char *arg,
 		strlcpy(con->buf + cmdlen + 1, arg, con->buflen - 1 - cmdlen);
 	}
 
-	return dhcpcd_command_fd(con, con->command_fd, con->buf, buffer);
+	return dhcpcd_command_fd(con, con->command_fd, true, con->buf, buffer);
 }
 
 
@@ -548,7 +568,24 @@ dhcpcd_new(void)
 	con = calloc(1, sizeof(*con));
 	con->command_fd = con->listen_fd = -1;
 	con->open = false;
+	con->progname = "libdhcpcd";
 	return con;
+}
+
+void
+dhcpcd_set_progname(DHCPCD_CONNECTION *con, const char *progname)
+{
+
+	assert(con);
+	con->progname = progname;
+}
+
+const char *
+dhcpcd_get_progname(const DHCPCD_CONNECTION *con)
+{
+
+	assert(con);
+	return con->progname;
 }
 
 #ifndef __GLIBC__
@@ -597,12 +634,12 @@ dhcpcd_open(DHCPCD_CONNECTION *con, bool privileged)
 		goto err_exit;
 
 	con->terminate_commands = false;
-	if (dhcpcd_command(con, "--version", &con->version) <= 0)
+	if (dhcpcd_ctrl_command(con, "--version", &con->version) <= 0)
 		goto err_exit;
 	con->terminate_commands =
 	    strverscmp(con->version, "6.4.1") >= 0 ? true : false;
 
-	if (dhcpcd_command(con, "--getconfigfile", &con->cffile) <= 0)
+	if (dhcpcd_ctrl_command(con, "--getconfigfile", &con->cffile) <= 0)
 		goto err_exit;
 
 	con->open = true;
@@ -613,8 +650,8 @@ dhcpcd_open(DHCPCD_CONNECTION *con, bool privileged)
 	if (con->listen_fd == -1)
 		goto err_exit;
 
-	dhcpcd_command_fd(con, con->listen_fd, "--listen", NULL);
-	dhcpcd_command_fd(con, con->command_fd, "--getinterfaces", NULL);
+	dhcpcd_command_fd(con, con->listen_fd, false, "--listen", NULL);
+	dhcpcd_command_fd(con, con->command_fd, false, "--getinterfaces", NULL);
 	bytes = read(con->command_fd, cmd, sizeof(nifs));
 	if (bytes != sizeof(nifs))
 		goto err_exit;

@@ -596,6 +596,7 @@ main(int argc, char *argv[])
 		g_critical("libdhcpcd: %s", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
+	dhcpcd_set_progname(con, "dhcpcd-gtk");
 	dhcpcd_set_status_callback(con, dhcpcd_status_cb, NULL);
 	dhcpcd_set_if_callback(con, dhcpcd_if_cb, NULL);
 	dhcpcd_wpa_set_scan_callback(con, dhcpcd_wpa_scan_cb, NULL);
