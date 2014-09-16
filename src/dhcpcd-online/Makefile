@@ -12,5 +12,13 @@ CPPFLAGS+=	-I${TOPDIR}
 
 LDADD+=		${LIB_DHCPCD} ${LIB_INTL}
 
+FILES=		dhcpcd-wait-online.service
+CLEANFILES+=	${FILES}
+
+.SUFFIXES:	.in
+
+.in:
+	${SED} -e 's:@BINDIR@:${BINDIR}:g' $< > $@
+
 include ../libdhcpcd/Makefile.inc
 include ${MKDIR}/prog.mk

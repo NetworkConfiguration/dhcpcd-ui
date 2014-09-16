@@ -6,7 +6,7 @@
 SRCS?=		${PROG}.c
 OBJS+=		${SRCS:.c=.o}
 
-all: ${PROG} ${SCRIPTS}
+all: ${PROG} ${SCRIPTS} ${FILES}
 
 .c.o:
 	${CC} ${CFLAGS} ${CPPFLAGS} -c $< -o $@
