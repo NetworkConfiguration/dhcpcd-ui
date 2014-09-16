@@ -19,3 +19,16 @@ has_libintl {
 }
 
 QMAKE_CLEAN+=		${TARGET}
+
+isEmpty(PREFIX) {
+	PREFIX=		/usr/local
+}
+isEmpty(MANDIR) {
+	MANDIR=		$$PREFIX/share/man
+}
+
+target.path=		$$PREFIX/bin
+man8.path=		$$MANDIR/man8
+man8.files=		dhcpcd-qt.8
+
+INSTALLS+=		target man8

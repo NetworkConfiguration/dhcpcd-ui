@@ -382,6 +382,7 @@ echo
 echo "MKDIR=		\${TOPDIR}/mk" >>$CONFIG_MK
 
 if $DHCPCD_QT; then
+	QMAKE_CONFIG="$QMAKE_CONFIG PREFIX=$PREFIX MANDIR=$MANDIR"
 	if ! (cd src/dhcpcd-qt; qmake $QMAKE_CONFIG dhcpcd-qt.pro); then
 		echo "$0: failed to configure dhcpcd-qt" >&2
 		exit 1
