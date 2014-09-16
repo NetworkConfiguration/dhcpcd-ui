@@ -366,7 +366,7 @@ elif [ -n "$WITH_QT" -a "$WITH_QT" != no ]; then
 fi
 
 if [ -n "$UI" ]; then
-	echo "ICONS=		icons" >>$CONFIG_MK
+	echo "MKICONS=		icons" >>$CONFIG_MK
 fi
 echo "UI=		$UI" >>$CONFIG_MK
 

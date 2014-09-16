@@ -18,4 +18,7 @@ LDADD+=		${LIB_DHCPCD} ${GTK_LIBS}
 .PHONY: dhcpcd-gtk
 
 include ../libdhcpcd/Makefile.inc
+
+FILESINSTALL=	_filesinstall
 include ${MKDIR}/prog.mk
+include ${MKDIR}/files.mk

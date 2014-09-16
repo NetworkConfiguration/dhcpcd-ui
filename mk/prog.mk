@@ -20,10 +20,9 @@ proginstall: ${PROG}
 
 include ${MKDIR}/sys.mk
 include ${MKDIR}/depend.mk
-include ${MKDIR}/files.mk
 include ${MKDIR}/man.mk
 
-install: proginstall _filesinstall _maninstall
+install: proginstall ${FILESINSTALL} _maninstall
 
 clean:
 	rm -f ${OBJS} ${PROG} ${PROG}.core ${CLEANFILES}

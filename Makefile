@@ -7,7 +7,7 @@ include ${MKDIR}/subdir.mk
 
 .PHONY:		icons
 
-SUBDIR=		src ${ICONS}
+SUBDIR=		src ${MKICONS}
 
 GITREF?=	HEAD
 DISTPREFIX?=	${PROG}-${VERSION}
