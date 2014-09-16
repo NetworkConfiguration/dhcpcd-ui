@@ -175,7 +175,7 @@ void DhcpcdPreferences::listBlocks(const QString &txt)
 	/* clear and then disconnect so we trigger a save */
 	blocks->clear();
 	blocks->disconnect(this);
-	
+
 	free(eWhat);
 	eWhat = strdup(txt.toLower().toAscii());
 
@@ -214,7 +214,8 @@ void DhcpcdPreferences::listBlocks(const QString &txt)
 	}
 
 	/* Now make the 1st item unselectable and reconnect */
-	qobject_cast<QStandardItemModel *>(blocks->model())->item(0)->setEnabled(false);
+	qobject_cast<QStandardItemModel *>
+	    (blocks->model())->item(0)->setEnabled(false);
 	connect(blocks, SIGNAL(currentIndexChanged(const QString &)),
 	    this, SLOT(showBlock(const QString &)));
 
@@ -311,7 +312,7 @@ bool DhcpcdPreferences::makeConfig()
 	a = autoConf->isChecked();
 	ret = true;
 	if (iface && iface->flags & IFF_POINTOPOINT)
-        	setOption("ip_address=", a ? NULL : ns, &ret);
+		setOption("ip_address=", a ? NULL : ns, &ret);
         else {
 		val = getString(ip);
                 setOption("inform", a ? val : NULL, &ret);
@@ -420,7 +421,7 @@ bool DhcpcdPreferences::tryRebind(const char *ifname)
 
 	if (dhcpcd_rebind(parent->getConnection(), ifname) == 0)
 		return true;
-	
+
 	qCritical("dhcpcd_rebind: %s", strerror(errno));
 	QMessageBox::critical(this,
 	    tr("Rebind failed"),
@@ -428,7 +429,7 @@ bool DhcpcdPreferences::tryRebind(const char *ifname)
 	    .arg(ifname).arg(strerror(errno)) :
 	    tr("Failed to rebind: %1")
 	    .arg(strerror(errno)));
-	return false; 
+	return false;
 }
 
 void DhcpcdPreferences::rebind()
@@ -444,34 +445,31 @@ void DhcpcdPreferences::rebind()
 	DHCPCD_CONNECTION *con = parent->getConnection();
 	DHCPCD_IF *i;
 	bool worked;
-	if (strcmp(eWhat, "interface") == 0) {
+	bool found;
+	if (eBlock == NULL || strcmp(eWhat, "interface") == 0) {
 		worked = tryRebind(iface ? iface->ifname : NULL);
 		goto done;
 	}
-	
-	worked = true;
-	if (eBlock) {
-		bool found = false;
 
-		for (i = dhcpcd_interfaces(con); i; i = i->next) {
-			if (strcmp(i->type, "link") == 0 &&
-			    (i->ssid && strcmp(i->ssid, eBlock) == 0))
-			{
-				found = true;
-				if (!tryRebind(i->ifname))
-					worked = false;
-			}
-		}
-		if (!found) {
-			QMessageBox::information(this,
-			    tr("No matching interface"),
-			    tr("No interface is bound to this SSID to rebind"));
-			return;
+	found = false;
+	worked = true;
+	for (i = dhcpcd_interfaces(con); i; i = i->next) {
+		if (strcmp(i->type, "link") == 0 &&
+		    (i->ssid && strcmp(i->ssid, eBlock) == 0))
+		{
+			found = true;
+			if (!tryRebind(i->ifname))
+				worked = false;
 		}
 	}
-	worked = tryRebind(NULL);
+	if (!found) {
+		QMessageBox::information(this,
+		    tr("No matching interface"),
+		    tr("No interface is bound to this SSID to rebind"));
+		return;
+	}
 
-done:	   	
+done:
 	if (worked)
 		close();
 }
