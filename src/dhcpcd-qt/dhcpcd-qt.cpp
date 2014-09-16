@@ -190,11 +190,25 @@ void DhcpcdQt::statusCallback(const char *status)
 		aniCounter = 0;
 		onLine = carrier = false;
 		setIcon("status", "network-offline");
+		trayIcon->setToolTip(tr("Not connected to dhcpcd"));
+		/* Close down everything */
 		if (notifier) {
 			delete notifier;
 			notifier = NULL;
 		}
-		trayIcon->setToolTip(tr("Not connected to dhcpcd"));
+		if (ssidMenu) {
+			delete ssidMenu;
+			ssidMenu = NULL;
+		}
+		if (about) {
+			delete about;
+			about = NULL;
+		}
+		if (preferences) {
+			delete preferences;
+			preferences = NULL;
+		}
+		preferencesAction->setEnabled(false);
 	} else {
 		bool refresh;
 
