@@ -72,6 +72,9 @@ dhcpcd_command_fd(DHCPCD_CONNECTION *con,
 	char buf[1024], *p;
 	char *nbuf;
 
+	assert(con);
+	assert(cmd);
+
 	/* Each command is \n terminated.
 	 * Each argument is NULL seperated.
 	 * We may need to send a space one day, so the API
@@ -128,6 +131,11 @@ ssize_t
 dhcpcd_command(DHCPCD_CONNECTION *con, const char *cmd, char **buffer)
 {
 
+	assert(con);
+	if (!con->privileged) {
+		errno = EACCES;
+		return -1;
+	}
 	return dhcpcd_command_fd(con, con->command_fd, true, cmd, buffer);
 }
 
@@ -142,6 +150,7 @@ bool
 dhcpcd_realloc(DHCPCD_CONNECTION *con, size_t len)
 {
 
+	assert(con);
 	if (con->buflen < len) {
 		char *nbuf;
 
@@ -159,6 +168,9 @@ dhcpcd_command_arg(DHCPCD_CONNECTION *con, const char *cmd, const char *arg,
     char **buffer)
 {
 	size_t cmdlen, len;
+
+	assert(con);
+	assert(cmd);
 
 	cmdlen = strlen(cmd);
 	if (arg)
@@ -184,6 +196,7 @@ dhcpcd_connect(const char *path, int opts)
 	socklen_t len;
 	struct sockaddr_un sun;
 
+	assert(path);
 	fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | opts, 0);
 	if (fd == -1)
 		return -1;
@@ -225,6 +238,7 @@ dhcpcd_get_value(const DHCPCD_IF *i, const char *var)
 {
 
 	assert(i);
+	assert(var);
 	return get_value(i->data, i->data_len, var);
 }
 
@@ -233,6 +247,10 @@ dhcpcd_get_prefix_value(const DHCPCD_IF *i, const char *prefix, const char *var)
 {
 	char pvar[128], *p;
 	size_t plen, l;
+
+	assert(i);
+	assert(prefix);
+	assert(var);
 
 	p = pvar;
 	plen = sizeof(pvar);
@@ -319,6 +337,9 @@ dhcpcd_get_if(DHCPCD_CONNECTION *con, const char *ifname, const char *type)
 	DHCPCD_IF *i;
 
 	assert(con);
+	assert(ifname);
+	assert(type);
+
 	for (i = con->interfaces; i; i = i->next)
 		if (strcmp(i->ifname, ifname) == 0 &&
 		    strcmp(i->type, type) == 0)
