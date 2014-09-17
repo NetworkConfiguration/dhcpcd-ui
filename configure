@@ -43,6 +43,8 @@ for x; do
 	--without-gtk|--without-gtk+) WITH_GTK=no;;
 	--with-qt) WITH_QT=${var:-yes};;
 	--without-qt) WITH_QT=no;;
+	--with-icons) WITH_ICONS=${var:-yes};;
+	--without-icons) WITH_ICONS=no;;
 	--enable-notification) NOTIFY=yes;;
 	--disable-notification) NOTIFY=no;;
 	--help) echo "See the README file for available options"; exit 0;;
@@ -369,14 +371,14 @@ elif [ -n "$WITH_QT" -a "$WITH_QT" != no ]; then
 	fi
 fi
 
-if [ -n "$UI" ]; then
+if [ -n "$UI" -o "$WITH_ICONS" = yes ]; then
 	echo "MKICONS=	icons" >>$CONFIG_MK
 fi
 
 if [ -n "$WITH_DHCPCD_ONLINE" -a "$WITH_DHCPCD_ONLINE" != no ]; then
 	UI="dhcpcd-online${UI:+ }$UI"
 fi
-echo "UI=		$UI" >>$CONFIG_MK
+echo "UI=		${UI:+libdhcpcd }$UI" >>$CONFIG_MK
 
 echo
 echo "   SYSCONFDIR =		$SYSCONFDIR"

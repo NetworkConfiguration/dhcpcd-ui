@@ -1,6 +1,6 @@
 TOPDIR=		..
 include ${TOPDIR}/iconfig.mk
 
-SUBDIR=		libdhcpcd ${UI}
+SUBDIR=		${UI}
 
 include ${MKDIR}/subdir.mk
