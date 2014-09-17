@@ -8,3 +8,15 @@ an EFL (e17) front end is planned.
 
 A basic command line tool, dhcpcd-online can report on network
 availability from dhcpcd (requires dhcpcd-6.4.4)
+
+Switches to control building of various parts:
+	--with-dhcpcd-online
+	--with-gtk
+	--with-qt
+	--with-icons
+For each --with there is a --without.
+If each part is not specified then the configure will test the system
+for the needed libraries to build and install it.
+
+When creating a distribution tarball, the host system requires
+the libraries to build all the components.

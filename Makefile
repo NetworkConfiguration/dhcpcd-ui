@@ -24,7 +24,8 @@ SNAPFILE=	${SNAPDIR}.tar.bz2
 dist:
 	mkdir /tmp/${DISTPREFIX}
 	cp -RPp * /tmp/${DISTPREFIX}
-	(cd /tmp/${DISTPREFIX}; make clean icons; rm config.h config.mk)
+	(cd /tmp/${DISTPREFIX}; \
+		./configure; make clean icons; rm config.h config.mk)
 	find /tmp/${DISTPREFIX} -name .gitignore -delete
 	tar -cvjpf ${DISTFILE} -C /tmp ${DISTPREFIX}
 	rm -rf /tmp/${DISTPREFIX}
