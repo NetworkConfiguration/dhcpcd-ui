@@ -4,9 +4,12 @@
 # Ensure that we do not inherit these from env
 DEBUG=
 LIBDHCPCD=no
+WITH_DHCPCD_ONLINE=yes
 WITH_GTK=
+WITH_QT=
 NOTIFY=yes
 INCLUDEDIR=
+UI=
 
 for x; do
 	opt=${x%%=*}
@@ -34,6 +37,8 @@ for x; do
 	--includedir) eval INCLUDEDIR="$INCLUDEDIR${INCLUDEDIR:+ }$var";;
 	--datadir|--infodir) ;; # ignore autotools
 	--disable-maintainer-mode|--disable-dependency-tracking) ;;
+	--with-dhcpcd-online) WITH_DHCPCD_ONLINE=${var:-yes};;
+	--without-dhcpcd-online) WITH_DHCPCD_ONLINE=no;;
 	--with-gtk|--with-gtk+) WITH_GTK=${var:-yes};;
 	--without-gtk|--without-gtk+) WITH_GTK=no;;
 	--with-qt) WITH_QT=${var:-yes};;
@@ -318,7 +323,6 @@ echo "LIB_DHCPCD=	$x" >>$CONFIG_MK
 # what we actually need.
 echo "LDADD+=		-Wl,--as-needed" >>$CONFIG_MK
 
-UI=
 if [ "$WITH_GTK" = yes -o -z "$WITH_GTK" ]; then
 	if pkg-config --cflags gtk+-2.0 >/dev/null 2>&1; then
 		WITH_GTK="gtk+-2.0"
@@ -367,6 +371,10 @@ fi
 
 if [ -n "$UI" ]; then
 	echo "MKICONS=	icons" >>$CONFIG_MK
+fi
+
+if [ -n "$WITH_DHCPCD_ONLINE" -a "$WITH_DHCPCD_ONLINE" != no ]; then
+	UI="dhcpcd-online${UI:+ }$UI"
 fi
 echo "UI=		$UI" >>$CONFIG_MK
 
