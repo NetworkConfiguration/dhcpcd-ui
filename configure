@@ -7,6 +7,7 @@ LIBDHCPCD=no
 WITH_DHCPCD_ONLINE=yes
 WITH_GTK=
 WITH_QT=
+WITH_ICONS=
 NOTIFY=yes
 INCLUDEDIR=
 UI=
@@ -371,7 +372,10 @@ elif [ -n "$WITH_QT" -a "$WITH_QT" != no ]; then
 	fi
 fi
 
-if [ -n "$UI" -o "$WITH_ICONS" = yes ]; then
+if [ -n "$UI" -a -z "$WITH_ICONS" ]; then
+	WITH_ICONS=yes
+fi
+if [ "$WITH_ICONS" = yes ]; then
 	echo "MKICONS=	icons" >>$CONFIG_MK
 fi
 
