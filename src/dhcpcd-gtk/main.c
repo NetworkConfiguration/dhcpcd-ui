@@ -342,6 +342,7 @@ dhcpcd_status_cb(DHCPCD_CONNECTION *con, const char *status,
 		    "network-offline");
 		gtk_status_icon_set_tooltip_text(status_icon, msg);
 		dhcpcd_prefs_abort();
+		dhcpcd_menu_abort();
 		while (wi_scans) {
 			w = wi_scans->next;
 			dhcpcd_wi_scans_free(wi_scans->scans);

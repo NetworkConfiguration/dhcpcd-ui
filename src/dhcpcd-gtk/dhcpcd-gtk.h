@@ -63,6 +63,7 @@ void notify_close(void);
 
 void dhcpcd_prefs_show(DHCPCD_CONNECTION *con);
 void dhcpcd_prefs_abort(void);
+void dhcpcd_menu_abort(void);
 
 bool wpa_configure(DHCPCD_WPA *, DHCPCD_WI_SCAN *);
 

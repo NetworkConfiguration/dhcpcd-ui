@@ -199,6 +199,16 @@ add_scans(WI_SCAN *scan)
 	return menu;
 }
 
+void
+dhcpcd_menu_abort(void)
+{
+
+	if (menu != NULL) {
+		gtk_widget_destroy(menu);
+		menu = NULL;
+	}
+}
+
 static void
 on_activate(GtkStatusIcon *icon)
 {

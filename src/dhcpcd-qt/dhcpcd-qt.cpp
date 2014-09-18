@@ -200,10 +200,6 @@ void DhcpcdQt::statusCallback(const char *status)
 			delete ssidMenu;
 			ssidMenu = NULL;
 		}
-		if (about) {
-			delete about;
-			about = NULL;
-		}
 		if (preferences) {
 			delete preferences;
 			preferences = NULL;
