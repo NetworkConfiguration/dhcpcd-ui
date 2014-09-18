@@ -23,6 +23,9 @@ QMAKE_CLEAN+=		${TARGET}
 isEmpty(PREFIX) {
 	PREFIX=		/usr/local
 }
+isEmpty(SYSCONFDIR)
+	SYSCONFDIR=	$$PREFIX/etc
+}
 isEmpty(MANDIR) {
 	MANDIR=		$$PREFIX/share/man
 }
@@ -35,7 +38,7 @@ man8.files=		dhcpcd-qt.8
 desktop.path=		$$PREFIX/share/applications
 desktop.files=		dhcpcd-qt.desktop
 
-autostart.path=		$$PREFIX/share/autostart
+autostart.path=		$$SYSCONFDIR/xdg/autostart
 autostart.files=	dhcpcd-qt.desktop
 
 INSTALLS+=		target man8 desktop autostart

@@ -6,7 +6,7 @@ include ${TOPDIR}/iconfig.mk
 
 ICONDIR?=	${PREFIX}/share/dhcpcd/icons
 APPDIR?=	${PREFIX}/share/applications
-AUTOSTARTDIR?=	${PREFIX}/share/gnome/autostart
+AUTOSTARTDIR?=	${SYSCONFDIR}/xdg/autostart
 FILESDIR=	${APPDIR}
 FILES=		dhcpcd-gtk.desktop
 FILESDIR2=	${AUTOSTARTDIR}
