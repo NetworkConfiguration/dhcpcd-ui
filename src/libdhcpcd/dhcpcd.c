@@ -609,7 +609,7 @@ dhcpcd_get_progname(const DHCPCD_CONNECTION *con)
 	return con->progname;
 }
 
-#ifndef __GLIBC__
+#ifndef HAVE_STRVERSCMP
 /* Good enough for our needs */
 static int
 strverscmp(const char *s1, const char *s2)

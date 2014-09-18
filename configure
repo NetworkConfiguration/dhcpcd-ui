@@ -299,6 +299,28 @@ if [ "$STRLCPY" = no ]; then
 	    >>$CONFIG_H
 fi
 
+if [ -z "$STRVERSCMP" ]; then
+	printf "Testing for strverscmp ... "
+	cat <<EOF >_strverscmp.c
+#define _GNU_SOURCE
+#include <string.h>
+int main(void) {
+	strverscmp(NULL, NULL);
+	return 0;
+}
+EOF
+	if $XCC _strverscmp.c -o _strverscmp 2>/dev/null; then
+		STRVERSCMP=yes
+	else
+		STRVERSCMP=no
+	fi
+	echo "$STRVERSCMP"
+	rm -f _strverscmp.c _strverscmp
+fi
+if [ "$STRVERSCMP" = yes ]; then
+	echo "#define HAVE_STRVERSCMP" >>$CONFIG_H
+fi
+
 if [ -z "$LIBDIR" ]; then
 	printf "lib directory name ... "
 	case `readlink /lib` in
