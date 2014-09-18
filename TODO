@@ -1,0 +1,24 @@
+dhcpcd-gtk
+----------
+SSID menus need updating when we get new scans like dhcpcd-qt handles it.
+
+dhcpcd-qt
+---------
+Needs knotifyplugin support.
+Consider compiling with both this and the QSystemTray bubble and falling
+back to it if knotifyplugin fails to work, like say changing from KDE
+desktop to LXQT.
+
+dhcpcd-efl
+----------
+Port it!
+
+TODO's for all
+-----------------------------------
+  *  Merge multiple BSSID's with the same SSID into one menu item rather
+     than many, picking the strongest one.
+  *  OpenVPN config screen per user and system wide, triggerd via dhcpcd hook.
+
+NON STARTING IDEAS
+------------------
+  *  Complex IP setups, this is only a tool for $MOM.
