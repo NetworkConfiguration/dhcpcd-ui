@@ -34,11 +34,8 @@ main(int argc, char **argv)
 
 	QApplication app(argc, argv);
 
-	if (!QSystemTrayIcon::isSystemTrayAvailable()) {
-		QMessageBox::critical(0, QObject::tr("Systray"),
-		    QObject::tr("No system tray available"));
-		return EXIT_FAILURE;
-	}
+	if (!QSystemTrayIcon::isSystemTrayAvailable())
+		qWarning("System tray may not be available");
 
 	QApplication::setQuitOnLastWindowClosed(false);
 
