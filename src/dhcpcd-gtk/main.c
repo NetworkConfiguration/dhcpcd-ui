@@ -567,6 +567,17 @@ dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, _unused void *data)
 	w->scans = scans;
 }
 
+static void
+dhcpcd_wpa_status_cb(DHCPCD_WPA *wpa, const char *status, _unused void *data)
+{
+	DHCPCD_IF *i;
+
+	i = dhcpcd_wpa_if(wpa);
+	g_message("%s: WPA status %s", i->ifname, status);
+	if (g_strcmp0(status, "down") == 0)
+		dhcpcd_unwatch(-1, wpa);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -601,7 +612,7 @@ main(int argc, char *argv[])
 	dhcpcd_set_status_callback(con, dhcpcd_status_cb, NULL);
 	dhcpcd_set_if_callback(con, dhcpcd_if_cb, NULL);
 	dhcpcd_wpa_set_scan_callback(con, dhcpcd_wpa_scan_cb, NULL);
-	//dhcpcd_wpa_set_status_callback(con, dhcpcd_wpa_status_cb, NULL);
+	dhcpcd_wpa_set_status_callback(con, dhcpcd_wpa_status_cb, NULL);
 	if (dhcpcd_try_open(con))
 		g_timeout_add(DHCPCD_RETRYOPEN, dhcpcd_try_open, con);
 
