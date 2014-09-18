@@ -23,7 +23,7 @@ QMAKE_CLEAN+=		${TARGET}
 isEmpty(PREFIX) {
 	PREFIX=		/usr/local
 }
-isEmpty(SYSCONFDIR)
+isEmpty(SYSCONFDIR) {
 	SYSCONFDIR=	$$PREFIX/etc
 }
 isEmpty(MANDIR) {
