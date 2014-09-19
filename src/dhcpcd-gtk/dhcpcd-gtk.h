@@ -48,6 +48,7 @@
 
 typedef struct wi_scan {
 	DHCPCD_IF *interface;
+	GtkWidget *menu;
 	DHCPCD_WI_SCAN *scans;
 	struct wi_scan *next;
 } WI_SCAN;
@@ -57,7 +58,7 @@ extern WI_SCAN *wi_scans;
 WI_SCAN * wi_scan_find(DHCPCD_WI_SCAN *);
 
 void menu_init(GtkStatusIcon *, DHCPCD_CONNECTION *);
-void menu_update_scans(DHCPCD_IF *, DHCPCD_WI_SCAN *);
+void menu_update_scans(WI_SCAN *, DHCPCD_WI_SCAN *);
 
 void notify_close(void);
 

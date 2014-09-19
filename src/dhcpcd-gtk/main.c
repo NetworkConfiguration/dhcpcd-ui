@@ -536,6 +536,7 @@ dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, _unused void *data)
 	if (w == NULL) {
 		w = g_malloc(sizeof(*w));
 		w->interface = i;
+		w->menu = NULL;
 		w->next = wi_scans;
 		wi_scans = w;
 	} else {
@@ -561,7 +562,7 @@ dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, _unused void *data)
 			notify(msg, txt, "network-wireless");
 			g_free(txt);
 		}
-		menu_update_scans(w->interface, scans);
+		menu_update_scans(w, scans);
 		dhcpcd_wi_scans_free(w->scans);
 	}
 	w->scans = scans;
