@@ -1,6 +1,9 @@
 #!/bin/sh
 # Try and be like autotools configure, but without autotools
 
+echo "configure args: $*"
+exec 3>config.log
+
 # Ensure that we do not inherit these from env
 DEBUG=
 LIBDHCPCD=no
@@ -187,7 +190,7 @@ int main(void) {
 }
 EOF
 _CC=false
-if $CC _test.c -o _test >/dev/null 2>&1; then
+if $CC _test.c -o _test >/dev/null 2>&3; then
 	[ -x _test ] && _CC=true
 fi
 rm -f _test.c _test
@@ -258,9 +261,9 @@ int main(void) {
 }
 EOF
 	LIB_INTL=
-	if $XCC _gettext.c -o _gettext 2>/dev/null; then
+	if $XCC _gettext.c -o _gettext 2>&3; then
 		GETTEXT=yes
-	elif $XCC _gettext.c -o _gettext -lintl 2>/dev/null; then
+	elif $XCC _gettext.c -o _gettext -lintl 2>&3; then
 		GETTEXT="yes (-lintl)"
 		LIB_INTL=-lintl
 		QMAKE_CONFIG="CONFIG+=has_libintl"
@@ -286,7 +289,7 @@ int main(void) {
 	return 0;
 }
 EOF
-	if $XCC _strlcpy.c -o _strlcpy 2>/dev/null; then
+	if $XCC _strlcpy.c -o _strlcpy 2>&3; then
 		STRLCPY=yes
 	else
 		STRLCPY=no
@@ -310,7 +313,7 @@ int main(void) {
 	return 0;
 }
 EOF
-	if $XCC _strverscmp.c -o _strverscmp 2>/dev/null; then
+	if $XCC _strverscmp.c -o _strverscmp 2>&3; then
 		STRVERSCMP=yes
 	else
 		STRVERSCMP=no
@@ -350,13 +353,13 @@ echo "LIB_DHCPCD=	$x" >>$CONFIG_MK
 echo "LDADD+=		-Wl,--as-needed" >>$CONFIG_MK
 
 if [ "$WITH_GTK" = yes -o -z "$WITH_GTK" ]; then
-	if pkg-config --cflags gtk+-2.0 >/dev/null 2>&1; then
+	if pkg-config --cflags gtk+-2.0 >/dev/null 2>&3; then
 		WITH_GTK="gtk+-2.0"
-	elif pkg-config --cflags gtk+-3.0 >/dev/null 2>&1; then
+	elif pkg-config --cflags gtk+-3.0 >/dev/null 2>&3; then
 		WITH_GTK="gtk+-3.0"
 	fi
 elif [ -n "$WITH_GTK" -a "$WITH_GTK" != no ]; then
-	if ! pkg-config --cflags $WITH_GTK >/dev/null; then
+	if ! pkg-config --cflags $WITH_GTK >/dev/null 2>&3; then
 		echo "$0: no suitable GTK+ library has been found" >&2
 		exit 1
 	fi
@@ -381,12 +384,12 @@ fi
 
 DHCPCD_QT=false
 if [ "WITH_QT" = yes -o -z "$WITH_QT" ]; then
-	if type qmake >/dev/null 2>&1; then
+	if type qmake >/dev/null 2>&3; then
 		UI="$UI${UI+ }dhcpcd-qt"
 		DHCPCD_QT=true
 	fi
 elif [ -n "$WITH_QT" -a "$WITH_QT" != no ]; then
-	if type qmake >/dev/null 2>&1; then
+	if type qmake >/dev/null 2>&3; then
 		UI="$UI${UI+ }dhcpcd-qt"
 		DHCPCD_QT=true
 	else
