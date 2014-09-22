@@ -4,6 +4,9 @@
 # Ensure that we do not inherit these from env
 DEBUG=
 LIBDHCPCD=no
+HOST=
+HOSTCC=
+BUILD=
 WITH_DHCPCD_ONLINE=yes
 WITH_GTK=
 WITH_QT=
@@ -32,7 +35,7 @@ for x; do
 	--with-ccopts|CFLAGS) CFLAGS=$var;;
 	CPPFLAGS) CPPFLAGS=$var;;
 	--build) BUILD=$var;;
-	--host) HOST=$var;;
+	--host) HOST=$var; HOSTCC=$var-;;
 	--target) TARGET=$var;;
 	--libdir) LIBDIR=$var;;
 	--includedir) eval INCLUDEDIR="$INCLUDEDIR${INCLUDEDIR:+ }$var";;
@@ -151,16 +154,14 @@ echo "#define ICONDIR		\"$ICONDIR\"" >>$CONFIG_H
 echo "MANDIR=		$MANDIR" >>$CONFIG_MK
 
 # Always obey CC.
-# However, if CC is not specified and we are given GNU style
-# --host or --build targets the expectation is we try and match that
-# to a compiler.
 if [ -n "$CC" ]; then
 	HOSTCC=
 else
 	CC=cc
 	_COMPILERS="cc clang gcc pcc icc"
 fi
-if [ -n "$HOSTCC" ]; then
+# Only look for a cross compiler if --host and --build are not the same
+if [ -n "$HOSTCC" -a "$BUILD" != "$HOST" ]; then
 	for _CC in $_COMPILERS; do
 		_CC=$(_which "$HOSTCC$_CC")
 		if [ -x "$_CC" ]; then
