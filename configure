@@ -14,7 +14,7 @@ WITH_DHCPCD_ONLINE=yes
 WITH_GTK=
 WITH_QT=
 WITH_ICONS=
-NOTIFY=yes
+NOTIFY=
 INCLUDEDIR=
 UI=
 
@@ -367,9 +367,18 @@ fi
 	
 if [ -n "$WITH_GTK" -a "$WITH_GTK" != no ]; then
 	PKG="$WITH_GTK"
+	if [ "$NOTIFY" = yes -o -z "$NOTIFY" ]; then
+		if ! pkg-config --cflags libnotify >/dev/null 2>&3; then
+			echo "libnotify not found" >&2
+			[ "$NOTIFY" = yes ] && exit 1
+			NOTIFY=no
+		fi
+		NOTIFY=yes
+	fi
 	if [ "$NOTIFY" = yes ]; then
 		PKG="$PKG${PKG:+ }libnotify"
 		echo "NOTIFY=		-DNOTIFY" >>$CONFIG_MK
+		echo "Building dhcpcd-gtk with notification support"
 	fi
 	GTK_CFLAGS=$(pkg-config --cflags $PKG)
 	[ $? != 0 -a "$WITH_GTK" = yes ] && exit 1
