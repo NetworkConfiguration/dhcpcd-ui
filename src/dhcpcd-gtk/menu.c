@@ -361,7 +361,7 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 	mnu = (GtkMenu *)gtk_menu_new();
 
 	item = gtk_image_menu_item_new_with_mnemonic(_("_Preferences"));
-	image = gtk_image_new_from_icon_name(GTK_STOCK_PREFERENCES,
+	image = gtk_image_new_from_icon_name("preferences-system-network",
 	    GTK_ICON_SIZE_MENU);
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
 	if (g_strcmp0(dhcpcd_status(con), "down") == 0)
@@ -375,7 +375,7 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 	gtk_menu_shell_append(GTK_MENU_SHELL(mnu), item);
 
 	item = gtk_image_menu_item_new_with_mnemonic(_("_About"));
-	image = gtk_image_new_from_icon_name(GTK_STOCK_ABOUT,
+	image = gtk_image_new_from_icon_name("help-about",
 	    GTK_ICON_SIZE_MENU);
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
 	g_signal_connect(G_OBJECT(item), "activate",
@@ -383,7 +383,7 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 	gtk_menu_shell_append(GTK_MENU_SHELL(mnu), item);
 
 	item = gtk_image_menu_item_new_with_mnemonic(_("_Quit"));
-	image = gtk_image_new_from_icon_name(GTK_STOCK_QUIT,
+	image = gtk_image_new_from_icon_name("application-exit",
 	    GTK_ICON_SIZE_MENU);
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
 	g_signal_connect(G_OBJECT(item), "activate",
