@@ -33,7 +33,7 @@ dist:
 
 distclean:
 	(cd src; make clean)
-	rm -f config.h config.mk
+	rm -f config.h config.mk config.log
 
 snapshot: icons
 	mkdir /tmp/${SNAPDIR}
