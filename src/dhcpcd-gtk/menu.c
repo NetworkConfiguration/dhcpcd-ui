@@ -34,28 +34,18 @@ static GtkStatusIcon *sicon;
 static GtkWidget *menu;
 static bool ifmenu;
 
-typedef struct wi_menu {
-	DHCPCD_IF *interface;
-	DHCPCD_WI_SCAN *scan;
-
-	GtkWidget *menu;
-	GtkWidget *ssid;
-	GtkWidget *icon;
-	GtkWidget *bar;
-} WI_MENU;
-static GList *wi_menus;
-
 static void
 on_pref(_unused GObject *o, gpointer data)
 {
 
-	dhcpcd_prefs_show((DHCPCD_CONNECTION *)data);
+	prefs_show((DHCPCD_CONNECTION *)data);
 }
 
 static void
 on_quit(void)
 {
 
+	wpa_abort();
 	gtk_main_quit();
 }
 
@@ -130,10 +120,17 @@ on_about(_unused GtkMenuItem *item)
 }
 
 static void
-update_item(WI_MENU *m, DHCPCD_WI_SCAN *scan)
+update_item(WI_SCAN *wi, WI_MENU *m, DHCPCD_WI_SCAN *scan)
 {
 	const char *icon;
 	double perc;
+
+	m->scan = scan;
+
+	g_object_set_data(G_OBJECT(m->menu), "dhcpcd_wi_scan", scan);
+	gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(m->menu),
+		(wi->interface->up &&
+		g_strcmp0(wi->interface->ssid, scan->ssid)));
 
 	gtk_label_set_text(GTK_LABEL(m->ssid), scan->ssid);
 	if (scan->flags[0] == '\0')
@@ -158,7 +155,7 @@ update_item(WI_MENU *m, DHCPCD_WI_SCAN *scan)
 }
 
 static WI_MENU *
-create_menu(GtkWidget *m, WI_SCAN *scan, DHCPCD_WI_SCAN *wis)
+create_menu(GtkWidget *m, WI_SCAN *wis, DHCPCD_WI_SCAN *scan)
 {
 	WI_MENU *wim;
 	GtkWidget *box;
@@ -167,20 +164,20 @@ create_menu(GtkWidget *m, WI_SCAN *scan, DHCPCD_WI_SCAN *wis)
 	char *tip;
 
 	wim = g_malloc(sizeof(*wim));
-	wim->interface = scan->interface;
-	wim->scan = wis;
+	wim->scan = scan;
 	wim->menu = gtk_check_menu_item_new();
 	gtk_check_menu_item_set_draw_as_radio(
 	    GTK_CHECK_MENU_ITEM(wim->menu), true);
 	box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
 	gtk_container_add(GTK_CONTAINER(wim->menu), box);
-	wim->ssid = gtk_label_new(wis->ssid);
+	wim->ssid = gtk_label_new(scan->ssid);
 	gtk_box_pack_start(GTK_BOX(box), wim->ssid, TRUE, TRUE, 0);
 
-	if (g_strcmp0(wis->ssid, scan->interface->ssid) == 0)
+	if (wis->interface->up &&
+	    g_strcmp0(scan->ssid, wis->interface->ssid) == 0)
 		gtk_check_menu_item_set_active(
 		    GTK_CHECK_MENU_ITEM(wim->menu), true);
-	if (wis->flags[0] == '\0')
+	if (scan->flags[0] == '\0')
 		icon = "network-wireless";
 	else
 		icon = "network-wireless-encrypted";
@@ -191,20 +188,20 @@ create_menu(GtkWidget *m, WI_SCAN *scan, DHCPCD_WI_SCAN *wis)
 	wim->bar = gtk_progress_bar_new();
 	gtk_widget_set_size_request(wim->bar, 100, -1);
 	gtk_box_pack_end(GTK_BOX(box), wim->bar, FALSE, TRUE, 0);
-	perc = wis->strength.value / 100.0;
+	perc = scan->strength.value / 100.0;
 	gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(wim->bar), perc);
 
-	if (wis->flags[0] == '\0')
-		gtk_widget_set_tooltip_text(wim->menu, wis->bssid);
+	if (scan->flags[0] == '\0')
+		gtk_widget_set_tooltip_text(wim->menu, scan->bssid);
 	else {
-		tip = g_strconcat(wis->bssid, " ", wis->flags, NULL);
+		tip = g_strconcat(scan->bssid, " ", scan->flags, NULL);
 		gtk_widget_set_tooltip_text(wim->menu, tip);
 		g_free(tip);
 	}
 
-	g_signal_connect(G_OBJECT(wim->menu), "activate",
+	g_signal_connect(G_OBJECT(wim->menu), "toggled",
 	    G_CALLBACK(ssid_hook), NULL);
-	g_object_set_data(G_OBJECT(wim->menu), "dhcpcd_wi_scan", wis);
+	g_object_set_data(G_OBJECT(wim->menu), "dhcpcd_wi_scan", scan);
 	gtk_menu_shell_append(GTK_MENU_SHELL(m), wim->menu);
 
 	return wim;
@@ -213,41 +210,39 @@ create_menu(GtkWidget *m, WI_SCAN *scan, DHCPCD_WI_SCAN *wis)
 void
 menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 {
-	GList *item, *next;
-	WI_MENU *wim;
+	WI_MENU *wim, *win;
 	DHCPCD_WI_SCAN *s;
 	bool found, added;
 
-	item = wi_menus;
-	while (item) {
-		next = item->next;
-		wim = (WI_MENU *)item->data;
-		if (wim->interface != wi->interface)
-			goto cont;
+	if (menu == NULL) {
+		dhcpcd_wi_scans_free(wi->scans);
+		wi->scans = scans;
+		return;
+	}
+
+	TAILQ_FOREACH_SAFE(wim, &wi->menus, next, win) {
 		found = false;
 		for (s = scans; s; s = s->next) {
 			if (memcmp(wim->scan->bssid, s->bssid,
 			    sizeof(s->bssid)) == 0)
 			{
 				found = true;
-				update_item(wim, s);
+				update_item(wi, wim, s);
 			}
 		}
 		if (!found) {
+			TAILQ_REMOVE(&wi->menus, wim, next);
 			g_message("removed %s", wim->scan->ssid);
 			gtk_widget_destroy(wim->menu);
+			g_free(wim->scan);
 			g_free(wim);
-			wi_menus = g_list_delete_link(wi_menus, item);
 		}
-cont:
-		item = next;
 	}
 
 	added = false;
 	for (s = scans; s; s = s->next) {
 		found = false;
-		for (item = wi_menus; item; item = item->next) {
-			wim = (WI_MENU *)item->data;
+		TAILQ_FOREACH(wim, &wi->menus, next) {
 			if (memcmp(wim->scan->bssid, s->bssid,
 			    sizeof(s->bssid)) == 0)
 			{
@@ -257,47 +252,57 @@ cont:
 		}
 		if (!found) {
 			added = true;
-			wim = create_menu(wi->menu, wi, s);
+			wim = create_menu(wi->ifmenu, wi, s);
+			TAILQ_INSERT_TAIL(&wi->menus, wim, next);
 			gtk_widget_show_all(wim->menu);
 			g_message("added %s", wim->scan->ssid);
-			wi_menus = g_list_append(wi_menus, wim);
 		}
 	}
-	if (added) {
-		gtk_widget_hide(wi->menu);
-		gtk_menu_popup(GTK_MENU(wi->menu), NULL, NULL,
-		    gtk_status_icon_position_menu, sicon,
-		    1, gtk_get_current_event_time());
-		gtk_widget_show(wi->menu);
+
+	dhcpcd_wi_scans_free(wi->scans);
+	wi->scans = scans;
+
+	if (added && gtk_widget_get_visible(wi->ifmenu)) {
+//		gtk_widget_hide(wi->ifmenu);
+//		gtk_menu_popup(GTK_MENU(wi->ifmenu), NULL, NULL,
+//		    gtk_status_icon_position_menu, sicon,
+//		    1, gtk_get_current_event_time());
+//		gtk_widget_show(wi->ifmenu);
 	}
 }
 
 
 static GtkWidget *
-add_scans(WI_SCAN *scan)
+add_scans(WI_SCAN *wi)
 {
 	GtkWidget *m;
 	DHCPCD_WI_SCAN *wis;
 	WI_MENU *wim;
 
-	if (scan->scans == NULL)
+	if (wi->scans == NULL)
 		return NULL;
 
 	m = gtk_menu_new();
-	for (wis = scan->scans; wis; wis = wis->next) {
-		wim = create_menu(m, scan, wis);
-		wi_menus = g_list_append(wi_menus, wim);
+	for (wis = wi->scans; wis; wis = wis->next) {
+		wim = create_menu(m, wi, wis);
+		TAILQ_INSERT_TAIL(&wi->menus, wim, next);
 	}
+
 	return m;
 }
 
 void
-dhcpcd_menu_abort(void)
+menu_abort(void)
 {
+	WI_SCAN *wis;
+	WI_MENU *wim;
 
-	while (wi_menus) {
-		g_free(wi_menus->data);
-		wi_menus = g_list_delete_link(wi_menus, wi_menus);
+	TAILQ_FOREACH(wis, &wi_scans, next) {
+		wis->ifmenu = NULL;
+		while ((wim = TAILQ_FIRST(&wis->menus))) {
+			TAILQ_REMOVE(&wis->menus, wim, next);
+			g_free(wim);
+		}
 	}
 
 	if (menu != NULL) {
@@ -311,18 +316,21 @@ dhcpcd_menu_abort(void)
 static void
 on_activate(GtkStatusIcon *icon)
 {
-	WI_SCAN *w;
+	WI_SCAN *w, *l;
 	GtkWidget *item, *image;
 
 	sicon = icon;
 	notify_close();
-	dhcpcd_menu_abort();
-	if (wi_scans == NULL)
+	prefs_abort();
+	menu_abort();
+
+	if ((w = TAILQ_FIRST(&wi_scans)) == NULL)
 		return;
-	if (wi_scans->next) {
+
+	if ((l = TAILQ_LAST(&wi_scans, wi_scan_head)) && l != w) {
 		menu = gtk_menu_new();
 		ifmenu = true;
-		for (w = wi_scans; w; w = w->next) {
+		TAILQ_FOREACH(w, &wi_scans, next) {
 			item = gtk_image_menu_item_new_with_label(
 				w->interface->ifname);
 			image = gtk_image_new_from_icon_name(
@@ -330,22 +338,19 @@ on_activate(GtkStatusIcon *icon)
 			gtk_image_menu_item_set_image(
 				GTK_IMAGE_MENU_ITEM(item), image);
 			gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-			w->menu = add_scans(w);
+			w->ifmenu = add_scans(w);
 			gtk_menu_item_set_submenu(GTK_MENU_ITEM(item),
-			    w->menu);
+			    w->ifmenu);
 		}
-	} else if (wi_scans->scans) {
+	} else {
 		ifmenu = false;
-		wi_scans->menu = menu = add_scans(wi_scans);
-	} else
-		menu = NULL;
-
-	if (menu) {
-		gtk_widget_show_all(GTK_WIDGET(menu));
-		gtk_menu_popup(GTK_MENU(menu), NULL, NULL,
-		    gtk_status_icon_position_menu, icon,
-		    1, gtk_get_current_event_time());
+		w->ifmenu = menu = add_scans(w);
 	}
+
+	gtk_widget_show_all(GTK_WIDGET(menu));
+	gtk_menu_popup(GTK_MENU(menu), NULL, NULL,
+	    gtk_status_icon_position_menu, icon,
+	    1, gtk_get_current_event_time());
 }
 
 static void

@@ -35,6 +35,7 @@
 #include <libintl.h>
 
 #include "dhcpcd.h"
+#include "queue.h"
 
 #define PACKAGE "dhcpcd-gtk"
 
@@ -46,14 +47,27 @@
 #  define _unused
 #endif
 
-typedef struct wi_scan {
-	DHCPCD_IF *interface;
+typedef struct wi_menu {
+	TAILQ_ENTRY(wi_menu) next;
+	DHCPCD_WI_SCAN *scan;
 	GtkWidget *menu;
+	GtkWidget *ssid;
+	GtkWidget *icon;
+	GtkWidget *bar;
+} WI_MENU;
+typedef TAILQ_HEAD(wi_menu_head, wi_menu) WI_MENUS;
+
+typedef struct wi_scan {
+	TAILQ_ENTRY(wi_scan) next;
+	DHCPCD_IF *interface;
 	DHCPCD_WI_SCAN *scans;
-	struct wi_scan *next;
+
+	GtkWidget *ifmenu;
+	WI_MENUS menus;
 } WI_SCAN;
 
-extern WI_SCAN *wi_scans;
+typedef TAILQ_HEAD(wi_scan_head, wi_scan) WI_SCANS;
+extern WI_SCANS wi_scans;
 
 WI_SCAN * wi_scan_find(DHCPCD_WI_SCAN *);
 
@@ -62,9 +76,10 @@ void menu_update_scans(WI_SCAN *, DHCPCD_WI_SCAN *);
 
 void notify_close(void);
 
-void dhcpcd_prefs_show(DHCPCD_CONNECTION *con);
-void dhcpcd_prefs_abort(void);
-void dhcpcd_menu_abort(void);
+void prefs_show(DHCPCD_CONNECTION *con);
+void prefs_abort(void);
+void menu_abort(void);
+void wpa_abort(void);
 
 bool wpa_configure(DHCPCD_WPA *, DHCPCD_WI_SCAN *);
 

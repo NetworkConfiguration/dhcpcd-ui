@@ -220,14 +220,14 @@ list_interfaces(DHCPCD_CONNECTION *con)
 }
 
 static GSList *
-list_ssids(WI_SCAN *scans)
+list_ssids(WI_SCANS *scans)
 {
 	GSList *list, *l;
 	WI_SCAN *w;
 	DHCPCD_WI_SCAN *wis;
 
 	list = NULL;
-	for (w = scans; w; w = w->next) {
+	TAILQ_FOREACH(w, scans, next) {
 		for (wis = w->scans; wis; wis = wis->next) {
 			for (l = list; l; l = l->next)
 				if (g_strcmp0((const char *)l->data,
@@ -270,7 +270,7 @@ blocks_on_change(GtkWidget *widget, gpointer data)
 	if (g_strcmp0(block, "interface") == 0)
 		new_names = list_interfaces(con);
 	else
-		new_names = list_ssids(wi_scans);
+		new_names = list_ssids(&wi_scans);
 
 	n = 0;
 	for (l = new_names; l; l = l->next) {
@@ -470,7 +470,7 @@ on_destroy(_unused GObject *o, gpointer data)
 }
 
 static void
-dhcpcd_prefs_close(void)
+prefs_close(void)
 {
 	if (dialog != NULL) {
 		gtk_widget_destroy(dialog);
@@ -479,11 +479,11 @@ dhcpcd_prefs_close(void)
 }
 
 void
-dhcpcd_prefs_abort(void)
+prefs_abort(void)
 {
 	g_free(name);
 	name = NULL;
-	dhcpcd_prefs_close();
+	prefs_close();
 }
 
 #if GTK_MAJOR_VERSION == 2
@@ -499,7 +499,7 @@ gtk_separator_new(GtkOrientation o)
 #endif
 
 void
-dhcpcd_prefs_show(DHCPCD_CONNECTION *con)
+prefs_show(DHCPCD_CONNECTION *con)
 {
 	GtkWidget *dialog_vbox, *hbox, *vbox, *table, *w;
 	GtkListStore *store;
@@ -640,7 +640,7 @@ dhcpcd_prefs_show(DHCPCD_CONNECTION *con)
 	w = gtk_button_new_from_stock(GTK_STOCK_CLOSE);
 	gtk_box_pack_end(GTK_BOX(hbox), w, false, false, 0);
 	g_signal_connect(G_OBJECT(w), "clicked",
-	    G_CALLBACK(dhcpcd_prefs_close), NULL);
+	    G_CALLBACK(prefs_close), NULL);
 
 	blocks_on_change(blocks, con);
 	show_config(NULL);

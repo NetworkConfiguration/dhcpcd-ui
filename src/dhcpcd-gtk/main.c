@@ -56,7 +56,7 @@ struct watch {
 };
 static struct watch *watches;
 
-WI_SCAN *wi_scans;
+WI_SCANS wi_scans;
 
 static gboolean dhcpcd_try_open(gpointer data);
 static gboolean dhcpcd_wpa_try_open(gpointer data);
@@ -67,12 +67,10 @@ wi_scan_find(DHCPCD_WI_SCAN *scan)
 	WI_SCAN *w;
 	DHCPCD_WI_SCAN *dw;
 
-	for (w = wi_scans; w; w = w->next) {
+	TAILQ_FOREACH(w, &wi_scans, next) {
 		for (dw = w->scans; dw; dw = dw->next)
 			if (dw == scan)
-				break;
-		if (dw)
-			return w;
+				return w;
 	}
 	return NULL;
 }
@@ -341,13 +339,13 @@ dhcpcd_status_cb(DHCPCD_CONNECTION *con, const char *status,
 		gtk_status_icon_set_from_icon_name(status_icon,
 		    "network-offline");
 		gtk_status_icon_set_tooltip_text(status_icon, msg);
-		dhcpcd_prefs_abort();
-		dhcpcd_menu_abort();
-		while (wi_scans) {
-			w = wi_scans->next;
-			dhcpcd_wi_scans_free(wi_scans->scans);
-			g_free(wi_scans);
-			wi_scans = w;
+		prefs_abort();
+		menu_abort();
+		wpa_abort();
+		while ((w = TAILQ_FIRST(&wi_scans))) {
+			TAILQ_REMOVE(&wi_scans, w, next);
+			dhcpcd_wi_scans_free(w->scans);
+			g_free(w);
 		}
 		dhcpcd_unwatch(-1, con);
 		g_timeout_add(DHCPCD_RETRYOPEN, dhcpcd_try_open, con);
@@ -530,15 +528,17 @@ dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, _unused void *data)
 	if (scans == NULL && errno)
 		g_warning("%s: %s", i->ifname, strerror(errno));
 	errno = lerrno;
-	for (w = wi_scans; w; w = w->next)
+	TAILQ_FOREACH(w, &wi_scans, next) {
 		if (w->interface == i)
 			break;
+	}
 	if (w == NULL) {
 		w = g_malloc(sizeof(*w));
 		w->interface = i;
-		w->menu = NULL;
-		w->next = wi_scans;
-		wi_scans = w;
+		w->scans = scans;
+		w->ifmenu = NULL;
+		TAILQ_INIT(&w->menus);
+		TAILQ_INSERT_TAIL(&wi_scans, w, next);
 	} else {
 		txt = NULL;
 		msg = N_("New Access Point");
@@ -563,9 +563,7 @@ dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, _unused void *data)
 			g_free(txt);
 		}
 		menu_update_scans(w, scans);
-		dhcpcd_wi_scans_free(w->scans);
 	}
-	w->scans = scans;
 }
 
 static void
@@ -603,6 +601,7 @@ main(int argc, char *argv[])
 	notify_init(PACKAGE);
 #endif
 
+	TAILQ_INIT(&wi_scans);
 	g_message(_("Connecting ..."));
 	con = dhcpcd_new();
 	if (con ==  NULL) {

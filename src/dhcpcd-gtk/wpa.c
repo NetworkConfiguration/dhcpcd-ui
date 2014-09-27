@@ -28,29 +28,47 @@
 
 #include "dhcpcd-gtk.h"
 
-static void
-wpa_dialog(const char *title, const char *txt)
-{
-	GtkWidget *dialog;
+static GtkWidget *wpa_dialog, *wpa_err;
 
-	dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL,
+static void
+wpa_show_err(const char *title, const char *txt)
+{
+
+	if (wpa_err)
+		gtk_widget_destroy(wpa_err);
+	wpa_err = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL,
 	    GTK_MESSAGE_ERROR, GTK_BUTTONS_OK, "%s", txt);
-	gtk_window_set_title(GTK_WINDOW(dialog), title);
-	gtk_dialog_run(GTK_DIALOG(dialog));
-	gtk_widget_destroy(dialog);
+	gtk_window_set_title(GTK_WINDOW(wpa_err), title);
+	gtk_dialog_run(GTK_DIALOG(wpa_err));
+	gtk_widget_destroy(wpa_err);
 }
 
 static void
 onEnter(_unused GtkWidget *widget, gpointer *data)
 {
+
 	gtk_dialog_response(GTK_DIALOG(data), GTK_RESPONSE_ACCEPT);
+}
+
+void
+wpa_abort(void)
+{
+
+	if (wpa_err) {
+		gtk_widget_destroy(wpa_err);
+		wpa_err = NULL;
+	}
+	if (wpa_dialog) {
+		gtk_widget_destroy(wpa_dialog);
+		wpa_dialog = NULL;
+	}
 }
 
 bool
 wpa_configure(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *scan)
 {
 	DHCPCD_WI_SCAN s;
-	GtkWidget *dialog, *label, *psk, *vbox, *hbox;
+	GtkWidget *label, *psk, *vbox, *hbox;
 	const char *var, *errt;
 	int result;
 	bool retval;
@@ -59,18 +77,21 @@ wpa_configure(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *scan)
 	memcpy(&s, scan, sizeof(s));
 	s.next = NULL;
 
-	dialog = gtk_dialog_new_with_buttons(s.ssid,
+	if (wpa_dialog)
+		gtk_widget_destroy(wpa_dialog);
+
+	wpa_dialog = gtk_dialog_new_with_buttons(s.ssid,
 	    NULL,
 	    GTK_DIALOG_MODAL,
 	    GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
 	    GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
 	    NULL);
-	gtk_window_set_resizable(GTK_WINDOW(dialog), false);
-	gtk_window_set_icon_name(GTK_WINDOW(dialog),
+	gtk_window_set_resizable(GTK_WINDOW(wpa_dialog), false);
+	gtk_window_set_icon_name(GTK_WINDOW(wpa_dialog),
 	    "network-wireless-encrypted");
-	gtk_dialog_set_default_response(GTK_DIALOG(dialog),
+	gtk_dialog_set_default_response(GTK_DIALOG(wpa_dialog),
 	    GTK_RESPONSE_ACCEPT);
-	vbox = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+	vbox = gtk_dialog_get_content_area(GTK_DIALOG(wpa_dialog));
 
 	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
 	label = gtk_label_new(_("Pre Shared Key:"));
@@ -78,13 +99,13 @@ wpa_configure(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *scan)
 	psk = gtk_entry_new();
 	gtk_entry_set_max_length(GTK_ENTRY(psk), 130);
 	g_signal_connect(G_OBJECT(psk), "activate",
-	    G_CALLBACK(onEnter), dialog);
+	    G_CALLBACK(onEnter), wpa_dialog);
 	gtk_box_pack_start(GTK_BOX(hbox), psk, true, true, 0);
 	gtk_container_add(GTK_CONTAINER(vbox), hbox);
 
-	gtk_widget_show_all(dialog);
+	gtk_widget_show_all(wpa_dialog);
 again:
-	result = gtk_dialog_run(GTK_DIALOG(dialog));
+	result = gtk_dialog_run(GTK_DIALOG(wpa_dialog));
 
 	retval = false;
 	if (result == GTK_RESPONSE_ACCEPT) {
@@ -113,10 +134,13 @@ again:
 			break;
 		}
 		if (!retval) {
-			wpa_dialog(_("Error enabling network"), errt);
+			wpa_show_err(_("Error enabling network"), errt);
 			goto again;
 		}
 	}
-	gtk_widget_destroy(dialog);
+	if (wpa_dialog) {
+		gtk_widget_destroy(wpa_dialog);
+		wpa_dialog = NULL;
+	}
 	return retval;
 }
