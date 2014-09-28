@@ -261,6 +261,43 @@ dhcpcd_decode(char *dst, size_t dlen, const char *src)
 }
 
 ssize_t
+dhcpcd_decode_hex(char *dst, size_t dlen, const char *src)
+{
+	size_t bytes, i;
+	char c;
+	int val, n;
+
+	bytes = 0;
+	while (*src) {
+		if (dlen == 0 || dlen == 1) {
+			errno = ENOSPC;
+			return -1;
+		}
+		val = 0;
+		for (i = 0; i < 2; i++) {
+			c = *src++;
+			if (c >= '0' && c <= '9')
+				n = c - '0';
+			else if (c >= 'a' && c <= 'f')
+				n = 10 + c - 'a';
+			else if (c >= 'A' && c <= 'F')
+				n = 10 + c - 'A';
+			else {
+				errno = EINVAL;
+				return -1;
+			}
+			val = val * 16 + n;
+		}
+		*dst++ = (char)val;
+		bytes += 2;
+		dlen -= 2;
+		if (*src == ':')
+			src++;
+	}
+	return (ssize_t)bytes;
+}
+
+ssize_t
 dhcpcd_decode_shell(char *dst, size_t dlen, const char *src)
 {
 	char *tmp, *p, c, *e, *d;

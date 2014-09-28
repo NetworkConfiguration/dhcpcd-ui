@@ -206,6 +206,7 @@ int dhcpcd_strnunvis(char *dst, size_t dlen, const char *src);
 #endif
 ssize_t dhcpcd_decode(char *dst, size_t dlen, const char *src);
 ssize_t dhcpcd_decode_shell(char *dst, size_t dlen, const char *src);
+ssize_t dhcpcd_decode_hex(char *dst, size_t dlen, const char *src);
 char * dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg);
 
 ssize_t dhcpcd_command(DHCPCD_CONNECTION *, const char *, char **);
