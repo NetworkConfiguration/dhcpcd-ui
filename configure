@@ -10,7 +10,7 @@ LIBDHCPCD=no
 HOST=
 HOSTCC=
 BUILD=
-WITH_DHCPCD_ONLINE=yes
+WITH_TOOLS=yes
 WITH_GTK=
 WITH_QT=
 WITH_ICONS=
@@ -44,8 +44,8 @@ for x; do
 	--includedir) eval INCLUDEDIR="$INCLUDEDIR${INCLUDEDIR:+ }$var";;
 	--datadir|--infodir) ;; # ignore autotools
 	--disable-maintainer-mode|--disable-dependency-tracking) ;;
-	--with-dhcpcd-online) WITH_DHCPCD_ONLINE=${var:-yes};;
-	--without-dhcpcd-online) WITH_DHCPCD_ONLINE=no;;
+	--with-tools) WITH_TOOLS=${var:-yes};;
+	--without-tools) WITH_TOOLS=no;;
 	--with-gtk|--with-gtk+) WITH_GTK=${var:-yes};;
 	--without-gtk|--without-gtk+) WITH_GTK=no;;
 	--with-qt) WITH_QT=${var:-yes};;
@@ -448,8 +448,8 @@ if [ "$WITH_ICONS" = yes ]; then
 	echo "MKICONS=	icons" >>$CONFIG_MK
 fi
 
-if [ -n "$WITH_DHCPCD_ONLINE" -a "$WITH_DHCPCD_ONLINE" != no ]; then
-	UI="dhcpcd-online${UI:+ }$UI"
+if [ -n "$WITH_TOOLS" -a "$WITH_TOOLS" != no ]; then
+	UI="dhcpcd-decode dhcpcd-online${UI:+ }$UI"
 fi
 echo "UI=		${UI:+libdhcpcd }$UI" >>$CONFIG_MK
 
