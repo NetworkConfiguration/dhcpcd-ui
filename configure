@@ -303,6 +303,40 @@ if [ "$STRLCPY" = no ]; then
 	    >>$CONFIG_H
 fi
 
+if [ -z "$STRNUNVIS" ]; then
+	printf "Testing for strnunvis ... "
+	cat <<EOF >_strnunvis.c
+#include <vis.h>
+#ifdef __FreeBSD__
+#error FreeBSD has broken strnunvis support
+#endif
+#ifdef __NetBSD_Version__
+#  if __NetBSD_Version__ <799000200
+#  error Upgrade NetBSD to 7.99.2 to get a working strnunvis
+#  endif
+#endif
+
+int main(void) {
+	char s[10];
+	strunvis(s, 0, s);
+	return 0;
+}
+EOF
+	if $XCC _strnunvis.c -o _strnunvis 2>&3; then
+		STRNUNVIS=yes
+	else
+		STRNUNVIS=no
+	fi
+	echo "$STRNUNVIS"
+	rm -f _strnunvis.c _strnunvis
+fi
+if [ "$STRNUNVIS" = no ]; then
+	echo "UNVIS_SRC=	unvis.c" >>$CONFIG_MK
+	echo "#define strnunvis dhcpcd_strnunvis" >>$CONFIG_H
+else
+	echo "#define HAVE_VIS_H" >>$CONFIG_H
+fi
+
 if [ -z "$STRVERSCMP" ]; then
 	printf "Testing for strverscmp ... "
 	cat <<EOF >_strverscmp.c

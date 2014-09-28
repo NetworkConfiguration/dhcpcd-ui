@@ -84,7 +84,7 @@ typedef struct dhcpcd_if {
 	unsigned int flags;
 	bool up;
 	bool wireless;
-	const char *ssid;
+	char ssid[IF_SSIDSIZE];
 
 	char *data;
 	size_t data_len;
@@ -103,7 +103,7 @@ typedef struct dhcpcd_if {
 	int flags;
 	bool up;
 	bool wireless;
-	const char *ssid;
+	char ssid[IF_SSIDSIZE];
 } DHCPCD_IF;
 #endif
 
@@ -200,6 +200,12 @@ DHCPCD_CONNECTION * dhcpcd_if_connection(DHCPCD_IF *);
 const char *dhcpcd_get_value(const DHCPCD_IF *, const char *);
 const char *dhcpcd_get_prefix_value(const DHCPCD_IF *, const char *,
     const char *);
+#ifdef IN_LIBDHCPCD
+/* This function only exists if libc does not provide a working version */
+int dhcpcd_strnunvis(char *dst, size_t dlen, const char *src);
+#endif
+ssize_t dhcpcd_decode(char *dst, size_t dlen, const char *src);
+ssize_t dhcpcd_decode_shell(char *dst, size_t dlen, const char *src);
 char * dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg);
 
 ssize_t dhcpcd_command(DHCPCD_CONNECTION *, const char *, char **);

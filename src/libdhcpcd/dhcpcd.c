@@ -34,6 +34,7 @@
 #include <arpa/inet.h>
 
 #include <assert.h>
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <libintl.h>
@@ -55,9 +56,17 @@
 #define _(a) (a)
 #endif
 
+#ifdef HAVE_VIS_H
+#include <vis.h>
+#endif
+
 #ifndef SUN_LEN
 #define SUN_LEN(su) \
 	(sizeof(*(su)) - sizeof((su)->sun_path) + strlen((su)->sun_path))
+#endif
+
+#ifndef iswhite
+#define iswhite(c)	(c == ' ' || c == '\t' || c == '\n')
 #endif
 
 static const char * const dhcpcd_types[] =
@@ -242,6 +251,64 @@ dhcpcd_get_value(const DHCPCD_IF *i, const char *var)
 	return get_value(i->data, i->data_len, var);
 }
 
+ssize_t
+dhcpcd_decode(char *dst, size_t dlen, const char *src)
+{
+
+	assert(dst);
+	assert(src);
+	return strnunvis(dst, dlen, src);
+}
+
+ssize_t
+dhcpcd_decode_shell(char *dst, size_t dlen, const char *src)
+{
+	char *tmp, *p, c, *e, *d;
+	ssize_t l;
+
+	assert(dst);
+	assert(src);
+
+	tmp = malloc(dlen);
+	if (tmp == NULL)
+		return -1;
+	if ((l = dhcpcd_decode(tmp, dlen, src)) == -1) {
+		free(tmp);
+		return -1;
+	}
+
+	p = tmp;
+	e = tmp + l;
+	d = dst;
+	while (p < e) {
+		c = *p++;
+
+		if (isascii(c) && (isgraph(c) || iswhite(c))) {
+			if (dlen < 2) {
+				errno = ENOSPC;
+				return -1;
+			}
+			*d++ = c;
+			dlen--;
+			continue;
+		}
+		
+		if (dlen < 5) {
+			errno = ENOSPC;
+			return -1;
+		}
+		*d++ = '\\';
+		*d++ = (((unsigned char)c >> 6) & 03) + '0';
+		*d++ = (((unsigned char)c >> 3) & 07) + '0';
+		*d++ = ( (unsigned char)c       & 07) + '0';
+		dlen -= 4;
+	}
+	*d = '\0';
+	free(tmp);
+
+	return d - dst;
+}
+
 const char *
 dhcpcd_get_prefix_value(const DHCPCD_IF *i, const char *prefix, const char *var)
 {
@@ -350,7 +417,7 @@ dhcpcd_get_if(DHCPCD_CONNECTION *con, const char *ifname, const char *type)
 static DHCPCD_IF *
 dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 {
-	const char *ifname, *ifclass, *reason, *type, *order, *flags;
+	const char *ifname, *ifclass, *reason, *type, *order, *flags, *ssid;
 	char *orderdup, *o, *p;
 	DHCPCD_IF *e, *i, *l, *n, *nl;
 	int ti;
@@ -474,7 +541,10 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 	else
 		i->up = strtobool(dhcpcd_get_value(i, "if_up="));
 	i->wireless = strtobool(dhcpcd_get_value(i, "ifwireless="));
-	i->ssid = dhcpcd_get_value(i, i->up ? "new_ssid=" : "old_ssid=");
+	ssid = dhcpcd_get_value(i, i->up ? "new_ssid=" : "old_ssid=");
+	if (ssid == NULL ||
+	    dhcpcd_decode_shell(i->ssid, sizeof(i->ssid), ssid) == -1)
+		*i->ssid = '\0';
 
        /* Sort! */
 	n = nl = NULL;
