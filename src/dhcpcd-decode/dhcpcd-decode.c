@@ -26,6 +26,7 @@
 
 #include <err.h>
 #include <errno.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,6 +57,13 @@ process(char *src, ssize_t (*decode)(char *, size_t, const char *))
 	fputc('\n', stdout);
 }
 
+static void
+usage(char *progname)
+{
+
+	fprintf(stderr, "usage: %s [-sx] [data ...]\n", basename(progname));
+}
+
 int
 main(int argc, char **argv)
 {
@@ -72,10 +80,14 @@ main(int argc, char **argv)
 			decode = dhcpcd_decode_hex;
 			break;
 		case '?':
-			fprintf(stderr, "usage: dhcpcd-decode "
-			    "[-q] [-t timeout]\n");
+			usage(argv[0]);
 			return EXIT_FAILURE;
 		}
+	}
+
+	if (optind >= argc && isatty(fileno(stdin))) {
+		usage(argv[0]);
+		return EXIT_FAILURE;
 	}
 
 	for (; optind < argc; optind++)
