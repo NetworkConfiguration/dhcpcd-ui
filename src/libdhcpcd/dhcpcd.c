@@ -300,7 +300,8 @@ dhcpcd_decode_hex(char *dst, size_t dlen, const char *src)
 ssize_t
 dhcpcd_decode_shell(char *dst, size_t dlen, const char *src)
 {
-	char *tmp, *p, c, *e, *d;
+	char *tmp, *p, *e, *d;
+	int c;
 	ssize_t l;
 
 	assert(dst);
@@ -325,11 +326,11 @@ dhcpcd_decode_shell(char *dst, size_t dlen, const char *src)
 				errno = ENOSPC;
 				return -1;
 			}
-			*d++ = c;
+			*d++ = (char)c;
 			dlen--;
 			continue;
 		}
-		
+
 		if (dlen < 5) {
 			errno = ENOSPC;
 			return -1;
