@@ -95,7 +95,7 @@ unvis(char *cp, int c, int *astate, int flag)
 #define SS(a, b)	(((uint32_t)(a) << 24) | (b))
 #define GI(a)		((uint32_t)(a) >> 24)
 
-	st = GS(*astate);
+	st = (unsigned char)GS(*astate);
 
 	if (flag & UNVIS_END) {
 		switch (st) {
@@ -211,14 +211,14 @@ unvis(char *cp, int c, int *astate, int flag)
 
 	case S_META1:
 		*astate = SS(0, S_GROUND);
-		*cp |= c;
+		*cp |= (char)c;
 		return UNVIS_VALID;
 
 	case S_CTRL:
 		if (c == '?')
 			*cp |= 0177;
 		else
-			*cp |= c & 037;
+			*cp |= (char)(c & 037);
 		*astate = SS(0, S_GROUND);
 		return UNVIS_VALID;
 

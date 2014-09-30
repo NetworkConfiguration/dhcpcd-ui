@@ -139,9 +139,9 @@ dhcpcd_svis(char *dst, int c, int flag, int nextc, const char *extra)
 
 	*dst++ = '\\';
 	if (isextra || ((c & 0177) == ' ') || (flag & VIS_OCTAL)) {
-		*dst++ = (((unsigned char)c >> 6) & 03) + '0';
-		*dst++ = (((unsigned char)c >> 3) & 07) + '0';
-		*dst++ = ( (unsigned char)c       & 07) + '0';
+		*dst++ = (char)((((unsigned char)c >> 6) & 03) + '0');
+		*dst++ = (char)((((unsigned char)c >> 3) & 07) + '0');
+		*dst++ = (char)(( (unsigned char)c       & 07) + '0');
 	} else {
 		if (c & 0200) {
 			c &= 0177; *dst++ = 'M';
