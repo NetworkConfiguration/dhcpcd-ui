@@ -77,6 +77,10 @@ DhcpcdQt::DhcpcdQt()
 DhcpcdQt::~DhcpcdQt()
 {
 
+	/* This will have already been destroyed,
+	 * but the reference may not be. */
+	ssidMenu = NULL;
+
 	if (con != NULL) {
 		dhcpcd_close(con);
 		dhcpcd_free(con);
