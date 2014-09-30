@@ -231,6 +231,11 @@ get_value(const char *data, size_t len, const char *var)
 	vlen = strlen(var);
 	p = NULL;
 	while (data + vlen + 1 < end) {
+		/* Skip past NUL padding */
+		if (*data == '\0') {
+			data++;
+			continue;
+		}
 		if (strncmp(data, var, vlen) == 0 && data[vlen] == '=') {
 			p = data + vlen + 1;
 			break;
@@ -320,25 +325,6 @@ dhcpcd_encode(char *dst, size_t dlen, const char *src, size_t slen)
 	*d = '\0';
 
 	return d - dst;
-}
-
-ssize_t
-dhcpcd_decode_shell(char *dst, size_t dlen, const char *src)
-{
-	char *tmp;
-	ssize_t l;
-
-	assert(dst);
-	assert(src);
-
-	tmp = malloc(dlen);
-	if (tmp == NULL)
-		return -1;
-	if ((l = dhcpcd_decode(tmp, dlen, src)) != -1)
-		l = dhcpcd_encode(dst, dlen, tmp, (size_t)l);
-
-	free(tmp);
-	return l;
 }
 
 const char *
@@ -449,11 +435,13 @@ dhcpcd_get_if(DHCPCD_CONNECTION *con, const char *ifname, const char *type)
 static DHCPCD_IF *
 dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 {
-	const char *ifname, *ifclass, *reason, *type, *order, *flags, *ssid;
-	char *orderdup, *o, *p;
+	const char *ifname, *ifclass, *reason, *type, *order, *flags;
+	char *orderdup, *o, *p, *dbuf, *end, *dp, *eq;
 	DHCPCD_IF *e, *i, *l, *n, *nl;
 	int ti;
 	bool addedi;
+	ssize_t dl, el;
+	size_t dbuflen, eql;
 
 	ifname = get_value(data, len, "interface");
 	if (ifname == NULL || *ifname == '\0') {
@@ -524,6 +512,44 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 			return NULL;
 	}
 
+	/* Remove all shell encoding but keep our non graphic encoding */
+	end = data + len;
+	dp = data;
+	dbuflen = 128; /* allocate an initial buffer */
+	dbuf = malloc(dbuflen);
+	if (dbuf == NULL)
+		return NULL;
+	while (dp < end) {
+		eq = strchr(dp, '=');
+		if (eq == NULL || *++eq == '\0') {
+			errno = EINVAL;
+			return NULL;
+		}
+		eql = strlen(eq) + 1;
+		if (dbuflen < eql) {
+			char *nbuf;
+
+			nbuf = realloc(dbuf, eql);
+			if (nbuf == NULL) {
+				free(dbuf);
+				return NULL;
+			}
+			dbuf = nbuf;
+			dbuflen = eql;
+		}
+		if ((dl = dhcpcd_decode(dbuf, dbuflen, eq)) == -1 ||
+		    (el = dhcpcd_encode(eq, eql, dbuf, (size_t)dl)) == -1)
+		{
+			free(dbuf);
+			return NULL;
+		}
+		/* NUL pad the remainder so get_value can skip it */
+		if (eql - (size_t)el > 0)
+			memset(eq + el, 0, eql - (size_t)el);
+		dp = eq + eql;
+	}
+	free(dbuf);
+
 	orderdup = strdup(order);
 	if (orderdup == NULL)
 		return NULL;
@@ -573,10 +599,10 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 	else
 		i->up = strtobool(dhcpcd_get_value(i, "if_up"));
 	i->wireless = strtobool(dhcpcd_get_value(i, "ifwireless"));
-	ssid = dhcpcd_get_value(i, i->up ? "new_ssid" : "old_ssid");
-	if (ssid == NULL ||
-	    dhcpcd_decode_shell(i->ssid, sizeof(i->ssid), ssid) == -1)
-		*i->ssid = '\0';
+	if (strcmp(i->type, "link") == 0)
+		i->ssid = dhcpcd_get_value(i, i->up ? "new_ssid" : "old_ssid");
+	else
+		i->ssid = dhcpcd_get_value(i, "if_ssid");
 
        /* Sort! */
 	n = nl = NULL;

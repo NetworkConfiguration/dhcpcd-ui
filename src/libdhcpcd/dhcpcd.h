@@ -84,7 +84,7 @@ typedef struct dhcpcd_if {
 	unsigned int flags;
 	bool up;
 	bool wireless;
-	char ssid[IF_SSIDSIZE];
+	const char *ssid;
 
 	char *data;
 	size_t data_len;
@@ -103,7 +103,7 @@ typedef struct dhcpcd_if {
 	int flags;
 	bool up;
 	bool wireless;
-	char ssid[IF_SSIDSIZE];
+	const char *ssid;
 } DHCPCD_IF;
 #endif
 
@@ -213,7 +213,6 @@ int dhcpcd_strnunvis(char *dst, size_t dlen, const char *src);
 #endif
 ssize_t dhcpcd_encode(char *dst, size_t dlen, const char *src, size_t slen);
 ssize_t dhcpcd_decode(char *dst, size_t dlen, const char *src);
-ssize_t dhcpcd_decode_shell(char *dst, size_t dlen, const char *src);
 ssize_t dhcpcd_decode_hex(char *dst, size_t dlen, const char *src);
 
 char * dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg);

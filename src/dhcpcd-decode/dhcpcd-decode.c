@@ -34,6 +34,22 @@
 
 #include "dhcpcd.h"
 
+static ssize_t
+dhcpcd_decode_shell(char *dst, size_t dlen, const char *src)
+{
+	char *tmp;
+	ssize_t l;
+
+	tmp = malloc(dlen);
+	if (tmp == NULL)
+		return -1;
+	if ((l = dhcpcd_decode(tmp, dlen, src)) != -1)
+		l = dhcpcd_encode(dst, dlen, tmp, (size_t)l);
+
+	free(tmp);
+	return l;
+}
+
 static void
 process(char *src, ssize_t (*decode)(char *, size_t, const char *))
 {
