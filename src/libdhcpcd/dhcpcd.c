@@ -231,8 +231,8 @@ get_value(const char *data, size_t len, const char *var)
 	vlen = strlen(var);
 	p = NULL;
 	while (data + vlen + 1 < end) {
-		if (strncmp(data, var, vlen) == 0) {
-			p = data + vlen;
+		if (strncmp(data, var, vlen) == 0 && data[vlen] == '=') {
+			p = data + vlen + 1;
 			break;
 		}
 		data += strlen(data) + 1;
@@ -455,17 +455,17 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 	int ti;
 	bool addedi;
 
-	ifname = get_value(data, len, "interface=");
+	ifname = get_value(data, len, "interface");
 	if (ifname == NULL || *ifname == '\0') {
 		errno = ESRCH;
 		return NULL;
 	}
-	reason = get_value(data, len, "reason=");
+	reason = get_value(data, len, "reason");
 	if (reason == NULL || *reason == '\0') {
 		errno = ESRCH;
 		return NULL;
 	}
-	ifclass = get_value(data, len, "ifclass=");
+	ifclass = get_value(data, len, "ifclass");
 	/* Skip pseudo interfaces */
 	if (ifclass && *ifclass != '\0') {
 		errno = ENOTSUP;
@@ -475,7 +475,7 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 		errno = ENOTSUP;
 		return NULL;
 	}
-	order = get_value(data, len, "interface_order=");
+	order = get_value(data, len, "interface_order");
 	if (order == NULL || *order == '\0') {
 		errno = ESRCH;
 		return NULL;
@@ -563,7 +563,7 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 	i->ifname = ifname;
 	i->type = type;
 	i->reason = reason;
-	flags = dhcpcd_get_value(i, "ifflags=");
+	flags = dhcpcd_get_value(i, "ifflags");
 	if (flags)
 		i->flags = (unsigned int)strtoul(flags, NULL, 0);
 	else
@@ -571,9 +571,9 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 	if (strcmp(reason, "CARRIER") == 0)
 		i->up = true;
 	else
-		i->up = strtobool(dhcpcd_get_value(i, "if_up="));
-	i->wireless = strtobool(dhcpcd_get_value(i, "ifwireless="));
-	ssid = dhcpcd_get_value(i, i->up ? "new_ssid=" : "old_ssid=");
+		i->up = strtobool(dhcpcd_get_value(i, "if_up"));
+	i->wireless = strtobool(dhcpcd_get_value(i, "ifwireless"));
+	ssid = dhcpcd_get_value(i, i->up ? "new_ssid" : "old_ssid");
 	if (ssid == NULL ||
 	    dhcpcd_decode_shell(i->ssid, sizeof(i->ssid), ssid) == -1)
 		*i->ssid = '\0';
@@ -944,7 +944,7 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 	assert(i);
 	/* Don't report non SLAAC configurations */
 	if (strcmp(i->type, "ra") == 0 && i->up &&
-	    dhcpcd_get_value(i, "ra1_prefix=") == NULL)
+	    dhcpcd_get_value(i, "ra1_prefix") == NULL)
 		return NULL;
 
 	showssid = false;
@@ -984,12 +984,12 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 	}
 
 	pfx = i->up ? "new_" : "old_";
-	if ((ip = dhcpcd_get_prefix_value(i, pfx, "ip_address=")))
-		iplen = dhcpcd_get_prefix_value(i, pfx, "subnet_cidr=");
-	else if ((ip = dhcpcd_get_value(i, "ra1_prefix=")))
+	if ((ip = dhcpcd_get_prefix_value(i, pfx, "ip_address")))
+		iplen = dhcpcd_get_prefix_value(i, pfx, "subnet_cidr");
+	else if ((ip = dhcpcd_get_value(i, "ra1_prefix")))
 		iplen = NULL;
 	else if ((ip = dhcpcd_get_prefix_value(i, pfx,
-	    "dhcp6_ia_na1_ia_addr1=")))
+	    "dhcp6_ia_na1_ia_addr1")))
 		iplen = "128";
 	else {
 		ip = NULL;
