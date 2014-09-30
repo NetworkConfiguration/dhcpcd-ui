@@ -29,6 +29,11 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * HEAVILY trimmed down for use only in dhcpcd.
+ * Please use the source in NetBSD for a fuller working copy.
+ */
+
 #include <sys/types.h>
 
 #include <assert.h>
@@ -77,7 +82,7 @@
  * unvis - decode characters previously encoded by vis
  */
 static int
-unvis(char *cp, char c, int *astate, int flag)
+unvis(char *cp, int c, int *astate, int flag)
 {
 	unsigned char uc = (unsigned char)c;
 	unsigned char st;
@@ -114,18 +119,18 @@ unvis(char *cp, char c, int *astate, int flag)
 			*astate = SS(0, S_START);
 			return UNVIS_NOCHAR;
 		}
-		*cp = c;
+		*cp = (char)c;
 		return UNVIS_VALID;
 
 	case S_START:
 		switch(c) {
 		case '\\':
-			*cp = c;
+			*cp = (char)c;
 			*astate = SS(0, S_GROUND);
 			return UNVIS_VALID;
 		case '0': case '1': case '2': case '3':
 		case '4': case '5': case '6': case '7':
-			*cp = (c - '0');
+			*cp = (char)(c - '0');
 			*astate = SS(0, S_OCTAL2);
 			return UNVIS_NOCHAR;
 		case 'M':
@@ -188,7 +193,7 @@ unvis(char *cp, char c, int *astate, int flag)
 			return UNVIS_NOCHAR;
 		default:
 			if (isgraph(c)) {
-				*cp = c;
+				*cp = (char)c;
 				*astate = SS(0, S_GROUND);
 				return UNVIS_VALID;
 			}
@@ -287,7 +292,7 @@ unvis(char *cp, char c, int *astate, int flag)
 int
 dhcpcd_strnunvis(char *dst, size_t dlen, const char *src)
 {
-	char c;
+	int c;
 	char t = '\0', *start = dst;
 	int state = 0;
 

@@ -1,6 +1,6 @@
 LIB=		dhcpcd
 SHLIB_MAJOR=	1
-SRCS=		dhcpcd.c config.c wpa.c ${UNVIS_SRC}
+SRCS=		dhcpcd.c config.c wpa.c ${VIS_SRC} ${UNVIS_SRC}
 INCS=		dhcpcd.h
 
 TOPDIR=		../..

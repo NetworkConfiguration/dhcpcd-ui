@@ -195,9 +195,10 @@ static DHCPCD_WI_SCAN *
 dhcpcd_wpa_scans_read(DHCPCD_WPA *wpa)
 {
 	size_t i;
-	ssize_t bytes;
+	ssize_t bytes, dl;
 	DHCPCD_WI_SCAN *wis, *w, *l;
 	char *s, *p, buf[32];
+	char wssid[sizeof(w->ssid)], tssid[sizeof(w->ssid)];
 
 	if (!dhcpcd_realloc(wpa->con, 2048))
 		return NULL;
@@ -235,8 +236,14 @@ dhcpcd_wpa_scans_read(DHCPCD_WPA *wpa)
 				dhcpcd_strtoi(&w->level.value, s + 6);
 			else if (strncmp(s, "flags=", 6) == 0)
 				strlcpy(w->flags, s + 6, sizeof(w->flags));
-			else if (strncmp(s, "ssid=", 5) == 0)
-				strlcpy(w->ssid, s + 5, sizeof(w->ssid));
+			else if (strncmp(s, "ssid=", 5) == 0) {
+				/* Decode it from \xNN to \NNN
+				 * so we're consistent */
+				strlcpy(wssid, s + 5, sizeof(wssid));
+				dl = dhcpcd_decode(tssid, sizeof(tssid), wssid);
+				dhcpcd_encode(w->ssid, sizeof(w->ssid),
+				    tssid, (size_t)dl);
+			}
 		}
 
 		w->strength.value = w->level.value;
@@ -409,14 +416,18 @@ dhcpcd_wpa_network_set(DHCPCD_WPA *wpa, int id,
 static int
 dhcpcd_wpa_network_find(DHCPCD_WPA *wpa, const char *fssid)
 {
-	ssize_t bytes;
+	ssize_t bytes, dl, tl;
 	char *s, *t, *ssid, *bssid, *flags;
+	char dssid[IF_SSIDSIZE], tssid[IF_SSIDSIZE];
 	long l;
 
 	dhcpcd_realloc(wpa->con, 2048);
 	bytes = wpa_cmd(wpa->command_fd, "LIST_NETWORKS",
 	    wpa->con->buf, wpa->con->buflen);
 	if (bytes == 0 || bytes == -1)
+		return -1;
+
+	if ((dl = dhcpcd_decode(dssid, sizeof(dssid), fssid)) == -1)
 		return -1;
 
 	s = strchr(wpa->con->buf, '\n');
@@ -442,7 +453,10 @@ dhcpcd_wpa_network_find(DHCPCD_WPA *wpa, const char *fssid)
 			errno = ERANGE;
 			break;
 		}
-		if (strcmp(ssid, fssid) == 0)
+
+		if ((tl = dhcpcd_decode(tssid, sizeof(tssid), ssid)) == -1)
+			return -1;
+		if (tl == dl && memcmp(tssid, dssid, (size_t)tl) == 0)
 			return (int)l;
 	}
 	errno = ENOENT;
@@ -468,14 +482,44 @@ dhcpcd_wpa_network_new(DHCPCD_WPA *wpa)
 	return (int)l;
 }
 
+static const char hexstr[] = "0123456789ABCDEF";
 int
 dhcpcd_wpa_network_find_new(DHCPCD_WPA *wpa, const char *ssid)
 {
 	int id;
+	char dssid[IF_SSIDSIZE], essid[IF_SSIDSIZE], *ep;
+	ssize_t dl;
 
 	id = dhcpcd_wpa_network_find(wpa, ssid);
-	if (id == -1)
-		id = dhcpcd_wpa_network_new(wpa);
+	if (id != -1)
+		return id;
+
+	dl = dhcpcd_decode(dssid, sizeof(dssid), ssid);
+	if (dl == -1)
+		return -1;
+
+	ep = essid;
+	if ((size_t)dl != strlen(ssid) || memcmp(dssid, ssid, (size_t)dl)) {
+		/* Non standard characters found! Encode as hex string */
+		char *dp;
+		unsigned char c;
+
+		dp = dssid;
+		for (; dl; dl--) {
+			c = (unsigned char)*dp++;
+			*ep++ = hexstr[c >> 4];
+			*ep++ = hexstr[c & 0xf];
+		}
+	} else {
+		*ep++ = '\"';
+		ep = stpcpy(ep, ssid);
+		*ep++ = '\"';
+	}
+	*ep = '\0';
+
+	id = dhcpcd_wpa_network_new(wpa);
+	if (id != -1)
+		dhcpcd_wpa_network_set(wpa, id, "ssid", essid);
 	return id;
 }
 

@@ -298,10 +298,34 @@ dhcpcd_decode_hex(char *dst, size_t dlen, const char *src)
 }
 
 ssize_t
+dhcpcd_encode(char *dst, size_t dlen, const char *src, size_t slen)
+{
+	char *d, c, v[5], *ve, *vp;
+	const char *send;
+
+	d = dst;
+	send = src + slen;
+	while (src < send) {
+		c = *src++;
+		ve = vis(v, c, VIS_OCTAL | VIS_CSTYLE, src != send ? *src : 0);
+		if (dlen < (size_t)(ve - v) + 1) {
+			errno = ENOSPC;
+			return -1;
+		}
+		dlen -= (size_t)(ve - v);
+		vp = v;
+		while (vp != ve)
+			*d++ = *vp++;
+	}
+	*d = '\0';
+
+	return d - dst;
+}
+
+ssize_t
 dhcpcd_decode_shell(char *dst, size_t dlen, const char *src)
 {
-	char *tmp, *p, *e, *d;
-	int c;
+	char *tmp;
 	ssize_t l;
 
 	assert(dst);
@@ -310,41 +334,11 @@ dhcpcd_decode_shell(char *dst, size_t dlen, const char *src)
 	tmp = malloc(dlen);
 	if (tmp == NULL)
 		return -1;
-	if ((l = dhcpcd_decode(tmp, dlen, src)) == -1) {
-		free(tmp);
-		return -1;
-	}
+	if ((l = dhcpcd_decode(tmp, dlen, src)) != -1)
+		l = dhcpcd_encode(dst, dlen, tmp, (size_t)l);
 
-	p = tmp;
-	e = tmp + l;
-	d = dst;
-	while (p < e) {
-		c = *p++;
-
-		if (isascii(c) && (isgraph(c) || iswhite(c))) {
-			if (dlen < 2) {
-				errno = ENOSPC;
-				return -1;
-			}
-			*d++ = (char)c;
-			dlen--;
-			continue;
-		}
-
-		if (dlen < 5) {
-			errno = ENOSPC;
-			return -1;
-		}
-		*d++ = '\\';
-		*d++ = (((unsigned char)c >> 6) & 03) + '0';
-		*d++ = (((unsigned char)c >> 3) & 07) + '0';
-		*d++ = ( (unsigned char)c       & 07) + '0';
-		dlen -= 4;
-	}
-	*d = '\0';
 	free(tmp);
-
-	return d - dst;
+	return l;
 }
 
 const char *
