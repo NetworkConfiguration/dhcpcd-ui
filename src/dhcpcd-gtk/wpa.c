@@ -104,7 +104,6 @@ wpa_configure(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *scan)
 	gtk_container_add(GTK_CONTAINER(vbox), hbox);
 
 	gtk_widget_show_all(wpa_dialog);
-again:
 	result = gtk_dialog_run(GTK_DIALOG(wpa_dialog));
 
 	retval = false;
@@ -133,10 +132,8 @@ again:
 			errt = strerror(errno);
 			break;
 		}
-		if (!retval) {
+		if (!retval)
 			wpa_show_err(_("Error enabling network"), errt);
-			goto again;
-		}
 	}
 	if (wpa_dialog) {
 		gtk_widget_destroy(wpa_dialog);
