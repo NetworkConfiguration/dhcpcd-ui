@@ -312,7 +312,6 @@ dhcpcd_encode_string_escape(char *dst, size_t len, const char *src, size_t slen)
 		}
 		*dst = '\0';
 	}
-	bytes++;
 
 	return (ssize_t)bytes;
 }
@@ -331,7 +330,7 @@ dhcpcd_decode_string_escape(char *dst, size_t dlen, const char *src)
 			break;
 		if (dst && --dlen == 0) {
 			errno = ENOSPC;
-			return 0;
+			return -1;
 		}
 		switch (c) {
 		case '\\':
@@ -375,6 +374,11 @@ dhcpcd_decode_string_escape(char *dst, size_t dlen, const char *src)
 		}
 		bytes++;
 	}
+	if (dst && --dlen == 0) {
+		errno = ENOSPC;
+		return -1;
+	}
+	*dst = '\0';
 	return bytes;
 }
 
