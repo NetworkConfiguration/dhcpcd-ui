@@ -93,14 +93,14 @@ wpa_configure(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *scan)
 	    GTK_RESPONSE_ACCEPT);
 	vbox = gtk_dialog_get_content_area(GTK_DIALOG(wpa_dialog));
 
-	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 	label = gtk_label_new(_("Pre Shared Key:"));
-	gtk_box_pack_start(GTK_BOX(hbox), label, false, false, 0);
+	gtk_box_pack_start(GTK_BOX(hbox), label, false, false, 5);
 	psk = gtk_entry_new();
 	gtk_entry_set_max_length(GTK_ENTRY(psk), 130);
 	g_signal_connect(G_OBJECT(psk), "activate",
 	    G_CALLBACK(onEnter), wpa_dialog);
-	gtk_box_pack_start(GTK_BOX(hbox), psk, true, true, 0);
+	gtk_box_pack_start(GTK_BOX(hbox), psk, true, true, 5);
 	gtk_container_add(GTK_CONTAINER(vbox), hbox);
 
 	gtk_widget_show_all(wpa_dialog);

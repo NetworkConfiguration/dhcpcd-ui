@@ -177,12 +177,14 @@ create_menu(GtkWidget *m, WI_SCAN *wis, DHCPCD_WI_SCAN *scan)
 	    g_strcmp0(scan->ssid, wis->interface->ssid) == 0)
 		gtk_check_menu_item_set_active(
 		    GTK_CHECK_MENU_ITEM(wim->menu), true);
+
 	if (scan->flags[0] == '\0')
 		icon = "network-wireless";
 	else
 		icon = "network-wireless-encrypted";
 	wim->icon = gtk_image_new_from_icon_name(icon,
 	    GTK_ICON_SIZE_MENU);
+
 	gtk_box_pack_start(GTK_BOX(box), wim->icon, FALSE, FALSE, 0);
 
 	wim->bar = gtk_progress_bar_new();
@@ -212,7 +214,8 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 {
 	WI_MENU *wim, *win;
 	DHCPCD_WI_SCAN *s;
-	bool found, added;
+	bool found;
+	int adjust = 0;
 
 	if (menu == NULL) {
 		dhcpcd_wi_scans_free(wi->scans);
@@ -232,14 +235,13 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 		}
 		if (!found) {
 			TAILQ_REMOVE(&wi->menus, wim, next);
-			g_message("removed %s", wim->scan->ssid);
 			gtk_widget_destroy(wim->menu);
 			g_free(wim->scan);
 			g_free(wim);
+			adjust--;
 		}
 	}
 
-	added = false;
 	for (s = scans; s; s = s->next) {
 		found = false;
 		TAILQ_FOREACH(wim, &wi->menus, next) {
@@ -251,24 +253,18 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 			}
 		}
 		if (!found) {
-			added = true;
 			wim = create_menu(wi->ifmenu, wi, s);
 			TAILQ_INSERT_TAIL(&wi->menus, wim, next);
 			gtk_widget_show_all(wim->menu);
-			g_message("added %s", wim->scan->ssid);
+			adjust++;
 		}
 	}
 
 	dhcpcd_wi_scans_free(wi->scans);
 	wi->scans = scans;
 
-	if (added && gtk_widget_get_visible(wi->ifmenu)) {
-//		gtk_widget_hide(wi->ifmenu);
-//		gtk_menu_popup(GTK_MENU(wi->ifmenu), NULL, NULL,
-//		    gtk_status_icon_position_menu, sicon,
-//		    1, gtk_get_current_event_time());
-//		gtk_widget_show(wi->ifmenu);
-	}
+	if (adjust && gtk_widget_get_visible(wi->ifmenu))
+		gtk_menu_reposition(GTK_MENU(wi->ifmenu));
 }
 
 
