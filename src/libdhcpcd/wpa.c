@@ -578,7 +578,7 @@ dhcpcd_wpa_network_new(DHCPCD_WPA *wpa)
 	return (int)l;
 }
 
-static const char hexstr[] = "0123456789abcdef";
+static const char hexchrs[] = "0123456789abcdef";
 int
 dhcpcd_wpa_network_find_new(DHCPCD_WPA *wpa, const char *ssid)
 {
@@ -607,8 +607,8 @@ dhcpcd_wpa_network_find_new(DHCPCD_WPA *wpa, const char *ssid)
 		dp = dssid;
 		for (; dl; dl--) {
 			c = (unsigned char)*dp++;
-			*ep++ = hexstr[c >> 4];
-			*ep++ = hexstr[c & 0xf];
+			*ep++ = hexchrs[(c & 0xf0) >> 4];
+			*ep++ = hexchrs[(c & 0x0f)];
 		}
 	} else {
 		*ep++ = '\"';
