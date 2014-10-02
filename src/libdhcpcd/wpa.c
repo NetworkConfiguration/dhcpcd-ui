@@ -595,7 +595,7 @@ dhcpcd_wpa_network_find_new(DHCPCD_WPA *wpa, const char *ssid)
 		return -1;
 
 	for (i = 0; i < dl; i++) {
-		if (!isascii(dssid[i]) && !isprint(dssid[i]))
+		if (!isascii((int)dssid[i]) && !isprint((int)dssid[i]))
 			break;
 	}
 	ep = essid;
