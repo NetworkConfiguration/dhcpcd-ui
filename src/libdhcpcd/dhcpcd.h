@@ -200,22 +200,10 @@ DHCPCD_CONNECTION * dhcpcd_if_connection(DHCPCD_IF *);
 const char *dhcpcd_get_value(const DHCPCD_IF *, const char *);
 const char *dhcpcd_get_prefix_value(const DHCPCD_IF *, const char *,
     const char *);
-
-#ifdef IN_LIBDHCPCD
-#ifndef VIS_OCTAL
-#define VIS_OCTAL	0x0001
-#define VIS_CSTYLE	0x0002
-#endif
-/* These functions only exists if libc does not provide a working one */
-char *dhcpcd_svis(char *dst, int c, int flags, int nextc, const char *extra);
-char *dhcpcd_vis(char *dst, int c, int flags, int nextc);
-int dhcpcd_strnunvis(char *dst, size_t dlen, const char *src);
-#endif
-ssize_t dhcpcd_encode(char *dst, size_t dlen, const char *src, size_t slen);
-ssize_t dhcpcd_decode(char *dst, size_t dlen, const char *src);
-ssize_t dhcpcd_decode_hex(char *dst, size_t dlen, const char *src);
-
-char * dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg);
+ssize_t dhcpcd_encode_string_escape(char *, size_t, const char *, size_t);
+ssize_t dhcpcd_decode_string_escape(char *, size_t, const char *);
+ssize_t dhcpcd_decode_hex(char *, size_t, const char *);
+char * dhcpcd_if_message(DHCPCD_IF *, bool *);
 
 ssize_t dhcpcd_command(DHCPCD_CONNECTION *, const char *, char **);
 ssize_t dhcpcd_command_arg(DHCPCD_CONNECTION *, const char *, const char *,

@@ -29,6 +29,7 @@
 #include <sys/un.h>
 
 #include <assert.h>
+#include <ctype.h>
 #include <errno.h>
 #include <limits.h>
 #include <poll.h>
@@ -191,6 +192,83 @@ dhcpcd_strtoi(int *val, const char *s)
 		errno = ERANGE;
 }
 
+static int
+dhcpcd_wpa_hex2num(char c)
+{
+
+	if (c >= '0' && c <= '9')
+		return c - '0';
+	if (c >= 'a' && c <= 'f')
+		return c - 'a' + 10;
+	if (c >= 'A' && c <= 'F')
+		return c - 'A' + 10;
+	return -1;
+}
+
+static int
+dhcpcd_wpa_hex2byte(const char *src)
+{
+	int h, l;
+
+	if ((h = dhcpcd_wpa_hex2num(*src++)) == -1 ||
+	    (l = dhcpcd_wpa_hex2num(*src)) == -1)
+		return -1;
+	return (h << 4) | l;
+}
+
+static ssize_t
+dhcpcd_wpa_decode_ssid(char *dst, size_t dlen, const char *src)
+{
+	const char *start;
+	char c, esc;
+	int xb;
+
+	start = dst;
+	for (;;) {
+		if (*src == '\0')
+			break;
+		if (--dlen == 0) {
+			errno = ENOSPC;
+			return -1;
+		}
+		c = *src++;
+		switch (c) {
+		case '\\':
+			if (*src == '\0') {
+				errno = EINVAL;
+				return -1;
+			}
+			esc = *src++;
+			switch (esc) {
+			case '\\':
+			case '"': *dst++ = esc; break;
+			case 'n': *dst++ = '\n'; break;
+			case 'r': *dst++ = '\r'; break;
+			case 't': *dst++ = '\t'; break;
+			case 'e': *dst++ = '\033'; break;
+			case 'x':
+				if (src[0] == '\0' || src[1] == '\0') {
+					errno = EINVAL;
+					return -1;
+				}
+				if ((xb = dhcpcd_wpa_hex2byte(src)) == -1)
+					return -1;
+				*dst++ = (char)xb;
+				src += 2;
+				break;
+			default: errno = EINVAL; return -1;
+			}
+		default: *dst++ = c; break;
+		}
+	}
+	if (dlen == 0) {
+		errno = ENOSPC;
+		return -1;
+	}
+	*dst = '\0';
+	return dst - start;
+}
+
 static DHCPCD_WI_SCAN *
 dhcpcd_wpa_scans_read(DHCPCD_WPA *wpa)
 {
@@ -198,7 +276,7 @@ dhcpcd_wpa_scans_read(DHCPCD_WPA *wpa)
 	ssize_t bytes, dl;
 	DHCPCD_WI_SCAN *wis, *w, *l;
 	char *s, *p, buf[32];
-	char wssid[sizeof(w->ssid)], tssid[sizeof(w->ssid)];
+	char wssid[sizeof(w->ssid)];
 
 	if (!dhcpcd_realloc(wpa->con, 2048))
 		return NULL;
@@ -214,11 +292,8 @@ dhcpcd_wpa_scans_read(DHCPCD_WPA *wpa)
 		w = calloc(1, sizeof(*w));
 		if (w == NULL)
 			break;
-		if (wis == NULL)
-			wis = w;
-		else
-			l->next = w;
-		l = w;
+		dl = 0;
+		wssid[0] = '\0';
 		while ((s = strsep(&p, "\n"))) {
 			if (*s == '\0')
 				continue;
@@ -239,12 +314,26 @@ dhcpcd_wpa_scans_read(DHCPCD_WPA *wpa)
 			else if (strncmp(s, "ssid=", 5) == 0) {
 				/* Decode it from \xNN to \NNN
 				 * so we're consistent */
-				strlcpy(wssid, s + 5, sizeof(wssid));
-				dl = dhcpcd_decode(tssid, sizeof(tssid), wssid);
-				dhcpcd_encode(w->ssid, sizeof(w->ssid),
-				    tssid, (size_t)dl);
+				dl = dhcpcd_wpa_decode_ssid(wssid,
+				    sizeof(wssid), s + 5);
+				if (dl == -1)
+					break;
+				dl = dhcpcd_encode_string_escape(w->ssid,
+				    sizeof(w->ssid), wssid, (size_t)dl);
+				if (dl == -1)
+					break;
 			}
 		}
+		if (dl == -1) {
+			free(w);
+			break;
+		}
+
+		if (wis == NULL)
+			wis = w;
+		else
+			l->next = w;
+		l = w;
 
 		w->strength.value = w->level.value;
 		if (w->strength.value > 110 && w->strength.value < 256)
@@ -261,7 +350,6 @@ dhcpcd_wpa_scans_read(DHCPCD_WPA *wpa)
 			/* Assume quality percentage */
 			w->strength.value = CLAMP(w->strength.value, 0, 100);
 		}
-
 	}
 	return wis;
 }
@@ -417,6 +505,7 @@ static int
 dhcpcd_wpa_network_find(DHCPCD_WPA *wpa, const char *fssid)
 {
 	ssize_t bytes, dl, tl;
+	size_t fl;
 	char *s, *t, *ssid, *bssid, *flags;
 	char dssid[IF_SSIDSIZE], tssid[IF_SSIDSIZE];
 	long l;
@@ -427,8 +516,7 @@ dhcpcd_wpa_network_find(DHCPCD_WPA *wpa, const char *fssid)
 	if (bytes == 0 || bytes == -1)
 		return -1;
 
-	if ((dl = dhcpcd_decode(dssid, sizeof(dssid), fssid)) == -1)
-		return -1;
+	fl = strlen(fssid);
 
 	s = strchr(wpa->con->buf, '\n');
 	if (s == NULL)
@@ -453,10 +541,18 @@ dhcpcd_wpa_network_find(DHCPCD_WPA *wpa, const char *fssid)
 			errno = ERANGE;
 			break;
 		}
-
-		if ((tl = dhcpcd_decode(tssid, sizeof(tssid), ssid)) == -1)
+	
+		/* Decode the wpa_supplicant SSID into raw chars and
+		 * then encode into our octal escaped string to
+		 * compare. */
+		dl = dhcpcd_wpa_decode_ssid(dssid, sizeof(dssid), ssid);
+		if (dl == -1)
 			return -1;
-		if (tl == dl && memcmp(tssid, dssid, (size_t)tl) == 0)
+		tl = dhcpcd_encode_string_escape(tssid,
+		    sizeof(tssid), dssid, (size_t)dl);
+		if (tl == -1)
+			return -1;
+		if ((size_t)tl == fl && memcmp(tssid, fssid, (size_t)tl) == 0)
 			return (int)l;
 	}
 	errno = ENOENT;
@@ -482,24 +578,28 @@ dhcpcd_wpa_network_new(DHCPCD_WPA *wpa)
 	return (int)l;
 }
 
-static const char hexstr[] = "0123456789ABCDEF";
+static const char hexstr[] = "0123456789abcdef";
 int
 dhcpcd_wpa_network_find_new(DHCPCD_WPA *wpa, const char *ssid)
 {
 	int id;
 	char dssid[IF_SSIDSIZE], essid[IF_SSIDSIZE], *ep;
-	ssize_t dl;
+	ssize_t dl, i;
 
 	id = dhcpcd_wpa_network_find(wpa, ssid);
 	if (id != -1)
 		return id;
 
-	dl = dhcpcd_decode(dssid, sizeof(dssid), ssid);
+	dl = dhcpcd_decode_string_escape(dssid, sizeof(dssid), ssid);
 	if (dl == -1)
 		return -1;
 
+	for (i = 0; i < dl; i++) {
+		if (!isascii(dssid[i]) && !isprint(dssid[i]))
+			break;
+	}
 	ep = essid;
-	if ((size_t)dl != strlen(ssid) || memcmp(dssid, ssid, (size_t)dl)) {
+	if (i < dl) {
 		/* Non standard characters found! Encode as hex string */
 		char *dp;
 		unsigned char c;
@@ -512,7 +612,7 @@ dhcpcd_wpa_network_find_new(DHCPCD_WPA *wpa, const char *ssid)
 		}
 	} else {
 		*ep++ = '\"';
-		ep = stpcpy(ep, ssid);
+		ep = stpcpy(ep, dssid);
 		*ep++ = '\"';
 	}
 	*ep = '\0';
