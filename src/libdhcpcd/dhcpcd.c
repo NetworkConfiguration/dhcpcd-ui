@@ -261,7 +261,7 @@ dhcpcd_encode_string_escape(char *dst, size_t len, const char *src, size_t slen)
 {
 	const char *end;
 	size_t bytes;
-	char c;
+	int c;
 
 	end = src + slen;
 	bytes = 0;
@@ -648,6 +648,8 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 		i->up = strtobool(dhcpcd_get_value(i, "if_up"));
 	i->wireless = strtobool(dhcpcd_get_value(i, "ifwireless"));
 	i->ssid = dhcpcd_get_value(i, "ifssid");
+	if (i->ssid == NULL && i->wireless)
+		i->ssid = dhcpcd_get_value(i, i->up ? "new_ssid" : "old_ssid");
 
        /* Sort! */
 	n = nl = NULL;
