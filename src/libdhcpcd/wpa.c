@@ -541,7 +541,7 @@ dhcpcd_wpa_network_find(DHCPCD_WPA *wpa, const char *fssid)
 			errno = ERANGE;
 			break;
 		}
-	
+
 		/* Decode the wpa_supplicant SSID into raw chars and
 		 * then encode into our octal escaped string to
 		 * compare. */
@@ -585,6 +585,7 @@ dhcpcd_wpa_network_find_new(DHCPCD_WPA *wpa, const char *ssid)
 	int id;
 	char dssid[IF_SSIDSIZE], essid[IF_SSIDSIZE], *ep;
 	ssize_t dl, i;
+	char *dp;
 
 	id = dhcpcd_wpa_network_find(wpa, ssid);
 	if (id != -1)
@@ -598,13 +599,12 @@ dhcpcd_wpa_network_find_new(DHCPCD_WPA *wpa, const char *ssid)
 		if (!isascii((int)dssid[i]) && !isprint((int)dssid[i]))
 			break;
 	}
+	dp = dssid;
 	ep = essid;
 	if (i < dl) {
 		/* Non standard characters found! Encode as hex string */
-		char *dp;
 		unsigned char c;
 
-		dp = dssid;
 		for (; dl; dl--) {
 			c = (unsigned char)*dp++;
 			*ep++ = hexchrs[(c & 0xf0) >> 4];
@@ -612,7 +612,9 @@ dhcpcd_wpa_network_find_new(DHCPCD_WPA *wpa, const char *ssid)
 		}
 	} else {
 		*ep++ = '\"';
-		ep = stpcpy(ep, dssid);
+		do
+			*ep++ = *dp;
+		while (*++dp != '\0');
 		*ep++ = '\"';
 	}
 	*ep = '\0';
