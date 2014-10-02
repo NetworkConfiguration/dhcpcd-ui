@@ -18,6 +18,12 @@ has_libintl {
 	LIBS +=		-lintl
 }
 
+has_libkdeui {
+	LIBS+=		-lkdeui
+	DEFINES+=	NOTIFY
+	INSTALLS+=	notifyrc
+}
+
 QMAKE_CLEAN+=		${TARGET}
 
 isEmpty(PREFIX) {
@@ -40,5 +46,8 @@ desktop.files=		dhcpcd-qt.desktop
 
 autostart.path=		$$SYSCONFDIR/xdg/autostart
 autostart.files=	dhcpcd-qt.desktop
+
+notifyrc.path=		$$PREFIX/share/apps/dhcpcd-qt
+notifyrc.files=		dhcpcd-qt.notifyrc
 
 INSTALLS+=		target man8 desktop autostart

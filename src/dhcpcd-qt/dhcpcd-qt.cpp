@@ -40,6 +40,8 @@
 #include "dhcpcd-ifmenu.h"
 #include "dhcpcd-ssidmenu.h"
 
+#include <knotification.h>
+
 DhcpcdQt::DhcpcdQt()
 {
 
@@ -257,8 +259,9 @@ void DhcpcdQt::ifCallback(DHCPCD_IF *i)
 				QSystemTrayIcon::MessageIcon icon =
 				    i->up ? QSystemTrayIcon::Information :
 				    QSystemTrayIcon::Warning;
-				trayIcon->showMessage(tr("Network Event"),
-				    msg, icon);
+				QString t = tr("Network Event");
+				QString m = msg;
+				notify(t, m, icon);
 			}
 			free(msg);
 		}
@@ -333,7 +336,10 @@ void DhcpcdQt::scanCallback(DHCPCD_WPA *wpa)
 		}
 		if (!txt.isEmpty() &&
 		    (ssidMenu == NULL || !ssidMenu->isVisible()))
+		{
+			qDebug("%s", qPrintable(txt));
 			notify(title, txt);
+		}
 	}
 
 	if (wi->setScans(scans) && ssidMenu->isVisible())
@@ -421,11 +427,22 @@ void DhcpcdQt::dispatch() {
 }
 
 void DhcpcdQt::notify(QString &title, QString &msg,
-    QSystemTrayIcon::MessageIcon icon)
+#ifdef NOTIFY
+    QSystemTrayIcon::MessageIcon
+#else
+    QSystemTrayIcon::MessageIcon icon
+#endif
+    )
 {
 
-	qDebug("%s", qPrintable(msg));
+#ifdef NOTIFY
+	KNotification *n = new KNotification("event", this);
+	n->setTitle(title);
+	n->setText(msg);
+	n->sendEvent();
+#else
 	trayIcon->showMessage(title, msg, icon);
+#endif
 }
 
 

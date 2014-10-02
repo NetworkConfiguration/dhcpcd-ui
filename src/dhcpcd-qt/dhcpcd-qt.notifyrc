@@ -1,0 +1,13 @@
+[Global]
+IconName=dhcpcd
+Comment=Network Configurator
+Name=dhcpcd-qt
+
+[Context/event]
+Name=Network Event
+
+[Event/event]
+Name=Network Event
+Comment=A network event has occured
+Contexts=event
+Action=Popup
