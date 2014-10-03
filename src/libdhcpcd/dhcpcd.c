@@ -533,6 +533,14 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 	int ti;
 	bool addedi;
 
+#if 0
+	char *dp = data, *de = data + len;
+	while (dp < de) {
+		printf ("XX: %s\n", dp);
+		dp += strlen(dp) + 1;
+	}
+#endif
+
 	ifname = get_value(data, len, "interface");
 	if (ifname == NULL || *ifname == '\0') {
 		errno = ESRCH;
@@ -549,7 +557,9 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 		errno = ENOTSUP;
 		return NULL;
 	}
-	if (strcmp(reason, "RECONFIGURE") == 0) {
+	if (strcmp(reason, "RECONFIGURE") == 0 ||
+	    strcmp(reason, "INFORM") == 0 || strcmp(reason, "INFORM6") == 0)
+	{
 		errno = ENOTSUP;
 		return NULL;
 	}
@@ -1031,8 +1041,20 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 		if (i->wireless) {
 			showssid = true;
 			reason = _("Associated with");
-		} else
+		} else {
+			/* Don't report able in if we have addresses */
+			const DHCPCD_IF *ci;
+
+			for (ci = i->con->interfaces; ci; ci = ci->next) {
+				if (ci != i &&
+				    strcmp(i->ifname, ci->ifname) == 0 &&
+				    ci->up)
+					break;
+			}
+			if (ci)
+				return NULL;
 			reason = _("Cable plugged in");
+		}
 	} else if (strcmp(i->reason, "NOCARRIER") == 0) {
 		if (i->wireless) {
 			if (i->ssid) {
