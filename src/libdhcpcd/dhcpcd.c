@@ -656,7 +656,8 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 		i->flags = (unsigned int)strtoul(flags, NULL, 0);
 	else
 		i->flags = 0;
-	if (strcmp(reason, "CARRIER") == 0)
+	if (strcmp(reason, "CARRIER") == 0 ||
+	    strcmp(reason, "DELEGATED6") == 0)
 		i->up = true;
 	else
 		i->up = strtobool(dhcpcd_get_value(i, "if_up"));
@@ -1074,9 +1075,12 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 		reason = _("Waiting for 3rd Party configuration");
 
 	if (reason == NULL) {
-		if (i->up)
-			reason = _("Configured");
-		else if (strcmp(i->type, "ra") == 0)
+		if (i->up) {
+			if (strcmp(i->reason, "DELEGATED6") == 0)
+				reason = _("Delegated");
+			else
+				reason = _("Configured");
+		} else if (strcmp(i->type, "ra") == 0)
 			reason = "Expired RA";
 		else
 			reason = i->reason;
@@ -1090,6 +1094,9 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 	else if ((ip = dhcpcd_get_prefix_value(i, pfx,
 	    "dhcp6_ia_na1_ia_addr1")))
 		iplen = "128";
+	else if ((ip = dhcpcd_get_prefix_value(i, pfx,
+	    "delegated_dhcp6_prefix")))
+		iplen = NULL;
 	else {
 		ip = NULL;
 		iplen = NULL;
