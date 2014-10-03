@@ -385,8 +385,6 @@ if [ -n "$WITH_GTK" -a "$WITH_GTK" != no ]; then
 	[ $? != 0 -a "$WITH_GTK" = yes ] && exit 1
 	GTK_LIBS=$(pkg-config --libs $PKG)
 	[ $? != 0 -a "$WITH_GTK" = yes ] && exit 1
-	echo "GTK+ CFLAGS=$GTK_CFLAGS"
-	echo "GTK+ LIBS=$GTK_LIBS"
 	echo "GTK_CFLAGS=	$GTK_CFLAGS" >>$CONFIG_MK
 	echo "GTK_LIBS=	$GTK_LIBS" >>$CONFIG_MK
 	UI="$UI${UI:+ }dhcpcd-gtk"
