@@ -6,8 +6,6 @@ specific parts.
 There are GTK+-2 (works with GTK+-3) and Qt-4 front ends.
 an EFL (e17) front end is planned.
 
-dhcpcd-decode can decode strings dhcpcd has encoded safely
-for shells.
 dhcpcd-online can report on network availability from dhcpcd
 (requires dhcpcd-6.4.4)
 
