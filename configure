@@ -424,7 +424,7 @@ if [ "$WITH_ICONS" = yes ]; then
 	echo "MKICONS=	icons" >>$CONFIG_MK
 fi
 
-if [ -n "$WITH_DHCPCD_ONLINE" -a "$WITH_ONLINE" != no ]; then
+if [ -n "$WITH_DHCPCD_ONLINE" -a "$WITH_DHCPCD_ONLINE" != no ]; then
 	UI="dhcpcd-online${UI:+ }$UI"
 fi
 echo "UI=		${UI:+libdhcpcd }$UI" >>$CONFIG_MK
