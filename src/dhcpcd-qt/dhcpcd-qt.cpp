@@ -40,7 +40,9 @@
 #include "dhcpcd-ifmenu.h"
 #include "dhcpcd-ssidmenu.h"
 
+#ifdef NOTIFY
 #include <knotification.h>
+#endif
 
 DhcpcdQt::DhcpcdQt()
 {
