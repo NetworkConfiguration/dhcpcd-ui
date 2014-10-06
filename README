@@ -18,6 +18,3 @@ Switches to control building of various parts:
 For each --with there is a --without and for each --enable a --disable.
 If each part is not specified then the configure will test the system
 for the needed libraries to build and install it.
-
-When creating a distribution tarball, the host system requires
-the libraries to build all the components.

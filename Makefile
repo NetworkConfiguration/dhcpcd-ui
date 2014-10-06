@@ -9,8 +9,9 @@ include ${MKDIR}/subdir.mk
 
 SUBDIR=		src ${MKICONS}
 
-GITREF?=	HEAD
+FOSSILID?=	current
 DISTPREFIX?=	${PROG}-${VERSION}
+DISTFILEGZ?=	${DISTPREFIX}.tar.gz
 DISTFILE?=	${DISTPREFIX}.tar.bz2
 
 CLEANFILES+=	*.tar.bz2
@@ -22,13 +23,12 @@ SNAPDIR=	${DISTPREFIX}-${SNAP}
 SNAPFILE=	${SNAPDIR}.tar.bz2
 
 dist:
-	mkdir /tmp/${DISTPREFIX}
-	cp -RPp * /tmp/${DISTPREFIX}
-	(cd /tmp/${DISTPREFIX}; \
-		./configure; make clean icons; rm config.h config.mk)
-	find /tmp/${DISTPREFIX} -name .gitignore -delete
-	tar -cvjpf ${DISTFILE} -C /tmp ${DISTPREFIX}
+	fossil tarball --name ${DISTPREFIX} ${FOSSILID} /tmp/${DISTFILEGZ}
 	rm -rf /tmp/${DISTPREFIX}
+	tar -xzpf /tmp/${DISTFILEGZ} -C /tmp
+	(cd /tmp/${DISTPREFIX}; make icons)
+	tar -cvjpf ${DISTFILE} -C /tmp ${DISTPREFIX}
+	rm -rf /tmp/${DISTPREFIX} /tmp/${DISTFILEGZ}
 	ls -l ${DISTFILE}
 
 distclean:
