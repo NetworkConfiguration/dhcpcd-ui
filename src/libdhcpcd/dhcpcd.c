@@ -1054,7 +1054,7 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 			}
 			if (ci)
 				return NULL;
-			reason = _("Cable plugged in");
+			reason = _("Link is up, configuring");
 		}
 	} else if (strcmp(i->reason, "NOCARRIER") == 0) {
 		if (i->wireless) {
@@ -1064,7 +1064,7 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 			} else
 				reason = _("Not associated");
 		} else
-			reason = _("Cable unplugged");
+			reason = _("Link is down");
 	} else if (strcmp(i->reason, "DEPARTED") == 0)
 		reason = _("Departed");
 	else if (strcmp(i->reason, "UNKNOWN") == 0)
