@@ -50,6 +50,7 @@ for x; do
 	--without-gtk|--without-gtk+) WITH_GTK=no;;
 	--with-qt) WITH_QT=${var:-yes};;
 	--without-qt) WITH_QT=no;;
+	QTDIR) QTDIR=$var;;
 	--with-icons) WITH_ICONS=${var:-yes};;
 	--without-icons) WITH_ICONS=no;;
 	--enable-notification) NOTIFY=yes;;
@@ -391,18 +392,20 @@ if [ -n "$WITH_GTK" -a "$WITH_GTK" != no ]; then
 fi
 
 DHCPCD_QT=false
-if [ "WITH_QT" = yes -o -z "$WITH_QT" ]; then
-	if type qmake >/dev/null 2>&3; then
-		UI="$UI${UI+ }dhcpcd-qt"
-		DHCPCD_QT=true
+if [ -z "$WITH_QT" -o "$WITH_QT" != no ]; then
+	if [ -z "$QMAKE" ]; then
+		if [ -x "$QTDIR"/bin/qmake ]; then
+			QMAKE="$QTDIR"/bin/qmake
+		else
+			QMAKE=$(_which qmake)
+		fi
 	fi
-elif [ -n "$WITH_QT" -a "$WITH_QT" != no ]; then
-	if type qmake >/dev/null 2>&3; then
+	if [ -x "$QMAKE" ]; then
 		UI="$UI${UI+ }dhcpcd-qt"
 		DHCPCD_QT=true
 	else
-		echo "$0: no suitable QT library has been found" >&2
-		exit 1
+		echo "$0: no suitable Qt library has been found" >&2
+		[ -z "$WITH_QT" ] || exit 1
 	fi
 fi
 
@@ -443,7 +446,7 @@ echo "MKDIR=		\${TOPDIR}/mk" >>$CONFIG_MK
 if $DHCPCD_QT; then
 	QMAKE_CONFIG="$QMAKE_CONFIG PREFIX=$PREFIX SYSCONFDIR=$SYSCONFDIR"
 	QMAKE_CONFIG="$QMAKE_CONFIG MANDIR=$MANDIR"
-	if ! (cd src/dhcpcd-qt; qmake $QMAKE_CONFIG dhcpcd-qt.pro); then
+	if ! (cd src/dhcpcd-qt; $QMAKE $QMAKE_CONFIG dhcpcd-qt.pro); then
 		echo "$0: failed to configure dhcpcd-qt" >&2
 		exit 1
 	fi
