@@ -236,7 +236,6 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 		if (!found) {
 			TAILQ_REMOVE(&wi->menus, wim, next);
 			gtk_widget_destroy(wim->menu);
-			g_free(wim->scan);
 			g_free(wim);
 			adjust--;
 		}
