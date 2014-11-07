@@ -214,8 +214,7 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 {
 	WI_MENU *wim, *win;
 	DHCPCD_WI_SCAN *s;
-	bool found;
-	int adjust = 0;
+	bool found, update;
 
 	if (menu == NULL) {
 		dhcpcd_wi_scans_free(wi->scans);
@@ -223,6 +222,7 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 		return;
 	}
 
+	update = false;
 	TAILQ_FOREACH_SAFE(wim, &wi->menus, next, win) {
 		found = false;
 		for (s = scans; s; s = s->next) {
@@ -237,7 +237,7 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 			TAILQ_REMOVE(&wi->menus, wim, next);
 			gtk_widget_destroy(wim->menu);
 			g_free(wim);
-			adjust--;
+			update = true;
 		}
 	}
 
@@ -255,14 +255,14 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 			wim = create_menu(wi->ifmenu, wi, s);
 			TAILQ_INSERT_TAIL(&wi->menus, wim, next);
 			gtk_widget_show_all(wim->menu);
-			adjust++;
+			update = true;
 		}
 	}
 
 	dhcpcd_wi_scans_free(wi->scans);
 	wi->scans = scans;
 
-	if (adjust && gtk_widget_get_visible(wi->ifmenu))
+	if (update && gtk_widget_get_visible(wi->ifmenu))
 		gtk_menu_reposition(GTK_MENU(wi->ifmenu));
 }
 
