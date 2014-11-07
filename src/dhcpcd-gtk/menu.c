@@ -216,7 +216,7 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 	DHCPCD_WI_SCAN *s;
 	bool found, update;
 
-	if (menu == NULL) {
+	if (wi->ifmenu == NULL) {
 		dhcpcd_wi_scans_free(wi->scans);
 		wi->scans = scans;
 		return;
@@ -266,6 +266,27 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 		gtk_menu_reposition(GTK_MENU(wi->ifmenu));
 }
 
+void
+menu_remove_if(WI_SCAN *wi)
+{
+	WI_MENU *wim;
+
+	if (wi->ifmenu == NULL)
+		return;
+
+	if (wi->ifmenu == menu)
+		menu = NULL;
+
+	gtk_widget_destroy(wi->ifmenu);
+	wi->ifmenu = NULL;
+	while ((wim = TAILQ_FIRST(&wi->menus))) {
+		TAILQ_REMOVE(&wi->menus, wim, next);
+		g_free(wim);
+	}
+
+	if (menu && gtk_widget_get_visible(menu))
+		gtk_menu_reposition(GTK_MENU(menu));
+}
 
 static GtkWidget *
 add_scans(WI_SCAN *wi)

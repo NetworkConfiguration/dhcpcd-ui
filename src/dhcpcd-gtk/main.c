@@ -570,11 +570,21 @@ static void
 dhcpcd_wpa_status_cb(DHCPCD_WPA *wpa, const char *status, _unused void *data)
 {
 	DHCPCD_IF *i;
+	WI_SCAN *w, *wn;
 
 	i = dhcpcd_wpa_if(wpa);
 	g_message("%s: WPA status %s", i->ifname, status);
-	if (g_strcmp0(status, "down") == 0)
+	if (g_strcmp0(status, "down") == 0) {
 		dhcpcd_unwatch(-1, wpa);
+		TAILQ_FOREACH_SAFE(w, &wi_scans, next, wn) {
+			if (w->interface == i) {
+				TAILQ_REMOVE(&wi_scans, w, next);
+				menu_remove_if(w);
+				dhcpcd_wi_scans_free(w->scans);
+				g_free(w);
+			}
+		}
+	}
 }
 
 int

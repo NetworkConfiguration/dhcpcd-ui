@@ -73,6 +73,7 @@ WI_SCAN * wi_scan_find(DHCPCD_WI_SCAN *);
 
 void menu_init(GtkStatusIcon *, DHCPCD_CONNECTION *);
 void menu_update_scans(WI_SCAN *, DHCPCD_WI_SCAN *);
+void menu_remove_if(WI_SCAN *);
 
 void notify_close(void);
 
