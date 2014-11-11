@@ -354,6 +354,18 @@ dhcpcd_wpa_scans_read(DHCPCD_WPA *wpa)
 	return wis;
 }
 
+static int
+dhcpcd_wi_scan_compare(DHCPCD_WI_SCAN *a, DHCPCD_WI_SCAN *b)
+{
+	int cmp;
+
+	cmp = strcasecmp(a->ssid, b->ssid);
+	if (cmp == 0)
+		/* Return strongest first */
+		cmp = b->strength.value - a->strength.value;
+	return cmp;
+}
+
 /*
  * This function is copyright 2001 Simon Tatham.
  *
@@ -379,7 +391,7 @@ dhcpcd_wpa_scans_read(DHCPCD_WPA *wpa)
  * SOFTWARE.
  */
 static DHCPCD_WI_SCAN *
-dhcpcd_wi_scan_sort(DHCPCD_WI_SCAN *list)
+dhcpcd_wi_scans_sort(DHCPCD_WI_SCAN *list)
 {
 	DHCPCD_WI_SCAN *p, *q, *e, *tail;
 	size_t insize, nmerges, psize, qsize, i;
@@ -422,7 +434,7 @@ dhcpcd_wi_scan_sort(DHCPCD_WI_SCAN *list)
 				} else if (qsize == 0 || !q) {
 					/* q is empty; e must come from p. */
 					e = p; p = p->next; psize--;
-				} else if (strcasecmp(p->ssid,q->ssid) <= 0) {
+				} else if (dhcpcd_wi_scan_compare(p, q) <= 0) {
 					/* First element of p is lower
 					 * (or same); e must come from p. */
 					e = p; p = p->next; psize--;
@@ -468,8 +480,8 @@ dhcpcd_wi_scans(DHCPCD_IF *i)
 		return NULL;
 	wis = dhcpcd_wpa_scans_read(wpa);
 
-	/* Sort the resultant list alphabetically */
-	wis = dhcpcd_wi_scan_sort(wis);
+	/* Sort the resultant list alphabetically and then by strength */
+	wis = dhcpcd_wi_scans_sort(wis);
 
 	for (w = wis; w; w = w->next) {
 		nh = 1;
