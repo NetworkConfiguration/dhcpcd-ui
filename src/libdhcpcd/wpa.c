@@ -359,10 +359,15 @@ dhcpcd_wi_scan_compare(DHCPCD_WI_SCAN *a, DHCPCD_WI_SCAN *b)
 {
 	int cmp;
 
+	/* Fist sort non case sensitive, then case sensitive */
 	cmp = strcasecmp(a->ssid, b->ssid);
 	if (cmp == 0)
-		/* Return strongest first */
+		cmp = strcmp(a->ssid, b->ssid);
+
+	/* If still the same, return strongest first */
+	if (cmp == 0)
 		cmp = b->strength.value - a->strength.value;
+
 	return cmp;
 }
 
