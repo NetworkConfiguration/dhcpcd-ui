@@ -476,7 +476,7 @@ DHCPCD_WI_SCAN *
 dhcpcd_wi_scans(DHCPCD_IF *i)
 {
 	DHCPCD_WPA *wpa;
-	DHCPCD_WI_SCAN *wis, *w;
+	DHCPCD_WI_SCAN *wis, *w, *n, *p;
 	int nh;
 	DHCPCD_WI_HIST *h, *hl;
 
@@ -488,7 +488,26 @@ dhcpcd_wi_scans(DHCPCD_IF *i)
 	/* Sort the resultant list alphabetically and then by strength */
 	wis = dhcpcd_wi_scans_sort(wis);
 
-	for (w = wis; w; w = w->next) {
+	p = NULL;
+	for (w = wis; w && (n = w->next, 1); w = n) {
+		/* Currently we don't support non SSID broadcasting APs */
+		if (*w->ssid == '\0') {
+			if (p == NULL)
+				wis = n;
+			else
+				p->next = n;
+			free(w);
+			continue;
+		}
+		/* Strip duplicated SSIDs, only show the strongest */
+		if (p && strcmp(p->ssid, w->ssid) == 0) {
+			p->next = n;
+			free(w);
+			continue;
+		}
+		/* Remember this as the previos next time */
+		p = w;
+
 		nh = 1;
 		hl = NULL;
 		w->quality.average = w->quality.value;
