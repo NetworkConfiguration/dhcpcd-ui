@@ -374,11 +374,14 @@ dhcpcd_decode_string_escape(char *dst, size_t dlen, const char *src)
 		}
 		bytes++;
 	}
-	if (dst && --dlen == 0) {
-		errno = ENOSPC;
-		return -1;
+
+	if (dst) {
+		if (--dlen == 0) {
+			errno = ENOSPC;
+			return -1;
+		}
+		*dst = '\0';
 	}
-	*dst = '\0';
 	return bytes;
 }
 
