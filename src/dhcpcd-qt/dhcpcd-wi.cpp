@@ -24,6 +24,7 @@
  * SUCH DAMAGE.
  */
 
+#include <QAction>
 #include <QObject>
 #include <QInputDialog>
 #include <QLineEdit>
@@ -120,7 +121,7 @@ bool DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
 					break;
 			}
 			if (scan == NULL) {
-				menu->removeAction(sm->getWidgetAction());
+				menu->removeAction(sm);
 				changed--;
 			}
 		}
@@ -134,11 +135,9 @@ bool DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
 
 void DhcpcdWi::createMenuItem(QMenu *menu, DHCPCD_WI_SCAN *scan)
 {
-	QWidgetAction *wa = new QWidgetAction(menu);
-	DhcpcdSsidMenu *ssidMenu = new DhcpcdSsidMenu(menu, wa, this, scan);
-	wa->setDefaultWidget(ssidMenu);
-	menu->addAction(wa);
-	connect(ssidMenu, SIGNAL(selected(DHCPCD_WI_SCAN *)),
+	DhcpcdSsidMenu *ssidMenu = new DhcpcdSsidMenu(menu, this, scan);
+	menu->addAction(ssidMenu);
+	connect(ssidMenu, SIGNAL(triggered(DHCPCD_WI_SCAN *)),
 	    this, SLOT(connectSsid(DHCPCD_WI_SCAN *)));
 }
 

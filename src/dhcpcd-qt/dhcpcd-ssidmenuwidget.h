@@ -24,38 +24,43 @@
  * SUCH DAMAGE.
  */
 
-#include <QWidgetAction>
+#include <QFrame>
 
 #include "dhcpcd.h"
 
-class QWidget;
+class QLabel;
 
 class DhcpcdWi;
-class DhcpcdSsidMenuWidget;
 
-class DhcpcdSsidMenu : public QWidgetAction
+class DhcpcdSsidMenuWidget : public QFrame
 {
 	Q_OBJECT
 
 public:
-	DhcpcdSsidMenu(QWidget *parent,
+	DhcpcdSsidMenuWidget(QWidget *parent,
 	    DhcpcdWi *wi, DHCPCD_WI_SCAN *scan);
-	~DhcpcdSsidMenu() {};
+	~DhcpcdSsidMenuWidget() {};
 
-	QWidget *createWidget(QWidget *parent);
 	DHCPCD_WI_SCAN *getScan();
 	void setScan(DHCPCD_WI_SCAN *scan);
 
-public slots:
-	void hover();
-	void trigger();
-
 signals:
+	void triggered();
 	void hovered();
-	void triggered(DHCPCD_WI_SCAN *scan);
+
+private slots:
+	bool eventFilter(QObject *obj, QEvent *event);
+
+protected slots:
+	virtual void enterEvent(QEvent *event);
+	virtual void leaveEvent(QEvent *event);
 
 private:
 	DhcpcdWi *wi;
 	DHCPCD_WI_SCAN *scan;
-	DhcpcdSsidMenuWidget *ssidWidget;
+
+	QLabel *selicon;
+	QLabel *ssid;
+	QLabel *encicon;
+	QLabel *stricon;
 };

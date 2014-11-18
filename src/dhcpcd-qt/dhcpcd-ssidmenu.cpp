@@ -31,39 +31,28 @@
 #include <QIcon>
 #include <QLabel>
 #include <QPixmap>
-#include <QProgressBar>
+#include <QStyle>
 
 #include "dhcpcd.h"
 #include "dhcpcd-qt.h"
 #include "dhcpcd-ssidmenu.h"
+#include "dhcpcd-ssidmenuwidget.h"
 
-DhcpcdSsidMenu::DhcpcdSsidMenu(QWidget *parent, QWidgetAction *wa,
+DhcpcdSsidMenu::DhcpcdSsidMenu(QWidget *parent,
     DhcpcdWi *wi, DHCPCD_WI_SCAN *scan)
-    : QWidget(parent, NULL)
+    : QWidgetAction(parent)
 {
 
-	this->wa = wa;
 	this->wi = wi;
-
-	QHBoxLayout *layout = new QHBoxLayout(this);
-	button = new QRadioButton(this);
-	layout->addWidget(button);
-	licon = new QLabel(this);
-	layout->addWidget(licon);
-	layout->setAlignment(licon, Qt::AlignRight);
-	bar = new QProgressBar(this);
-	layout->addWidget(bar);
-	layout->setAlignment(bar, Qt::AlignRight);
-	setScan(scan);
-
-	this->installEventFilter(this);
-	button->installEventFilter(this);
+	this->scan = scan;
 }
 
-QWidgetAction *DhcpcdSsidMenu::getWidgetAction()
+QWidget *DhcpcdSsidMenu::createWidget(QWidget *parent)
 {
-
-	return wa;
+	ssidWidget = new DhcpcdSsidMenuWidget(parent, wi, scan);
+	connect(ssidWidget, SIGNAL(hovered()), this, SLOT(hover()));
+	connect(ssidWidget, SIGNAL(triggered()), this, SLOT(trigger()));
+	return ssidWidget;
 }
 
 DHCPCD_WI_SCAN *DhcpcdSsidMenu::getScan()
@@ -74,36 +63,20 @@ DHCPCD_WI_SCAN *DhcpcdSsidMenu::getScan()
 
 void DhcpcdSsidMenu::setScan(DHCPCD_WI_SCAN *scan)
 {
-	DHCPCD_WPA *wpa;
-	DHCPCD_IF *i;
-	QIcon icon;
 
 	this->scan = scan;
-	wpa = wi->getWpa();
-	i = dhcpcd_wpa_if(wpa);
-
-	button->setChecked(i->up && i->ssid &&
-	    strcmp(scan->ssid, i->ssid) == 0);
-	button->setText(scan->ssid);
-	if (scan->flags[0] == '\0') {
-		icon = DhcpcdQt::getIcon("devices", "network-wireless");
-		setToolTip(scan->bssid);
-	} else {
-		icon = DhcpcdQt::getIcon("status",
-		    "network-wireless-encrypted");
-		QString tip = QString::fromAscii(scan->bssid);
-		tip += " " + QString::fromAscii(scan->flags);
-		setToolTip(tip);
-	}
-	QPixmap picon = icon.pixmap(22, 22);
-	licon->setPixmap(picon);
-	bar->setValue(scan->strength.value);
+	if (ssidWidget)
+		ssidWidget->setScan(scan);
 }
 
-bool DhcpcdSsidMenu::eventFilter(QObject *, QEvent *event)
+void DhcpcdSsidMenu::hover()
 {
 
-	if (event->type() == QEvent::MouseButtonPress)
-		emit selected(scan);
-	return false;
+	activate(QAction::Hover);
+}
+
+void DhcpcdSsidMenu::trigger()
+{
+
+	emit triggered(scan);
 }

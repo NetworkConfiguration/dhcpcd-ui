@@ -132,7 +132,7 @@ DhcpcdPreferences::DhcpcdPreferences(DhcpcdQt *parent)
 	layout->addWidget(buttons);
 
 	QIcon wired = DhcpcdQt::getIcon("devices", "network-wired");
-	what->addItem(wired, tr("Interface"));
+	what->addItem(wired, tr("interface"));
 	QIcon wireless = DhcpcdQt::getIcon("devices", "network-wireless");
 	what->addItem(wireless, tr("SSID"));
 
@@ -179,7 +179,7 @@ void DhcpcdPreferences::listBlocks(const QString &txt)
 	free(eWhat);
 	eWhat = strdup(txt.toLower().toAscii());
 
-	if (txt == "Interface") {
+	if (txt == "interface") {
 		DHCPCD_IF *i;
 
 		blocks->addItem(tr("Select an interface"));

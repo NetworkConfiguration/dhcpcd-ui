@@ -445,6 +445,20 @@ dhcpcd_if_cb(DHCPCD_IF *i, _unused void *data)
 	/* Update the tooltip with connection information */
 	con = dhcpcd_if_connection(i);
 	update_online(con, false);
+
+	if (i->wireless) {
+		DHCPCD_WI_SCAN *scans;
+		WI_SCAN *w;
+
+		TAILQ_FOREACH(w, &wi_scans, next) {
+			if (w->interface == i)
+				break;
+		}
+		if (w) {
+			scans = dhcpcd_wi_scans(i);
+			menu_update_scans(w, scans);
+		}
+	}
 }
 
 static gboolean

@@ -31,10 +31,13 @@
 
 #include "dhcpcd.h"
 
-class DhcpcdQt;
 class QMenu;
 class QSocketNotifier;
 class QTimer;
+class QWidgetAction;
+
+class DhcpcdQt;
+class DhcpcdSsidMenu;
 
 class DhcpcdWi : public QObject
 {

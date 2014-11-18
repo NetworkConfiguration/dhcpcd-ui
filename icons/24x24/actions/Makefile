@@ -1,4 +1,4 @@
 CATEGORY=	actions
-SRCS=		document-new.svg document-save.svg
+SRCS=		dialog-ok-apply.svg document-new.svg document-save.svg
 
 include ../Makefile.inc

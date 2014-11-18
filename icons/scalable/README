@@ -1,7 +1,14 @@
-These scalable icons are taken from the Tango project
+These scalable icons are taken from the Tango project and are Public Domain.
 http://tango.freedesktop.org
 
-They are Public Domain and I give them thanks for making their quality work
-availble to all :)
-
 apps/dhcpcd.svg is a copy of status/network-transmit-receive.svg
+
+actions/dialog-ok-apply.svg is taken from the KDE Oxygen icon theme
+and is licensed under the LGPLv3.
+
+status/dialog-warning.svg is taken from the GNOME icon theme
+and is licensed under the GPLv2.
+
+actions/document-new.svg, actions/document-save.svg and
+status/network-wireless* are from the Elementary icon theme
+by Daniel Foré and are licensed under the GPLv3.

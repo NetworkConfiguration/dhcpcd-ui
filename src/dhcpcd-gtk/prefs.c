@@ -542,7 +542,7 @@ prefs_show(DHCPCD_CONNECTION *con)
 	g_object_unref(pb);
 	pb = load_icon("network-wireless");
 	gtk_list_store_append(store, &iter);
-	gtk_list_store_set(store, &iter, 0, pb, 1, "ssid", -1);
+	gtk_list_store_set(store, &iter, 0, pb, 1, "SSID", -1);
 	g_object_unref(pb);
 	blocks = gtk_combo_box_new_with_model(GTK_TREE_MODEL(store));
 	rend = gtk_cell_renderer_pixbuf_new();

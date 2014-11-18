@@ -119,18 +119,40 @@ on_about(_unused GtkMenuItem *item)
 	    NULL);
 }
 
+static const char *
+get_strength_icon_name(int strength)
+{
+
+	if (strength > 80)
+		return "network-wireless-connected-100";
+	else if (strength > 55)
+		return "network-wireless-connected-75";
+	else if (strength > 30)
+		return "network-wireless-connected-50";
+	else if (strength > 5)
+		return "network-wireless-connected-25";
+	else
+		return "network-wireless-connected-00";
+}
+
 static void
 update_item(WI_SCAN *wi, WI_MENU *m, DHCPCD_WI_SCAN *scan)
 {
 	const char *icon;
-	double perc;
+	GtkWidget *sel;
 
 	m->scan = scan;
 
 	g_object_set_data(G_OBJECT(m->menu), "dhcpcd_wi_scan", scan);
-	gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(m->menu),
-		(wi->interface->up &&
-		g_strcmp0(wi->interface->ssid, scan->ssid)));
+
+	if (wi->interface->up &&
+	    g_strcmp0(scan->ssid, wi->interface->ssid) == 0)
+		sel = gtk_image_new_from_icon_name("dialog-ok-apply",
+		    GTK_ICON_SIZE_MENU);
+	else
+		sel = NULL;
+	gtk_image_menu_item_set_image(
+	    GTK_IMAGE_MENU_ITEM(m->menu), sel);
 
 	gtk_label_set_text(GTK_LABEL(m->ssid), scan->ssid);
 	if (scan->flags[0] == '\0')
@@ -140,9 +162,11 @@ update_item(WI_SCAN *wi, WI_MENU *m, DHCPCD_WI_SCAN *scan)
 	m->icon = gtk_image_new_from_icon_name(icon,
 	    GTK_ICON_SIZE_MENU);
 
-	perc = scan->strength.value / 100.0;
-	gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(m->bar), perc);
+	icon = get_strength_icon_name(scan->strength.value);
+	m->strength = gtk_image_new_from_icon_name(icon,
+		GTK_ICON_SIZE_MENU);
 
+#if 0
 	if (scan->flags[0] == '\0')
 		gtk_widget_set_tooltip_text(m->menu, scan->bssid);
 	else {
@@ -150,6 +174,7 @@ update_item(WI_SCAN *wi, WI_MENU *m, DHCPCD_WI_SCAN *scan)
 		gtk_widget_set_tooltip_text(m->menu, tip);
 		g_free(tip);
 	}
+#endif
 
 	g_object_set_data(G_OBJECT(m->menu), "dhcpcd_wi_scan", scan);
 }
@@ -158,25 +183,27 @@ static WI_MENU *
 create_menu(GtkWidget *m, WI_SCAN *wis, DHCPCD_WI_SCAN *scan)
 {
 	WI_MENU *wim;
-	GtkWidget *box;
-	double perc;
+	GtkWidget *box, *sel;
 	const char *icon;
-	char *tip;
 
 	wim = g_malloc(sizeof(*wim));
 	wim->scan = scan;
-	wim->menu = gtk_check_menu_item_new();
-	gtk_check_menu_item_set_draw_as_radio(
-	    GTK_CHECK_MENU_ITEM(wim->menu), true);
+	wim->menu = gtk_image_menu_item_new();
 	box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
 	gtk_container_add(GTK_CONTAINER(wim->menu), box);
-	wim->ssid = gtk_label_new(scan->ssid);
-	gtk_box_pack_start(GTK_BOX(box), wim->ssid, TRUE, TRUE, 0);
 
 	if (wis->interface->up &&
 	    g_strcmp0(scan->ssid, wis->interface->ssid) == 0)
-		gtk_check_menu_item_set_active(
-		    GTK_CHECK_MENU_ITEM(wim->menu), true);
+		sel = gtk_image_new_from_icon_name("dialog-ok-apply",
+		    GTK_ICON_SIZE_MENU);
+	else
+		sel = NULL;
+	gtk_image_menu_item_set_image(
+	    GTK_IMAGE_MENU_ITEM(wim->menu), sel);
+
+	wim->ssid = gtk_label_new(scan->ssid);
+	gtk_misc_set_alignment(GTK_MISC(wim->ssid), 0.0, 0.5);
+	gtk_box_pack_start(GTK_BOX(box), wim->ssid, TRUE, TRUE, 0);
 
 	if (scan->flags[0] == '\0')
 		icon = "network-wireless";
@@ -184,15 +211,14 @@ create_menu(GtkWidget *m, WI_SCAN *wis, DHCPCD_WI_SCAN *scan)
 		icon = "network-wireless-encrypted";
 	wim->icon = gtk_image_new_from_icon_name(icon,
 	    GTK_ICON_SIZE_MENU);
-
 	gtk_box_pack_start(GTK_BOX(box), wim->icon, FALSE, FALSE, 0);
 
-	wim->bar = gtk_progress_bar_new();
-	gtk_widget_set_size_request(wim->bar, 100, -1);
-	gtk_box_pack_end(GTK_BOX(box), wim->bar, FALSE, TRUE, 0);
-	perc = scan->strength.value / 100.0;
-	gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(wim->bar), perc);
+	icon = get_strength_icon_name(scan->strength.value);
+	wim->strength = gtk_image_new_from_icon_name(icon,
+		GTK_ICON_SIZE_MENU);
+	gtk_box_pack_start(GTK_BOX(box), wim->strength, FALSE, FALSE, 0);
 
+#if 0
 	if (scan->flags[0] == '\0')
 		gtk_widget_set_tooltip_text(wim->menu, scan->bssid);
 	else {
@@ -200,8 +226,9 @@ create_menu(GtkWidget *m, WI_SCAN *wis, DHCPCD_WI_SCAN *scan)
 		gtk_widget_set_tooltip_text(wim->menu, tip);
 		g_free(tip);
 	}
+#endif
 
-	g_signal_connect(G_OBJECT(wim->menu), "toggled",
+	g_signal_connect(G_OBJECT(wim->menu), "activate",
 	    G_CALLBACK(ssid_hook), NULL);
 	g_object_set_data(G_OBJECT(wim->menu), "dhcpcd_wi_scan", scan);
 	gtk_menu_shell_append(GTK_MENU_SHELL(m), wim->menu);
@@ -214,7 +241,7 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 {
 	WI_MENU *wim, *win;
 	DHCPCD_WI_SCAN *s;
-	bool found, update;
+	bool found;
 
 	if (wi->ifmenu == NULL) {
 		dhcpcd_wi_scans_free(wi->scans);
@@ -222,7 +249,6 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 		return;
 	}
 
-	update = false;
 	TAILQ_FOREACH_SAFE(wim, &wi->menus, next, win) {
 		found = false;
 		for (s = scans; s; s = s->next) {
@@ -237,7 +263,6 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 			TAILQ_REMOVE(&wi->menus, wim, next);
 			gtk_widget_destroy(wim->menu);
 			g_free(wim);
-			update = true;
 		}
 	}
 
@@ -255,14 +280,13 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 			wim = create_menu(wi->ifmenu, wi, s);
 			TAILQ_INSERT_TAIL(&wi->menus, wim, next);
 			gtk_widget_show_all(wim->menu);
-			update = true;
 		}
 	}
 
 	dhcpcd_wi_scans_free(wi->scans);
 	wi->scans = scans;
 
-	if (update && gtk_widget_get_visible(wi->ifmenu))
+	if (gtk_widget_get_visible(wi->ifmenu))
 		gtk_menu_reposition(GTK_MENU(wi->ifmenu));
 }
 

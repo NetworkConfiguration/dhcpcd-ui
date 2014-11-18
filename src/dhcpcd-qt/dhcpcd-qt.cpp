@@ -465,6 +465,7 @@ QIcon DhcpcdQt::getIcon(QString category, QString name)
 		icon = QIcon::fromTheme(name);
 	else
 		icon = QIcon(ICONDIR "/hicolor/scalable/" + category + "/" + name + ".svg");
+
 	return icon;
 }
 

@@ -53,7 +53,7 @@ typedef struct wi_menu {
 	GtkWidget *menu;
 	GtkWidget *ssid;
 	GtkWidget *icon;
-	GtkWidget *bar;
+	GtkWidget *strength;
 } WI_MENU;
 typedef TAILQ_HEAD(wi_menu_head, wi_menu) WI_MENUS;
 
@@ -63,6 +63,7 @@ typedef struct wi_scan {
 	DHCPCD_WI_SCAN *scans;
 
 	GtkWidget *ifmenu;
+	GtkWidget *sep;
 	WI_MENUS menus;
 } WI_SCAN;
 

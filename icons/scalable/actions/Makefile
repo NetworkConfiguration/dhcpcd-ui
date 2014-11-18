@@ -1,3 +1,3 @@
 CATEGORY=	actions
-ICONS=		document-new.svg document-save.svg
+ICONS=		dialog-ok-apply.svg document-new.svg document-save.svg
 include ../Makefile.inc
