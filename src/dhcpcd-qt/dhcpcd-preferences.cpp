@@ -351,6 +351,7 @@ bool DhcpcdPreferences::writeConfig(bool *cancel)
 		*cancel = true;
 		return false;
 	case QMessageBox::Discard:
+		*cancel = true;
 		return true;
 	default:
 		break;
