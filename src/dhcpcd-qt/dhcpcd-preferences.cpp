@@ -185,23 +185,21 @@ void DhcpcdPreferences::listBlocks(const QString &txt)
 	    txt.toLower().toAscii());
 
 	if (txt == "interface") {
-		DHCPCD_IF *i;
+		char **ifaces, **i;
 
 		blocks->addItem(tr("Select an interface"));
-		for (i = dhcpcd_interfaces(parent->getConnection());
-		    i; i = i->next)
-		{
-			if (strcmp(i->type, "link") == 0) {
-				for (lp = list; lp && *lp; lp++) {
-					if (strcmp(i->ifname, *lp) == 0)
-						break;
-				}
-				icon = DhcpcdQt::getIcon("devices",
-				    lp && *lp ?
-				    "document-save" : "document-new");
-				blocks->addItem(icon, i->ifname);
+		ifaces = dhcpcd_interface_names_sorted(parent->getConnection());
+		for (i = ifaces; i && *i; i++) {
+			for (lp = list; lp && *lp; lp++) {
+				if (strcmp(*i, *lp) == 0)
+					break;
 			}
+			icon = DhcpcdQt::getIcon("actions",
+			    lp && *lp ?
+			    "document-save" : "document-new");
+			blocks->addItem(icon, *i);
 		}
+		dhcpcd_freev(ifaces);
 	} else {
 		QList<DhcpcdWi *> *wis = parent->getWis();
 
@@ -215,7 +213,7 @@ void DhcpcdPreferences::listBlocks(const QString &txt)
 					if (strcmp(scan->ssid, *lp) == 0)
 						break;
 				}
-				icon = DhcpcdQt::getIcon("devices",
+				icon = DhcpcdQt::getIcon("actions",
 				    lp && *lp ?
 				    "document-save" : "document-new");
 				blocks->addItem(icon, scan->ssid);
@@ -223,7 +221,7 @@ void DhcpcdPreferences::listBlocks(const QString &txt)
 		}
 	}
 
-	dhcpcd_config_blocks_free(list);
+	dhcpcd_freev(list);
 
 	/* Now make the 1st item unselectable and reconnect */
 	qobject_cast<QStandardItemModel *>

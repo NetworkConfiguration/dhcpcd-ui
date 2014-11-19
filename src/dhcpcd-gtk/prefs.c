@@ -37,6 +37,7 @@ static GtkWidget *autoconf, *address, *router, *dns_servers, *dns_search;
 static DHCPCD_OPTION *config;
 static char *block, *name;
 static DHCPCD_IF *iface;
+static char **ifaces;
 
 static void
 config_err_dialog(DHCPCD_CONNECTION *con, bool writing, const char *txt)
@@ -210,12 +211,13 @@ static GSList *
 list_interfaces(DHCPCD_CONNECTION *con)
 {
 	GSList *list;
-	DHCPCD_IF *i;
+	char **i;
 
 	list = NULL;
-	for (i = dhcpcd_interfaces(con); i; i = i->next)
-		if (strcmp(i->type, "link") == 0)
-			list = g_slist_append(list, UNCONST(i->ifname));
+	dhcpcd_freev(ifaces);
+	ifaces = dhcpcd_interface_names_sorted(con);
+	for (i = ifaces; i && *i; i++)
+		list = g_slist_append(list, *i);
 	return list;
 }
 
@@ -306,7 +308,7 @@ blocks_on_change(GtkWidget *widget, gpointer data)
 	}
 	gtk_widget_set_sensitive(names, n);
 	g_slist_free(new_names);
-	dhcpcd_config_blocks_free(list);
+	dhcpcd_freev(list);
 }
 
 static void
@@ -466,7 +468,10 @@ on_destroy(_unused GObject *o, gpointer data)
 	}
 	dhcpcd_config_free(config);
 	config = NULL;
+	dhcpcd_freev(ifaces);
+	ifaces = NULL;
 	dialog = NULL;
+
 }
 
 static void
