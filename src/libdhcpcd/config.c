@@ -435,10 +435,9 @@ dhcpcd_config_blocks_free(char **blocks)
 {
 	char **b;
 
-	assert(blocks);
 	if (blocks) {
 		for (b = blocks; *b; b++)
-			free(b);
+			free(*b);
 		free(blocks);
 	}
 }
