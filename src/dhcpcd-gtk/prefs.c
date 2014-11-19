@@ -636,7 +636,7 @@ prefs_show(DHCPCD_CONNECTION *con)
 	    G_CALLBACK(on_clear), con);
 	rebind = gtk_button_new_with_mnemonic(_("_Rebind"));
 	gtk_widget_set_sensitive(rebind, false);
-	w = gtk_image_new_from_stock(GTK_STOCK_EXECUTE,
+	w = gtk_image_new_from_icon_name("application-x-executable",
 	    GTK_ICON_SIZE_BUTTON);
 	gtk_button_set_image(GTK_BUTTON(rebind), w);
 	gtk_box_pack_start(GTK_BOX(hbox), rebind, true, true, 0);
