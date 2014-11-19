@@ -528,7 +528,7 @@ prefs_show(DHCPCD_CONNECTION *con)
 	gtk_window_set_resizable(GTK_WINDOW(dialog), false);
 	gtk_window_set_icon_name(GTK_WINDOW(dialog),
 	    "preferences-system-network");
-	gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER);
+	gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_MOUSE);
 	gtk_window_set_type_hint(GTK_WINDOW(dialog),
 	    GDK_WINDOW_TYPE_HINT_DIALOG);
 

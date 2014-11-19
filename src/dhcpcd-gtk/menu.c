@@ -32,6 +32,7 @@ static const char *authors[] = { "Roy Marples <roy@marples.name>", NULL };
 
 static GtkStatusIcon *sicon;
 static GtkWidget *menu;
+static GtkAboutDialog *about;
 static bool ifmenu;
 
 static void
@@ -48,34 +49,6 @@ on_quit(void)
 	wpa_abort();
 	gtk_main_quit();
 }
-
-#if GTK_MAJOR_VERSION == 2
-static void
-url_show(GtkAboutDialog *dialog, const char *url)
-{
-	GdkScreen *screen;
-
-	screen = gtk_widget_get_screen(GTK_WIDGET(dialog));
-	gtk_show_uri(screen, url, GDK_CURRENT_TIME, NULL);
-}
-
-static void
-email_hook(GtkAboutDialog *dialog, const char *url, _unused gpointer data)
-{
-	char *address;
-
-	address = g_strdup_printf("mailto:%s", url);
-	url_show(dialog, address);
-	g_free(address);
-}
-
-
-static void
-url_hook(GtkAboutDialog *dialog, const char *url, _unused gpointer data)
-{
-	url_show(dialog, url);
-}
-#endif
 
 static void
 ssid_hook(GtkMenuItem *item, _unused gpointer data)
@@ -103,20 +76,23 @@ static void
 on_about(_unused GtkMenuItem *item)
 {
 
-	gtk_window_set_default_icon_name("network-transmit-receive");
-#if GTK_MAJOR_VERSION == 2
-	gtk_about_dialog_set_email_hook(email_hook, NULL, NULL);
-	gtk_about_dialog_set_url_hook(url_hook, NULL, NULL);
-#endif
-	gtk_show_about_dialog(NULL,
-	    "version", VERSION,
-	    "copyright", copyright,
-	    "website-label", "dhcpcd Website",
-	    "website", "http://roy.marples.name/projects/dhcpcd",
-	    "authors", authors,
-	    "logo-icon-name", "network-transmit-receive",
-	    "comments", "Part of the dhcpcd project",
-	    NULL);
+	if (about == NULL) {
+		about = GTK_ABOUT_DIALOG(gtk_about_dialog_new());
+		gtk_about_dialog_set_version(about, VERSION);
+		gtk_about_dialog_set_copyright(about, copyright);
+		gtk_about_dialog_set_website_label(about, "dhcpcd Website");
+		gtk_about_dialog_set_website(about,
+		    "http://roy.marples.name/projects/dhcpcd");
+		gtk_about_dialog_set_authors(about, authors);
+		gtk_about_dialog_set_logo_icon_name(about,
+		    "network-transmit-receive");
+		gtk_about_dialog_set_comments(about,
+		    "Part of the dhcpcd project");
+	}
+	gtk_window_set_position(GTK_WINDOW(about), GTK_WIN_POS_MOUSE);
+	gtk_window_present(GTK_WINDOW(about));
+	gtk_dialog_run(GTK_DIALOG(about));
+	gtk_widget_hide(GTK_WIDGET(about));
 }
 
 static const char *

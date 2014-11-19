@@ -38,12 +38,14 @@
 DhcpcdAbout::DhcpcdAbout(DhcpcdQt *parent)
     : QDialog(parent)
 {
-	QVBoxLayout *layout;
-
 	this->parent = parent;
+	QVBoxLayout *layout;
 	resize(300, 200);
 	setWindowIcon(DhcpcdQt::getIcon("status", "network-transmit-receive"));
 	setWindowTitle(tr("About Network Configurator"));
+	QPoint p = QCursor::pos();
+	move(p.x(), p.y());
+
 	layout = new QVBoxLayout(this);
 
 	QIcon icon = DhcpcdQt::getIcon("status", "network-transmit-receive");

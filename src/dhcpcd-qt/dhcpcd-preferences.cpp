@@ -55,6 +55,8 @@ DhcpcdPreferences::DhcpcdPreferences(DhcpcdQt *parent)
 	resize(400, 200);
 	setWindowIcon(DhcpcdQt::getIcon("status", "network-transmit-receive"));
 	setWindowTitle(tr("Network Preferences"));
+	QPoint p = QCursor::pos();
+	move(p.x(), p.y());
 
 	name = NULL;
 	config = NULL;
