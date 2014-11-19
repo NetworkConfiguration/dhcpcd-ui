@@ -28,7 +28,6 @@
 #include "dhcpcd-gtk.h"
 
 static const char *copyright = "Copyright (c) 2009-2014 Roy Marples";
-static const char *authors[] = { "Roy Marples <roy@marples.name>", NULL };
 
 static GtkStatusIcon *sicon;
 static GtkWidget *menu;
@@ -83,7 +82,6 @@ on_about(_unused GtkMenuItem *item)
 		gtk_about_dialog_set_website_label(about, "dhcpcd Website");
 		gtk_about_dialog_set_website(about,
 		    "http://roy.marples.name/projects/dhcpcd");
-		gtk_about_dialog_set_authors(about, authors);
 		gtk_about_dialog_set_logo_icon_name(about,
 		    "network-transmit-receive");
 		gtk_about_dialog_set_comments(about,
