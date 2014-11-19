@@ -331,7 +331,7 @@ names_on_change(_unused GtkWidget *widget, gpointer data)
 			}
 	}
 	gtk_widget_set_sensitive(address,
-	    iface && (iface->flags & IFF_POINTOPOINT) == 0);
+	    !iface || (iface->flags & IFF_POINTOPOINT) == 0);
 	if (block && name) {
 		errno = 0;
 		config = dhcpcd_config_read(con, block, name);
