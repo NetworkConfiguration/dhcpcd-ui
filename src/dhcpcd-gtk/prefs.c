@@ -214,7 +214,7 @@ list_interfaces(DHCPCD_CONNECTION *con)
 
 	list = NULL;
 	for (i = dhcpcd_interfaces(con); i; i = i->next)
-		if (strcmp(i->type, "ipv4") == 0)
+		if (strcmp(i->type, "link") == 0)
 			list = g_slist_append(list, UNCONST(i->ifname));
 	return list;
 }
