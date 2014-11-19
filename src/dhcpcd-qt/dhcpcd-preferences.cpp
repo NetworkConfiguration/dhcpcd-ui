@@ -171,6 +171,8 @@ void DhcpcdPreferences::closeEvent(QCloseEvent *e)
 
 void DhcpcdPreferences::listBlocks(const QString &txt)
 {
+	char **list, **lp;
+	QIcon icon;
 
 	/* clear and then disconnect so we trigger a save */
 	blocks->clear();
@@ -178,6 +180,9 @@ void DhcpcdPreferences::listBlocks(const QString &txt)
 
 	free(eWhat);
 	eWhat = strdup(txt.toLower().toAscii());
+
+	list = dhcpcd_config_blocks(parent->getConnection(),
+	    txt.toLower().toAscii());
 
 	if (txt == "interface") {
 		DHCPCD_IF *i;
@@ -187,9 +192,13 @@ void DhcpcdPreferences::listBlocks(const QString &txt)
 		    i; i = i->next)
 		{
 			if (strcmp(i->type, "link") == 0) {
-				QIcon icon = DhcpcdQt::getIcon("devices",
-				    i->wireless ?
-				    "network-wireless" : "network-wired");
+				for (lp = list; lp && *lp; lp++) {
+					if (strcmp(i->ifname, *lp) == 0)
+						break;
+				}
+				icon = DhcpcdQt::getIcon("devices",
+				    lp && *lp ?
+				    "document-save" : "document-new");
 				blocks->addItem(icon, i->ifname);
 			}
 		}
@@ -202,16 +211,19 @@ void DhcpcdPreferences::listBlocks(const QString &txt)
 			DhcpcdWi *wi = wis->at(i);
 
 			for (scan = wi->getScans(); scan; scan = scan->next) {
-				QIcon icon;
-
-				icon = DhcpcdQt::getIcon(
-				    scan->flags[0] == '\0' ?"devices" :"status",
-				    scan->flags[0] == '\0' ?"network-wireless" :
-				        "network-wireless-encrypted");
+				for (lp = list; lp && *lp; lp++) {
+					if (strcmp(scan->ssid, *lp) == 0)
+						break;
+				}
+				icon = DhcpcdQt::getIcon("devices",
+				    lp && *lp ?
+				    "document-save" : "document-new");
 				blocks->addItem(icon, scan->ssid);
 			}
 		}
 	}
+
+	dhcpcd_config_blocks_free(list);
 
 	/* Now make the 1st item unselectable and reconnect */
 	qobject_cast<QStandardItemModel *>

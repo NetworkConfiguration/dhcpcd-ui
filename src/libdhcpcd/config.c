@@ -429,3 +429,16 @@ dhcpcd_config_blocks(DHCPCD_CONNECTION *con, const char *block)
 	config(con, ACT_LIST, block, NULL, NULL, &blocks);
 	return blocks;
 }
+
+void
+dhcpcd_config_blocks_free(char **blocks)
+{
+	char **b;
+
+	assert(blocks);
+	if (blocks) {
+		for (b = blocks; *b; b++)
+			free(b);
+		free(blocks);
+	}
+}

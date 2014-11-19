@@ -254,6 +254,7 @@ bool dhcpcd_wpa_network_set(DHCPCD_WPA *, int, const char *, const char *);
 int dhcpcd_wpa_configure_psk(DHCPCD_WPA *w, DHCPCD_WI_SCAN *s, const char *p);
 
 char ** dhcpcd_config_blocks(DHCPCD_CONNECTION *, const char *);
+void dhcpcd_config_blocks_free(char **);
 DHCPCD_OPTION *dhcpcd_config_read(DHCPCD_CONNECTION *,
     const char *, const char *);
 void dhcpcd_config_free(DHCPCD_OPTION *);

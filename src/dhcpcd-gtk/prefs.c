@@ -306,7 +306,7 @@ blocks_on_change(GtkWidget *widget, gpointer data)
 	}
 	gtk_widget_set_sensitive(names, n);
 	g_slist_free(new_names);
-	g_strfreev(list);
+	dhcpcd_config_blocks_free(list);
 }
 
 static void
