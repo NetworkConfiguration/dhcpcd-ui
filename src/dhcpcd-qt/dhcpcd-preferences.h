@@ -66,6 +66,7 @@ private:
 
 	DHCPCD_IF *iface;
 	char *name;
+	int configIndex;
 	DHCPCD_OPTION *config;
 	const char *getString(QLineEdit *le);
 	bool setOption(const char *opt, const char *val, bool *ret);

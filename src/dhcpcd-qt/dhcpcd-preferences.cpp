@@ -60,6 +60,7 @@ DhcpcdPreferences::DhcpcdPreferences(DhcpcdQt *parent)
 
 	name = NULL;
 	config = NULL;
+	configIndex = -1;
 	eWhat = eBlock = NULL;
 	iface = NULL;
 
@@ -235,7 +236,9 @@ void DhcpcdPreferences::listBlocks(const QString &txt)
 
 void DhcpcdPreferences::clearConfig()
 {
+	QIcon icon = DhcpcdQt::getIcon("actions", "document-new");
 
+	blocks->setItemIcon(blocks->currentIndex(), icon);
 	autoConf->setChecked(true);
 	ip->setText("");
 	router->setText("");
@@ -353,7 +356,7 @@ bool DhcpcdPreferences::writeConfig(bool *cancel)
 		*cancel = true;
 		return false;
 	case QMessageBox::Discard:
-		*cancel = true;
+		*cancel = false;
 		return true;
 	default:
 		break;
@@ -373,6 +376,12 @@ bool DhcpcdPreferences::writeConfig(bool *cancel)
 		    .arg(dhcpcd_cffile(con))
 		    .arg(strerror(errno)));
 		goto err;
+	}
+
+	/* Braces to avoid jump error */
+	{
+		QIcon icon = DhcpcdQt::getIcon("actions", "document-save");
+		blocks->setItemIcon(configIndex, icon);
 	}
 	return true;
 
@@ -421,6 +430,11 @@ void DhcpcdPreferences::showBlock(const QString &txt)
 		}
 	} else
 		config = NULL;
+
+	if (config == NULL)
+		configIndex = -1;
+	else
+		configIndex = blocks->currentIndex();
 
 	showConfig();
 	bool enabled = dhcpcd_config_writeable(con) && eBlock != NULL;
