@@ -154,7 +154,7 @@ update_item(WI_SCAN *wi, WI_MENU *m, DHCPCD_WI_SCAN *scan)
 }
 
 static WI_MENU *
-create_menu(GtkWidget *m, WI_SCAN *wis, DHCPCD_WI_SCAN *scan)
+create_menu(WI_SCAN *wis, DHCPCD_WI_SCAN *scan)
 {
 	WI_MENU *wim;
 	GtkWidget *box, *sel;
@@ -205,7 +205,6 @@ create_menu(GtkWidget *m, WI_SCAN *wis, DHCPCD_WI_SCAN *scan)
 	g_signal_connect(G_OBJECT(wim->menu), "activate",
 	    G_CALLBACK(ssid_hook), NULL);
 	g_object_set_data(G_OBJECT(wim->menu), "dhcpcd_wi_scan", scan);
-	gtk_menu_shell_append(GTK_MENU_SHELL(m), wim->menu);
 
 	return wim;
 }
@@ -216,6 +215,7 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 	WI_MENU *wim, *win;
 	DHCPCD_WI_SCAN *s;
 	bool found;
+	int position;
 
 	if (wi->ifmenu == NULL) {
 		dhcpcd_wi_scans_free(wi->scans);
@@ -242,6 +242,7 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 
 	for (s = scans; s; s = s->next) {
 		found = false;
+		position = 0;
 		TAILQ_FOREACH(wim, &wi->menus, next) {
 			if (memcmp(wim->scan->bssid, s->bssid,
 			    sizeof(s->bssid)) == 0)
@@ -249,10 +250,15 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 				found = true;
 				break;
 			}
+			if (dhcpcd_wi_scan_compare(wim->scan, s) < 0)
+				position++;
 		}
 		if (!found) {
-			wim = create_menu(wi->ifmenu, wi, s);
+			wim = create_menu(wi, s);
+			printf ("inserting %s\n", s->ssid);
 			TAILQ_INSERT_TAIL(&wi->menus, wim, next);
+			gtk_menu_shell_insert(GTK_MENU_SHELL(wi->ifmenu),
+			    wim->menu, position);
 			gtk_widget_show_all(wim->menu);
 		}
 	}
@@ -298,8 +304,9 @@ add_scans(WI_SCAN *wi)
 
 	m = gtk_menu_new();
 	for (wis = wi->scans; wis; wis = wis->next) {
-		wim = create_menu(m, wi, wis);
+		wim = create_menu(wi, wis);
 		TAILQ_INSERT_TAIL(&wi->menus, wim, next);
+		gtk_menu_shell_append(GTK_MENU_SHELL(m), wim->menu);
 	}
 
 	return m;

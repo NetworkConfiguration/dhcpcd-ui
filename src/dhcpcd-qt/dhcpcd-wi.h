@@ -27,6 +27,7 @@
 #ifndef DHCPCD_WI_H
 #define DHCPCD_WI_H
 
+#include <QAction>
 #include <QObject>
 
 #include "dhcpcd.h"
@@ -68,7 +69,8 @@ private:
 	QTimer *retryOpenTimer;
 
 	QMenu *menu;
-	void createMenuItem(QMenu *menu, DHCPCD_WI_SCAN *scan);
+	void createMenuItem(QMenu *menu, DHCPCD_WI_SCAN *scan,
+	    QAction *before = NULL);
 	void createMenu1(QMenu *parent);
 };
 

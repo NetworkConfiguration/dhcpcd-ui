@@ -92,10 +92,12 @@ bool DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
 		QList<DhcpcdSsidMenu*> lst;
 		DHCPCD_WI_SCAN *scan;
 
-		lst = menu->findChildren<DhcpcdSsidMenu*>();
 		for (scan = scans; scan; scan = scan->next) {
 			bool found = false;
+			int position = 0;
+			QAction *before = NULL;
 
+			lst = menu->findChildren<DhcpcdSsidMenu*>();
 			foreach(DhcpcdSsidMenu *sm, lst) {
 				DHCPCD_WI_SCAN *s = sm->getScan();
 				if (memcmp(scan->bssid, s->bssid,
@@ -105,14 +107,17 @@ bool DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
 					found = true;
 					break;
 				}
+				if (dhcpcd_wi_scan_compare(scan, s) < 0)
+					before = sm;
 			}
 
 			if (!found) {
-				createMenuItem(menu, scan);
+				createMenuItem(menu, scan, before);
 				changed++;
 			}
 		}
 
+		lst = menu->findChildren<DhcpcdSsidMenu*>();
 		foreach(DhcpcdSsidMenu *sm, lst) {
 			DHCPCD_WI_SCAN *s = sm->getScan();
 			for (scan = scans; scan; scan = scan->next) {
@@ -133,10 +138,11 @@ bool DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
 	return !(changed == 0);
 }
 
-void DhcpcdWi::createMenuItem(QMenu *menu, DHCPCD_WI_SCAN *scan)
+void DhcpcdWi::createMenuItem(QMenu *menu, DHCPCD_WI_SCAN *scan,
+    QAction *before)
 {
 	DhcpcdSsidMenu *ssidMenu = new DhcpcdSsidMenu(menu, this, scan);
-	menu->addAction(ssidMenu);
+	menu->insertAction(before, ssidMenu);
 	connect(ssidMenu, SIGNAL(triggered(DHCPCD_WI_SCAN *)),
 	    this, SLOT(connectSsid(DHCPCD_WI_SCAN *)));
 }

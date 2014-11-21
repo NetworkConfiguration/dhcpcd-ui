@@ -354,7 +354,7 @@ dhcpcd_wpa_scans_read(DHCPCD_WPA *wpa)
 	return wis;
 }
 
-static int
+int
 dhcpcd_wi_scan_compare(DHCPCD_WI_SCAN *a, DHCPCD_WI_SCAN *b)
 {
 	int cmp;
