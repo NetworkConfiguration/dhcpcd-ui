@@ -94,7 +94,6 @@ bool DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
 
 		for (scan = scans; scan; scan = scan->next) {
 			bool found = false;
-			int position = 0;
 			QAction *before = NULL;
 
 			lst = menu->findChildren<DhcpcdSsidMenu*>();
