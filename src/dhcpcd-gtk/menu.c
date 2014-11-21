@@ -32,7 +32,6 @@ static const char *copyright = "Copyright (c) 2009-2014 Roy Marples";
 static GtkStatusIcon *sicon;
 static GtkWidget *menu;
 static GtkAboutDialog *about;
-static bool ifmenu;
 
 static void
 on_pref(_unused GObject *o, gpointer data)
@@ -350,7 +349,6 @@ on_activate(GtkStatusIcon *icon)
 
 	if ((l = TAILQ_LAST(&wi_scans, wi_scan_head)) && l != w) {
 		menu = gtk_menu_new();
-		ifmenu = true;
 		TAILQ_FOREACH(w, &wi_scans, next) {
 			item = gtk_image_menu_item_new_with_label(
 				w->interface->ifname);
@@ -364,7 +362,6 @@ on_activate(GtkStatusIcon *icon)
 			    w->ifmenu);
 		}
 	} else {
-		ifmenu = false;
 		w->ifmenu = menu = add_scans(w);
 	}
 
