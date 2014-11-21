@@ -103,6 +103,7 @@ private:
 	QDialog *about;
 	QDialog *preferences;
 
+	void processScans(DhcpcdWi *wi, DHCPCD_WI_SCAN *scans);
 	void addSsidMenu(QMenu *&menu, DHCPCD_IF *ifp, DhcpcdWi *&wi);
 	void createSsidMenu();
 

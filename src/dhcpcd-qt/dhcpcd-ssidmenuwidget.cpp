@@ -48,9 +48,12 @@ DhcpcdSsidMenuWidget::DhcpcdSsidMenuWidget(QWidget *parent,
 	QHBoxLayout *layout = new QHBoxLayout(this);
 	layout->setContentsMargins(1, 1, 1, 1);
 	selicon = new QLabel(this);
+	selicon->setMinimumSize(16, 16);
 	layout->addWidget(selicon);
 
 	ssid = new QLabel(this);
+	ssid->setSizePolicy(QSizePolicy::MinimumExpanding,
+	    QSizePolicy::MinimumExpanding);
 	layout->addWidget(ssid);
 
 	encicon = new QLabel(this);
@@ -92,7 +95,8 @@ void DhcpcdSsidMenuWidget::setScan(DHCPCD_WI_SCAN *scan)
 		icon = DhcpcdQt::getIcon("actions", "dialog-ok-apply");
 		picon = icon.pixmap(16, 16);
 		selicon->setPixmap(picon);
-	}
+	} else
+		selicon->setPixmap(NULL);
 	ssid->setText(scan->ssid);
 	if (scan->flags[0] == '\0')
 		icon = DhcpcdQt::getIcon("status", "dialog-warning");

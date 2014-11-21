@@ -270,6 +270,19 @@ void DhcpcdQt::ifCallback(DHCPCD_IF *i)
 	}
 
 	updateOnline(false);
+
+	if (i->wireless) {
+		for (auto &wi : *wis) {
+			DHCPCD_WPA *wpa = wi->getWpa();
+			if (dhcpcd_wpa_if(wpa) == i) {
+				DHCPCD_WI_SCAN *scans;
+
+				scans = dhcpcd_wi_scans(i);
+				processScans(wi, scans);
+			}
+		}
+	}
+	
 }
 
 void DhcpcdQt::dhcpcd_if_cb(DHCPCD_IF *i, void *d)
@@ -289,9 +302,37 @@ DhcpcdWi *DhcpcdQt::findWi(DHCPCD_WPA *wpa)
 	return NULL;
 }
 
+void DhcpcdQt::processScans(DhcpcdWi *wi, DHCPCD_WI_SCAN *scans)
+{
+	DHCPCD_WI_SCAN *s1, *s2;
+
+	QString title = tr("New Access Point");
+	QString txt;
+	for (s1 = scans; s1; s1 = s1->next) {
+		for (s2 = wi->getScans(); s2; s2 = s2->next) {
+			if (strcmp(s1->ssid, s2->ssid) == 0)
+				break;
+		}
+		if (s2 == NULL) {
+			if (!txt.isEmpty()) {
+				title = tr("New Access Points");
+				txt += '\n';
+			}
+			txt += s1->ssid;
+		}
+	}
+	if (!txt.isEmpty() &&
+	    (ssidMenu == NULL || !ssidMenu->isVisible()))
+		notify(title, txt);
+
+	wi->setScans(scans);
+	if (ssidMenu && ssidMenu->isVisible())
+		ssidMenu->popup(ssidMenuPos);
+}
+
 void DhcpcdQt::scanCallback(DHCPCD_WPA *wpa)
 {
-	DHCPCD_WI_SCAN *scans, *s1, *s2;
+	DHCPCD_WI_SCAN *scans;
 	int fd = dhcpcd_wpa_get_fd(wpa);
 	DhcpcdWi *wi;
 
@@ -320,32 +361,10 @@ void DhcpcdQt::scanCallback(DHCPCD_WPA *wpa)
 	if (wi == NULL) {
 		wi = new DhcpcdWi(this, wpa);
 		wis->append(wi);
-	} else {
-		QString title = tr("New Access Point");
-		QString txt;
-		for (s1 = scans; s1; s1 = s1->next) {
-			for (s2 = wi->getScans(); s2; s2 = s2->next) {
-				if (strcmp(s1->ssid, s2->ssid) == 0)
-					break;
-			}
-			if (s2 == NULL) {
-				if (!txt.isEmpty()) {
-					title = tr("New Access Points");
-					txt += '\n';
-				}
-				txt += s1->ssid;
-			}
-		}
-		if (!txt.isEmpty() &&
-		    (ssidMenu == NULL || !ssidMenu->isVisible()))
-		{
-			qDebug("%s", qPrintable(txt));
-			notify(title, txt);
-		}
-	}
+		wi->setScans(scans);
+	} else
+		processScans(wi, scans);
 
-	if (wi->setScans(scans) && ssidMenu->isVisible())
-		ssidMenu->popup(ssidMenuPos);
 }
 
 void DhcpcdQt::dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, void *d)
