@@ -131,7 +131,7 @@ update_item(WI_SCAN *wi, WI_MENU *m, DHCPCD_WI_SCAN *scan)
 	if (scan->flags & WSF_SECURE)
 		icon = "network-wireless-encrypted";
 	else
-		icon = "network-wireless";
+		icon = "dialog-warning";
 	m->icon = gtk_image_new_from_icon_name(icon,
 	    GTK_ICON_SIZE_MENU);
 
@@ -182,7 +182,7 @@ create_menu(WI_SCAN *wis, DHCPCD_WI_SCAN *scan)
 	if (scan->flags & WSF_SECURE)
 		icon = "network-wireless-encrypted";
 	else
-		icon = "network-wireless";
+		icon = "dialog-warning";
 	wim->icon = gtk_image_new_from_icon_name(icon,
 	    GTK_ICON_SIZE_MENU);
 	gtk_box_pack_start(GTK_BOX(box), wim->icon, FALSE, FALSE, 0);
