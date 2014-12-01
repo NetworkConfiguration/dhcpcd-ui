@@ -697,7 +697,7 @@ dhcpcd_wpa_network_find(DHCPCD_WPA *wpa, const char *fssid)
 	s = strchr(wpa->con->buf, '\n');
 	if (s == NULL)
 		return -1;
-	while ((t = strsep(&s, "\b"))) {
+	while ((t = strsep(&s, "\b\n"))) {
 		if (*t == '\0')
 			continue;
 		ssid = strchr(t, '\t');
@@ -1023,17 +1023,14 @@ dhcpcd_wpa_start(DHCPCD_CONNECTION *con)
 		dhcpcd_wpa_if_event(i);
 }
 
-int
-dhcpcd_wpa_configure_psk(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s, const char *psk)
+static int
+dhcpcd_wpa_configure_psk1(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s, const char *psk)
 {
 	const char *mgmt, *var;
 	int id, retval;
 	char *npsk;
 	size_t psk_len;
 	bool r;
-
-	assert(wpa);
-	assert(s);
 
 	if (!dhcpcd_wpa_disconnect(wpa))
 		return DHCPCD_WPA_ERR_DISCONN;
@@ -1093,7 +1090,22 @@ dhcpcd_wpa_configure_psk(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s, const char *psk)
 	 * This should not be saved. */
 	if (!dhcpcd_wpa_network_select(wpa, id))
 		return DHCPCD_WPA_ERR_SELECT;
-	if (!dhcpcd_wpa_reassociate(wpa))
-		return DHCPCD_WPA_ERR_ASSOC;
+	return retval;
+}
+
+int
+dhcpcd_wpa_configure_psk(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s, const char *psk)
+{
+	int retval;
+
+	assert(wpa);
+	assert(s);
+
+	retval = dhcpcd_wpa_configure_psk1(wpa, s, psk);
+	/* Always reassociate regardless of error */
+	if (!dhcpcd_wpa_reassociate(wpa)) {
+		if (retval == DHCPCD_WPA_SUCCESS)
+			retval = DHCPCD_WPA_ERR_ASSOC;
+	}
 	return retval;
 }
