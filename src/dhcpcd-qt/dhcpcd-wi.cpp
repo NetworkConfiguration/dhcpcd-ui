@@ -226,7 +226,7 @@ void DhcpcdWi::dispatch()
 void DhcpcdWi::connectSsid(DHCPCD_WI_SCAN *scan)
 {
 	DHCPCD_WI_SCAN s;
-	const char *psk;
+	int err;
 
 	/* Take a copy of scan incase it's destroyed by a scan update */
 	memcpy(&s, scan, sizeof(s));
@@ -238,13 +238,16 @@ void DhcpcdWi::connectSsid(DHCPCD_WI_SCAN *scan)
 		    tr("Pre Shared key"), QLineEdit::Normal, NULL, &ok);
 		if (!ok)
 			return;
-		psk = pwd.toAscii();
+		if (pwd.isNull() || pwd.isEmpty())
+			err = dhcpcd_wpa_select(wpa, &s);
+		else
+			err = dhcpcd_wpa_configure(wpa, &s, pwd.toAscii());
 	} else
-		psk = NULL;
+		err = dhcpcd_wpa_configure(wpa, &s, NULL);
 
 	QString errt;
 
-	switch (dhcpcd_wpa_configure_psk(wpa, &s, psk)) {
+	switch (err) {
 	case DHCPCD_WPA_SUCCESS:
 		return;
 	case DHCPCD_WPA_ERR_DISCONN:

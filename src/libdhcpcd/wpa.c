@@ -1023,8 +1023,30 @@ dhcpcd_wpa_start(DHCPCD_CONNECTION *con)
 		dhcpcd_wpa_if_event(i);
 }
 
+static const char *
+dhcpcd_wpa_var_psk(DHCPCD_WI_SCAN *s)
+{
+
+	if (s->flags & WSF_WEP)
+		return "wep_key0";
+	else if ((s->flags & (WSF_WPA | WSF_PSK)) == (WSF_WPA | WSF_PSK))
+		return "psk";
+	return NULL;
+}
+
+static const char *
+dhcpcd_wpa_var_mgmt(DHCPCD_WI_SCAN *s)
+{
+
+	if (s->flags & WSF_WPA) {
+		if (s->flags & WSF_PSK)
+			return "WPA-PSK";
+	}
+	return "NONE";
+}
+
 static int
-dhcpcd_wpa_configure_psk1(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s, const char *psk)
+dhcpcd_wpa_configure1(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s, const char *psk)
 {
 	const char *mgmt, *var;
 	int id, retval;
@@ -1044,24 +1066,12 @@ dhcpcd_wpa_configure_psk1(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s, const char *psk)
 	if (id == -1)
 		return DHCPCD_WPA_ERR;
 
-	if (s->flags & WSF_WEP) {
-		mgmt = "NONE";
-		var = "wep_key0";
-	} else if (s->flags & WSF_WPA) {
-		mgmt = "WPA-PSK";
-		if (s->flags & WSF_PSK)
-			var = "psk";
-		else
-			var = NULL;
-	} else {
-		mgmt = "NONE";
-		var = NULL;
-	}
+	mgmt = dhcpcd_wpa_var_mgmt(s);
+	var = dhcpcd_wpa_var_psk(s);
+	if (mgmt && var) {
+		if (!dhcpcd_wpa_network_set(wpa, id, "key_mgmt", mgmt))
+			return DHCPCD_WPA_ERR_SET;
 
-	if (!dhcpcd_wpa_network_set(wpa, id, "key_mgmt", mgmt))
-		return DHCPCD_WPA_ERR_SET;
-
-	if (var) {
 		if (psk)
 			psk_len = strlen(psk);
 		else
@@ -1094,15 +1104,39 @@ dhcpcd_wpa_configure_psk1(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s, const char *psk)
 }
 
 int
-dhcpcd_wpa_configure_psk(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s, const char *psk)
+dhcpcd_wpa_configure(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s, const char *psk)
 {
 	int retval;
+
+	retval = dhcpcd_wpa_configure1(wpa, s, psk);
+	/* Always reassociate */
+	if (!dhcpcd_wpa_reassociate(wpa)) {
+		if (retval == DHCPCD_WPA_SUCCESS)
+			retval = DHCPCD_WPA_ERR_ASSOC;
+	}
+	return retval;
+}
+
+int
+dhcpcd_wpa_select(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s)
+{
+	int id, retval;
 
 	assert(wpa);
 	assert(s);
 
-	retval = dhcpcd_wpa_configure_psk1(wpa, s, psk);
-	/* Always reassociate regardless of error */
+	id = dhcpcd_wpa_network_find(wpa, s->ssid);
+	if (id == -1)
+		return DHCPCD_WPA_ERR;
+
+	if (!dhcpcd_wpa_disconnect(wpa))
+		retval = DHCPCD_WPA_ERR_DISCONN;
+	else if (!dhcpcd_wpa_network_select(wpa, id))
+		retval = DHCPCD_WPA_ERR_SELECT;
+	else
+		retval = DHCPCD_WPA_SUCCESS;
+
+	/* Always reassociate */
 	if (!dhcpcd_wpa_reassociate(wpa)) {
 		if (retval == DHCPCD_WPA_SUCCESS)
 			retval = DHCPCD_WPA_ERR_ASSOC;

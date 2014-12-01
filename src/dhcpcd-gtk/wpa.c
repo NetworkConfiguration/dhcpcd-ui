@@ -65,11 +65,11 @@ wpa_abort(void)
 }
 
 static bool
-wpa_conf(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *scan, const char *psk)
+wpa_conf(int werr)
 {
 	const char *errt;
 
-	switch (dhcpcd_wpa_configure_psk(wpa, scan, psk)) {
+	switch (werr) {
 	case DHCPCD_WPA_SUCCESS:
 		return true;
 	case DHCPCD_WPA_ERR_DISCONN:
@@ -118,7 +118,7 @@ wpa_configure(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *scan)
 	s.next = NULL;
 
 	if (!(s.flags & WSF_PSK))
-		return wpa_conf(wpa, &s, NULL);
+		return wpa_conf(dhcpcd_wpa_configure(wpa, &s, NULL));
 
 	if (wpa_dialog)
 		gtk_widget_destroy(wpa_dialog);
@@ -152,7 +152,10 @@ wpa_configure(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *scan)
 	retval = false;
 	if (result == GTK_RESPONSE_ACCEPT) {
 		var = gtk_entry_get_text(GTK_ENTRY(psk));
-		retval = wpa_conf(wpa, &s, var);
+		if (*var == '\0')
+			retval = wpa_conf(dhcpcd_wpa_select(wpa, &s));
+		else
+			retval = wpa_conf(dhcpcd_wpa_configure(wpa, &s, var));
 	}
 	if (wpa_dialog) {
 		gtk_widget_destroy(wpa_dialog);
