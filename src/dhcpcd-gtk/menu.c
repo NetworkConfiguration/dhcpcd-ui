@@ -128,10 +128,10 @@ update_item(WI_SCAN *wi, WI_MENU *m, DHCPCD_WI_SCAN *scan)
 	    GTK_IMAGE_MENU_ITEM(m->menu), sel);
 
 	gtk_label_set_text(GTK_LABEL(m->ssid), scan->ssid);
-	if (scan->flags[0] == '\0')
-		icon = "network-wireless";
-	else
+	if (scan->flags & WSF_SECURE)
 		icon = "network-wireless-encrypted";
+	else
+		icon = "network-wireless";
 	m->icon = gtk_image_new_from_icon_name(icon,
 	    GTK_ICON_SIZE_MENU);
 
@@ -140,10 +140,11 @@ update_item(WI_SCAN *wi, WI_MENU *m, DHCPCD_WI_SCAN *scan)
 		GTK_ICON_SIZE_MENU);
 
 #if 0
-	if (scan->flags[0] == '\0')
+	if (scan->wpa_flags[0] == '\0')
 		gtk_widget_set_tooltip_text(m->menu, scan->bssid);
 	else {
-		char *tip = g_strconcat(scan->bssid, " ", scan->flags, NULL);
+		char *tip = g_strconcat(scan->bssid, " ", scan->wpa_flags,
+		    NULL);
 		gtk_widget_set_tooltip_text(m->menu, tip);
 		g_free(tip);
 	}
@@ -178,10 +179,10 @@ create_menu(WI_SCAN *wis, DHCPCD_WI_SCAN *scan)
 	gtk_misc_set_alignment(GTK_MISC(wim->ssid), 0.0, 0.5);
 	gtk_box_pack_start(GTK_BOX(box), wim->ssid, TRUE, TRUE, 0);
 
-	if (scan->flags[0] == '\0')
-		icon = "network-wireless";
-	else
+	if (scan->flags & WSF_SECURE)
 		icon = "network-wireless-encrypted";
+	else
+		icon = "network-wireless";
 	wim->icon = gtk_image_new_from_icon_name(icon,
 	    GTK_ICON_SIZE_MENU);
 	gtk_box_pack_start(GTK_BOX(box), wim->icon, FALSE, FALSE, 0);
@@ -192,10 +193,10 @@ create_menu(WI_SCAN *wis, DHCPCD_WI_SCAN *scan)
 	gtk_box_pack_start(GTK_BOX(box), wim->strength, FALSE, FALSE, 0);
 
 #if 0
-	if (scan->flags[0] == '\0')
+	if (scan->wpa_flags[0] == '\0')
 		gtk_widget_set_tooltip_text(wim->menu, scan->bssid);
 	else {
-		tip = g_strconcat(scan->bssid, " ", scan->flags, NULL);
+		tip = g_strconcat(scan->bssid, " ", scan->wpa_flags, NULL);
 		gtk_widget_set_tooltip_text(wim->menu, tip);
 		g_free(tip);
 	}

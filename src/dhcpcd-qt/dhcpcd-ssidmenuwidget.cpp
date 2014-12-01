@@ -98,11 +98,11 @@ void DhcpcdSsidMenuWidget::setScan(DHCPCD_WI_SCAN *scan)
 	} else
 		selicon->setPixmap(NULL);
 	ssid->setText(scan->ssid);
-	if (scan->flags[0] == '\0')
-		icon = DhcpcdQt::getIcon("status", "dialog-warning");
-	else
+	if (scan->flags & WSF_SECURE)
 		icon = DhcpcdQt::getIcon("status",
 		    "network-wireless-encrypted");
+	else
+		icon = DhcpcdQt::getIcon("status", "dialog-warning");
 	picon = icon.pixmap(16, 16);
 	encicon->setPixmap(picon);
 

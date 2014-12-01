@@ -277,6 +277,7 @@ dhcpcd_wpa_scans_read(DHCPCD_WPA *wpa)
 	DHCPCD_WI_SCAN *wis, *w, *l;
 	char *s, *p, buf[32];
 	char wssid[sizeof(w->ssid)];
+	const char *proto;
 
 	if (!dhcpcd_realloc(wpa->con, 2048))
 		return NULL;
@@ -310,7 +311,8 @@ dhcpcd_wpa_scans_read(DHCPCD_WPA *wpa)
 			else if (strncmp(s, "level=", 6) == 0)
 				dhcpcd_strtoi(&w->level.value, s + 6);
 			else if (strncmp(s, "flags=", 6) == 0)
-				strlcpy(w->flags, s + 6, sizeof(w->flags));
+				strlcpy(w->wpa_flags, s + 6,
+				    sizeof(w->wpa_flags));
 			else if (strncmp(s, "ssid=", 5) == 0) {
 				/* Decode it from \xNN to \NNN
 				 * so we're consistent */
@@ -334,6 +336,25 @@ dhcpcd_wpa_scans_read(DHCPCD_WPA *wpa)
 		else
 			l->next = w;
 		l = w;
+
+		if ((proto = strstr(w->wpa_flags, "[WPA-")) ||
+		    (proto = strstr(w->wpa_flags, "[WPA2-")) ||
+		    (proto = strstr(w->wpa_flags, "[RSN-")))
+		{
+			const char *endp, *psk;
+
+			w->flags = WSF_WPA | WSF_SECURE;
+			endp = strchr(proto, ']');
+			if ((psk = strstr(proto, "-PSK]")) ||
+			    (psk = strstr(proto, "-PSK-")) ||
+			    (psk = strstr(proto, "-PSK+")))
+			{
+				if (psk < endp)
+					w->flags |= WSF_PSK;
+			}
+		}
+		if (strstr(w->wpa_flags, "[WEP]"))
+			w->flags = WSF_WEP | WSF_PSK | WSF_SECURE;
 
 		w->strength.value = w->level.value;
 		if (w->strength.value > 110 && w->strength.value < 256)
@@ -1004,33 +1025,41 @@ dhcpcd_wpa_configure_psk(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s, const char *psk)
 	if (id == -1)
 		return DHCPCD_WPA_ERR;
 
-	if (strcmp(s->flags, "[WEP]") == 0) {
+	if (s->flags & WSF_WEP) {
 		mgmt = "NONE";
 		var = "wep_key0";
-	} else {
+	} else if (s->flags & WSF_WPA) {
 		mgmt = "WPA-PSK";
-		var = "psk";
+		if (s->flags & WSF_PSK)
+			var = "psk";
+		else
+			var = NULL;
+	} else {
+		mgmt = "NONE";
+		var = NULL;
 	}
 
 	if (!dhcpcd_wpa_network_set(wpa, id, "key_mgmt", mgmt))
 		return DHCPCD_WPA_ERR_SET;
 
-	if (psk)
-		psk_len = strlen(psk);
-	else
-		psk_len = 0;
-	npsk = malloc(psk_len + 3);
-	if (npsk == NULL)
-		return DHCPCD_WPA_ERR;
-	npsk[0] = '"';
-	if (psk_len)
-		memcpy(npsk + 1, psk, psk_len);
-	npsk[psk_len + 1] = '"';
-	npsk[psk_len + 2] = '\0';
-	r = dhcpcd_wpa_network_set(wpa, id, var, npsk);
-	free(npsk);
-	if (!r)
-		return DHCPCD_WPA_ERR_SET_PSK;
+	if (var) {
+		if (psk)
+			psk_len = strlen(psk);
+		else
+			psk_len = 0;
+		npsk = malloc(psk_len + 3);
+		if (npsk == NULL)
+			return DHCPCD_WPA_ERR;
+		npsk[0] = '"';
+		if (psk_len)
+			memcpy(npsk + 1, psk, psk_len);
+		npsk[psk_len + 1] = '"';
+		npsk[psk_len + 2] = '\0';
+		r = dhcpcd_wpa_network_set(wpa, id, var, npsk);
+		free(npsk);
+		if (!r)
+			return DHCPCD_WPA_ERR_SET_PSK;
+	}
 
 	if (!dhcpcd_wpa_network_enable(wpa, id))
 		return DHCPCD_WPA_ERR_ENABLE;

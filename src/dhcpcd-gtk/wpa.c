@@ -64,18 +64,52 @@ wpa_abort(void)
 	}
 }
 
+static bool
+wpa_conf(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *scan, const char *psk)
+{
+	const char *errt;
+
+	switch (dhcpcd_wpa_configure_psk(wpa, scan, psk)) {
+	case DHCPCD_WPA_SUCCESS:
+		return true;
+	case DHCPCD_WPA_ERR_SET:
+		errt = _("Failed to set key management.");
+		break;
+	case DHCPCD_WPA_ERR_SET_PSK:
+		errt = _("Failed to set password, probably too short.");
+		break;
+	case DHCPCD_WPA_ERR_ENABLE:
+		errt = _("Failed to enable the network.");
+		break;
+	case DHCPCD_WPA_ERR_ASSOC:
+		errt = _("Failed to start association.");
+		break;
+	case DHCPCD_WPA_ERR_WRITE:
+		errt =_("Failed to save wpa_supplicant configuration.\n\nYou should add update_config=1 to /etc/wpa_supplicant.conf.");
+		break;
+	default:
+		errt = strerror(errno);
+		break;
+	}
+	wpa_show_err(_("Error enabling network"), errt);
+	return false;
+}
+
 bool
 wpa_configure(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *scan)
 {
 	DHCPCD_WI_SCAN s;
 	GtkWidget *label, *psk, *vbox, *hbox;
-	const char *var, *errt;
+	const char *var;
 	int result;
 	bool retval;
 
 	/* Take a copy of scan incase it's destroyed by a scan update */
 	memcpy(&s, scan, sizeof(s));
 	s.next = NULL;
+
+	if (!(s.flags & WSF_PSK))
+		return wpa_conf(wpa, &s, NULL);
 
 	if (wpa_dialog)
 		gtk_widget_destroy(wpa_dialog);
@@ -109,31 +143,7 @@ wpa_configure(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *scan)
 	retval = false;
 	if (result == GTK_RESPONSE_ACCEPT) {
 		var = gtk_entry_get_text(GTK_ENTRY(psk));
-		switch (dhcpcd_wpa_configure_psk(wpa, &s, var)) {
-		case DHCPCD_WPA_SUCCESS:
-			retval = true;
-			break;
-		case DHCPCD_WPA_ERR_SET:
-			errt = _("Failed to set key management.");
-			break;
-		case DHCPCD_WPA_ERR_SET_PSK:
-			errt = _("Failed to set password, probably too short.");
-			break;
-		case DHCPCD_WPA_ERR_ENABLE:
-			errt = _("Failed to enable the network.");
-			break;
-		case DHCPCD_WPA_ERR_ASSOC:
-			errt = _("Failed to start association.");
-			break;
-		case DHCPCD_WPA_ERR_WRITE:
-			errt =_("Failed to save wpa_supplicant configuration.\n\nYou should add update_config=1 to /etc/wpa_supplicant.conf.");
-			break;
-		default:
-			errt = strerror(errno);
-			break;
-		}
-		if (!retval)
-			wpa_show_err(_("Error enabling network"), errt);
+		retval = wpa_conf(wpa, &s, var);
 	}
 	if (wpa_dialog) {
 		gtk_widget_destroy(wpa_dialog);

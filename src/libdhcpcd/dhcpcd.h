@@ -65,13 +65,18 @@ typedef struct dhcpcd_wi_avs {
 typedef struct dhcpcd_wi_scan {
 	struct dhcpcd_wi_scan *next;
 	char bssid[IF_BSSIDSIZE];
+	int flags;
+#define WSF_SECURE		0x01
+#define WSF_PSK			0x02
+#define WSF_WEP			0x10
+#define WSF_WPA			0x20
 	int frequency;
 	DHCPCD_WI_AV quality;
 	DHCPCD_WI_AV noise;
 	DHCPCD_WI_AV level;
 	DHCPCD_WI_AV strength;
 	char ssid[IF_SSIDSIZE];
-	char flags[FLAGSIZE];
+	char wpa_flags[FLAGSIZE];
 } DHCPCD_WI_SCAN;
 
 #ifdef IN_LIBDHCPCD
