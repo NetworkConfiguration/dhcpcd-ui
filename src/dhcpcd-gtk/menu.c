@@ -365,10 +365,12 @@ on_activate(GtkStatusIcon *icon)
 		w->ifmenu = menu = add_scans(w);
 	}
 
-	gtk_widget_show_all(GTK_WIDGET(menu));
-	gtk_menu_popup(GTK_MENU(menu), NULL, NULL,
-	    gtk_status_icon_position_menu, icon,
-	    1, gtk_get_current_event_time());
+	if (menu) {
+		gtk_widget_show_all(GTK_WIDGET(menu));
+		gtk_menu_popup(GTK_MENU(menu), NULL, NULL,
+		    gtk_status_icon_position_menu, icon,
+		    1, gtk_get_current_event_time());
+	}
 }
 
 static void
