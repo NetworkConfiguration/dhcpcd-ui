@@ -263,6 +263,8 @@ bool dhcpcd_wpa_network_set(DHCPCD_WPA *, int, const char *, const char *);
 #define DHCPCD_WPA_ERR_WRITE	-5
 #define DHCPCD_WPA_ERR_SELECT	-6
 #define DHCPCD_WPA_ERR_ASSOC	-7
+#define DHCPCD_WPA_ERR_DISCONN	-8
+#define DHCPCD_WPA_ERR_RECONF	-9
 int dhcpcd_wpa_configure_psk(DHCPCD_WPA *w, DHCPCD_WI_SCAN *s, const char *p);
 
 char ** dhcpcd_config_blocks(DHCPCD_CONNECTION *, const char *);

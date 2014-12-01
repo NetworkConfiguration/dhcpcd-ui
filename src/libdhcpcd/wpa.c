@@ -1035,10 +1035,13 @@ dhcpcd_wpa_configure_psk(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s, const char *psk)
 	assert(wpa);
 	assert(s);
 
+	if (!dhcpcd_wpa_disconnect(wpa))
+		return DHCPCD_WPA_ERR_DISCONN;
+
 	/* reload the configuration so that when we don't save
 	 * the disabled networks to the config file. */
 	if (!dhcpcd_wpa_reconfigure(wpa))
-		return DHCPCD_WPA_ERR;
+		return DHCPCD_WPA_ERR_RECONF;
 
 	id = dhcpcd_wpa_network_find_new(wpa, s->ssid);
 	if (id == -1)

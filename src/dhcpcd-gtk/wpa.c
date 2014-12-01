@@ -72,6 +72,12 @@ wpa_conf(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *scan, const char *psk)
 	switch (dhcpcd_wpa_configure_psk(wpa, scan, psk)) {
 	case DHCPCD_WPA_SUCCESS:
 		return true;
+	case DHCPCD_WPA_ERR_DISCONN:
+		errt = _("Failed to disconnect.");
+		break;
+	case DHCPCD_WPA_ERR_RECONF:
+		errt = _("Faile to reconfigure.");
+		break;
 	case DHCPCD_WPA_ERR_SET:
 		errt = _("Failed to set key management.");
 		break;
