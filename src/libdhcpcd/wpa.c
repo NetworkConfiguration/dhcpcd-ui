@@ -576,6 +576,13 @@ dhcpcd_wi_scans(DHCPCD_IF *i)
 }
 
 bool
+dhcpcd_wpa_reconfigure(DHCPCD_WPA *wpa)
+{
+
+	return dhcpcd_wpa_command(wpa, "RECONFIGURE");
+}
+
+bool
 dhcpcd_wpa_reassociate(DHCPCD_WPA *wpa)
 {
 
@@ -620,6 +627,13 @@ dhcpcd_wpa_network_enable(DHCPCD_WPA *wpa, int id)
 {
 
 	return dhcpcd_wpa_network(wpa, "ENABLE_NETWORK", id);
+}
+
+bool
+dhcpcd_wpa_network_select(DHCPCD_WPA *wpa, int id)
+{
+
+	return dhcpcd_wpa_network(wpa, "SELECT_NETWORK", id);
 }
 
 bool
@@ -1013,13 +1027,18 @@ int
 dhcpcd_wpa_configure_psk(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s, const char *psk)
 {
 	const char *mgmt, *var;
-	int id;
+	int id, retval;
 	char *npsk;
 	size_t psk_len;
 	bool r;
 
 	assert(wpa);
 	assert(s);
+
+	/* reload the configuration so that when we don't save
+	 * the disabled networks to the config file. */
+	if (!dhcpcd_wpa_reconfigure(wpa))
+		return DHCPCD_WPA_ERR;
 
 	id = dhcpcd_wpa_network_find_new(wpa, s->ssid);
 	if (id == -1)
@@ -1063,9 +1082,15 @@ dhcpcd_wpa_configure_psk(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s, const char *psk)
 
 	if (!dhcpcd_wpa_network_enable(wpa, id))
 		return DHCPCD_WPA_ERR_ENABLE;
+	if (dhcpcd_wpa_config_write(wpa))
+		retval = DHCPCD_WPA_SUCCESS;
+	else
+		retval = DHCPCD_WPA_ERR_WRITE;
+	/* Selecting a network disbales the others.
+	 * This should not be saved. */
+	if (!dhcpcd_wpa_network_select(wpa, id))
+		return DHCPCD_WPA_ERR_SELECT;
 	if (!dhcpcd_wpa_reassociate(wpa))
 		return DHCPCD_WPA_ERR_ASSOC;
-	if (!dhcpcd_wpa_config_write(wpa))
-		return DHCPCD_WPA_ERR_WRITE;
-	return DHCPCD_WPA_SUCCESS;
+	return retval;
 }

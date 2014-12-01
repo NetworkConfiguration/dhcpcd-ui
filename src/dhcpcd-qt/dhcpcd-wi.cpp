@@ -256,6 +256,9 @@ void DhcpcdWi::connectSsid(DHCPCD_WI_SCAN *scan)
 	case DHCPCD_WPA_ERR_ENABLE:
 		errt = tr("Failed to enable the network.");
 		break;
+	case DHCPCD_WPA_ERR_SELECT:
+		errt = tr("Failed to select the network.");
+		break;
 	case DHCPCD_WPA_ERR_ASSOC:
 		errt = tr("Failed to start association.");
 		break;

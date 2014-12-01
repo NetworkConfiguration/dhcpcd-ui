@@ -81,6 +81,9 @@ wpa_conf(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *scan, const char *psk)
 	case DHCPCD_WPA_ERR_ENABLE:
 		errt = _("Failed to enable the network.");
 		break;
+	case DHCPCD_WPA_ERR_SELECT:
+		errt = _("Failed to select the network.");
+		break;
 	case DHCPCD_WPA_ERR_ASSOC:
 		errt = _("Failed to start association.");
 		break;

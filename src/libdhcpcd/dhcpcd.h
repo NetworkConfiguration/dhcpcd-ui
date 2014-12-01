@@ -243,12 +243,14 @@ bool dhcpcd_wpa_command(DHCPCD_WPA *, const char *);
 bool dhcpcd_wpa_command_arg(DHCPCD_WPA *, const char *, const char *);
 
 bool dhcpcd_wpa_scan(DHCPCD_WPA *);
+bool dhcpcd_wpa_reconfigure(DHCPCD_WPA *);
 bool dhcpcd_wpa_reassociate(DHCPCD_WPA *);
 bool dhcpcd_wpa_disconnect(DHCPCD_WPA *);
 bool dhcpcd_wpa_config_write(DHCPCD_WPA *);
 int dhcpcd_wpa_network_find_new(DHCPCD_WPA *, const char *);
 bool dhcpcd_wpa_network_disable(DHCPCD_WPA *, int);
 bool dhcpcd_wpa_network_enable(DHCPCD_WPA *, int);
+bool dhcpcd_wpa_network_select(DHCPCD_WPA *, int);
 bool dhcpcd_wpa_network_remove(DHCPCD_WPA *, int);
 char * dhcpcd_wpa_network_get(DHCPCD_WPA *, int, const char *);
 bool dhcpcd_wpa_network_set(DHCPCD_WPA *, int, const char *, const char *);
@@ -259,7 +261,8 @@ bool dhcpcd_wpa_network_set(DHCPCD_WPA *, int, const char *, const char *);
 #define DHCPCD_WPA_ERR_SET_PSK	-3
 #define DHCPCD_WPA_ERR_ENABLE	-4
 #define DHCPCD_WPA_ERR_WRITE	-5
-#define DHCPCD_WPA_ERR_ASSOC	-6
+#define DHCPCD_WPA_ERR_SELECT	-6
+#define DHCPCD_WPA_ERR_ASSOC	-7
 int dhcpcd_wpa_configure_psk(DHCPCD_WPA *w, DHCPCD_WI_SCAN *s, const char *p);
 
 char ** dhcpcd_config_blocks(DHCPCD_CONNECTION *, const char *);
