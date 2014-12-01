@@ -255,7 +255,6 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 		}
 		if (!found) {
 			wim = create_menu(wi, s);
-			printf ("inserting %s\n", s->ssid);
 			TAILQ_INSERT_TAIL(&wi->menus, wim, next);
 			gtk_menu_shell_insert(GTK_MENU_SHELL(wi->ifmenu),
 			    wim->menu, position);
