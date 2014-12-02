@@ -81,9 +81,10 @@ DhcpcdQt::DhcpcdQt()
 DhcpcdQt::~DhcpcdQt()
 {
 
-	/* This will have already been destroyed,
-	 * but the reference may not be. */
-	ssidMenu = NULL;
+	if (ssidMenu) {
+		ssidMenu->setVisible(false);
+		ssidMenu->deleteLater();
+	}
 
 	if (con != NULL) {
 		dhcpcd_close(con);
@@ -92,9 +93,9 @@ DhcpcdQt::~DhcpcdQt()
 
 	free(lastStatus);
 
-	qDeleteAll(*wis);
+	for (auto &wi : *wis)
+		wi->deleteLater();
 	delete wis;
-
 }
 
 DHCPCD_CONNECTION *DhcpcdQt::getConnection()
@@ -201,18 +202,19 @@ void DhcpcdQt::statusCallback(const char *status)
 		trayIcon->setToolTip(tr("Not connected to dhcpcd"));
 		/* Close down everything */
 		if (notifier) {
-			delete notifier;
+			notifier->setEnabled(false);
+			notifier->deleteLater();
 			notifier = NULL;
 		}
 		if (ssidMenu) {
-			delete ssidMenu;
+			ssidMenu->deleteLater();
 			ssidMenu = NULL;
 		}
+		preferencesAction->setEnabled(false);
 		if (preferences) {
-			delete preferences;
+			preferences->deleteLater();
 			preferences = NULL;
 		}
-		preferencesAction->setEnabled(false);
 	} else {
 		bool refresh;
 
@@ -340,7 +342,7 @@ void DhcpcdQt::scanCallback(DHCPCD_WPA *wpa)
 		qCritical("No fd for WPA");
 		if (wi) {
 			wis->removeOne(wi);
-			delete wi;
+			wi->deleteLater();
 		}
 		return;
 	}
@@ -350,7 +352,7 @@ void DhcpcdQt::scanCallback(DHCPCD_WPA *wpa)
 		qCritical("No interface for WPA");
 		if (wi) {
 			wis->removeOne(wi);
-			delete wi;
+			wi->deleteLater();
 		}
 		return;
 	}
@@ -359,8 +361,11 @@ void DhcpcdQt::scanCallback(DHCPCD_WPA *wpa)
 	scans = dhcpcd_wi_scans(i);
 	if (wi == NULL) {
 		wi = new DhcpcdWi(this, wpa);
-		wis->append(wi);
-		wi->setScans(scans);
+		if (wi->open()) {
+			wis->append(wi);
+			wi->setScans(scans);
+		} else
+			wi->deleteLater();
 	} else
 		processScans(wi, scans);
 
@@ -383,7 +388,7 @@ void DhcpcdQt::wpaStatusCallback(DHCPCD_WPA *wpa, const char *status)
 		DhcpcdWi *wi = findWi(wpa);
 		if (wi) {
 			wis->removeOne(wi);
-			delete wi;
+			wi->deleteLater();
 		}
 	}
 }
@@ -426,7 +431,8 @@ unprived:
 	dhcpcd_wpa_start(con);
 
 	if (retryOpenTimer) {
-		delete retryOpenTimer;
+		retryOpenTimer->stop();
+		retryOpenTimer->deleteLater();
 		retryOpenTimer = NULL;
 	}
 
@@ -436,12 +442,8 @@ unprived:
 	preferencesAction->setEnabled(dhcpcd_privileged(con));
 }
 
-void DhcpcdQt::dispatch() {
-
-	if (dhcpcd_get_fd(con) == -1) {
-		qWarning("dhcpcd connection lost");
-		return;
-	}
+void DhcpcdQt::dispatch()
+{
 
 	dhcpcd_dispatch(con);
 }
@@ -500,11 +502,18 @@ QIcon DhcpcdQt::icon()
 	return getIcon("status", "network-transmit-receive");
 }
 
+void DhcpcdQt::menuDeleted(QMenu *menu)
+{
+
+	if (ssidMenu == menu)
+		ssidMenu = NULL;
+}
+
 void DhcpcdQt::createSsidMenu()
 {
 
 	if (ssidMenu) {
-		delete ssidMenu;
+		ssidMenu->deleteLater();
 		ssidMenu = NULL;
 	}
 	if (wis->size() == 0)

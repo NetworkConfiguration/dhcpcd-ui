@@ -50,25 +50,32 @@ DhcpcdWi::DhcpcdWi(DhcpcdQt *parent, DHCPCD_WPA *wpa)
 	menu = NULL;
 	scans = NULL;
 
-	int fd = dhcpcd_wpa_get_fd(wpa);
-	notifier = new QSocketNotifier(fd, QSocketNotifier::Read);
-	connect(notifier, SIGNAL(activated(int)), this, SLOT(dispatch()));
-	retryOpenTimer = NULL;
+	notifier = NULL;
+	pingTimer = NULL;
 }
 
 DhcpcdWi::~DhcpcdWi()
 {
 
 	if (menu) {
-		delete menu;
+		dhcpcdQt->menuDeleted(menu);
+		menu->setVisible(false);
+		menu->deleteLater();
 		menu = NULL;
 	}
 
 	if (notifier) {
-		delete notifier;
+		notifier->setEnabled(false);
+		notifier->deleteLater();
 		notifier = NULL;
 	}
 
+	if (pingTimer) {
+		pingTimer->stop();
+		pingTimer->deleteLater();
+		pingTimer = NULL;
+	}
+	
 	dhcpcd_wi_scans_free(scans);
 }
 
@@ -193,53 +200,37 @@ QMenu *DhcpcdWi::createIfMenu(QMenu *parent)
 	return menu;
 }
 
-void DhcpcdWi::wpaOpen()
+bool DhcpcdWi::open()
 {
 	int fd = dhcpcd_wpa_open(wpa);
-	static int last_error;
 
 	if (fd == -1) {
-		if (errno != last_error) {
-			last_error = errno;
-			qCritical("%s: dhcpcd_wpa_open: %s",
-			    dhcpcd_wpa_if(wpa)->ifname,
-			    strerror(last_error));
-		}
-		return;
+		qCritical("%s: dhcpcd_wpa_open: %s",
+		    dhcpcd_wpa_if(wpa)->ifname,
+		    strerror(errno));
+		dhcpcd_wpa_close(wpa);
+		return false;
 	}
 
 	notifier = new QSocketNotifier(fd, QSocketNotifier::Read);
 	connect(notifier, SIGNAL(activated(int)), this, SLOT(dispatch()));
-	if (retryOpenTimer) {
-		delete retryOpenTimer;
-		retryOpenTimer = NULL;
-	}
+	pingTimer = new QTimer(this);
+	connect(pingTimer, SIGNAL(timeout()), this, SLOT(ping()));
+	pingTimer->start(DHCPCD_WPA_PING);
+	return true;
 }
 
 void DhcpcdWi::dispatch()
 {
 
-	if (dhcpcd_wpa_get_fd(wpa) == -1) {
-		delete notifier;
-		notifier = NULL;
-		DHCPCD_IF *i = dhcpcd_wpa_if(wpa);
-		if (i == NULL ||
-		    strcmp(i->reason, "DEPARTED") == 0 ||
-		    strcmp(i->reason, "STOPPED") == 0)
-			return;
-		qWarning("%s: %s",
-		    i->ifname,
-		    qPrintable(tr("dhcpcd WPA connection lost")));
-		if (retryOpenTimer == NULL) {
-			retryOpenTimer = new QTimer(this);
-			connect(retryOpenTimer, SIGNAL(timeout()),
-			    this, SLOT(wpaOpen()));
-			retryOpenTimer->start(DHCPCD_RETRYOPEN);
-		}
-		return;
-	}
-
 	dhcpcd_wpa_dispatch(wpa);
+}
+
+void DhcpcdWi::ping()
+{
+
+	if (!dhcpcd_wpa_ping(wpa))
+		dhcpcd_wpa_close(wpa);
 }
 
 void DhcpcdWi::connectSsid(DHCPCD_WI_SCAN *scan)

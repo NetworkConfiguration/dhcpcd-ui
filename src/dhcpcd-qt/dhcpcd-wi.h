@@ -48,6 +48,7 @@ public:
 	DhcpcdWi(DhcpcdQt *dhcpcdQt, DHCPCD_WPA *wpa);
 	~DhcpcdWi();
 	DHCPCD_WPA *getWpa();
+	bool open();
 
 	DHCPCD_WI_SCAN *getScans();
 	bool setScans(DHCPCD_WI_SCAN *scans);
@@ -57,7 +58,7 @@ public:
 
 private slots:
 	void dispatch();
-	void wpaOpen();
+	void ping();
 	void connectSsid(DHCPCD_WI_SCAN *scan);
 
 private:
@@ -66,7 +67,7 @@ private:
 	DHCPCD_WI_SCAN *scans;
 
 	QSocketNotifier *notifier;
-	QTimer *retryOpenTimer;
+	QTimer *pingTimer;
 
 	QMenu *menu;
 	void createMenuItem(QMenu *menu, DHCPCD_WI_SCAN *scan,

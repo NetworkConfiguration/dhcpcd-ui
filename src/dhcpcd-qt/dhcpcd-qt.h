@@ -74,6 +74,7 @@ public:
 
 	void closeAbout();
 	void dialogClosed(QDialog *dialog);
+	void menuDeleted(QMenu *menu);
 
 protected:
 	void closeEvent(QCloseEvent *event);
