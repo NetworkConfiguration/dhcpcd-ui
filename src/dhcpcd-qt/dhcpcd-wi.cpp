@@ -99,8 +99,8 @@ bool DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
 			lst = menu->findChildren<DhcpcdSsidMenu*>();
 			foreach(DhcpcdSsidMenu *sm, lst) {
 				DHCPCD_WI_SCAN *s = sm->getScan();
-				if (memcmp(scan->bssid, s->bssid,
-				    sizeof(scan->bssid)) == 0)
+				if (memcmp(scan->ssid, s->ssid,
+				    sizeof(scan->ssid)) == 0)
 				{
 					sm->setScan(scan);
 					found = true;
@@ -120,8 +120,8 @@ bool DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
 		foreach(DhcpcdSsidMenu *sm, lst) {
 			DHCPCD_WI_SCAN *s = sm->getScan();
 			for (scan = scans; scan; scan = scan->next) {
-				if (memcmp(scan->bssid, s->bssid,
-				    sizeof(scan->bssid)) == 0)
+				if (memcmp(scan->ssid, s->ssid,
+				    sizeof(scan->ssid)) == 0)
 					break;
 			}
 			if (scan == NULL) {

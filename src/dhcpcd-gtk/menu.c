@@ -226,8 +226,8 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 	TAILQ_FOREACH_SAFE(wim, &wi->menus, next, win) {
 		found = false;
 		for (s = scans; s; s = s->next) {
-			if (memcmp(wim->scan->bssid, s->bssid,
-			    sizeof(s->bssid)) == 0)
+			if (memcmp(wim->scan->ssid, s->ssid,
+			    sizeof(s->ssid)) == 0)
 			{
 				found = true;
 				update_item(wi, wim, s);
@@ -244,8 +244,8 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 		found = false;
 		position = 0;
 		TAILQ_FOREACH(wim, &wi->menus, next) {
-			if (memcmp(wim->scan->bssid, s->bssid,
-			    sizeof(s->bssid)) == 0)
+			if (memcmp(wim->scan->ssid, s->ssid,
+			    sizeof(s->ssid)) == 0)
 			{
 				found = true;
 				break;
