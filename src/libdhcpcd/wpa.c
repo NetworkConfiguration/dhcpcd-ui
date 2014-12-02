@@ -98,7 +98,7 @@ wpa_cmd(int fd, const char *cmd, char *buffer, size_t len)
 	if (buffer)
 		*buffer = '\0';
 	bytes = write(fd, cmd, strlen(cmd));
-	if (bytes == -1 || bytes == 0)
+	if (bytes == -1)
 		return -1;
 	if (buffer == NULL || len == 0)
 		return 0;
@@ -126,6 +126,17 @@ dhcpcd_wpa_command(DHCPCD_WPA *wpa, const char *cmd)
 	bytes = wpa_cmd(wpa->command_fd, cmd, buf, sizeof(buf));
 	return (bytes == -1 || bytes == 0 ||
 	    strcmp(buf, "OK\n")) ? false : true;
+}
+
+bool
+dhcpcd_wpa_ping(DHCPCD_WPA *wpa)
+{
+	char buf[10];
+	ssize_t bytes;
+
+	bytes = wpa_cmd(wpa->command_fd, "PING", buf, sizeof(buf));
+	return (bytes == -1 || bytes == 0 ||
+	    strcmp(buf, "PONG\n")) ? false : true;
 }
 
 bool
@@ -979,7 +990,7 @@ dhcpcd_wpa_dispatch(DHCPCD_WPA *wpa)
 
 	assert(wpa);
 	bytes = (size_t)read(wpa->listen_fd, buffer, sizeof(buffer));
-	if ((ssize_t)bytes == -1 || bytes == 0) {
+	if ((ssize_t)bytes == -1) {
 		dhcpcd_wpa_close(wpa);
 		return;
 	}
@@ -988,16 +999,19 @@ dhcpcd_wpa_dispatch(DHCPCD_WPA *wpa)
 	bytes = strlen(buffer);
 	if (buffer[bytes - 1] == ' ')
 		buffer[--bytes] = '\0';
-	for (p = buffer + 1; *p != '\0'; p++)
+	for (p = buffer + 1; *p != '\0'; p++) {
 		if (*p == '>') {
 			p++;
 			break;
 		}
+	}
+
 	if (strcmp(p, "CTRL-EVENT-SCAN-RESULTS") == 0 &&
 	    wpa->con->wi_scanresults_cb)
 		wpa->con->wi_scanresults_cb(wpa,
 		    wpa->con->wi_scanresults_context);
-	return;
+	else if (strcmp(p, "CTRL-EVENT-TERMINATING") == 0)
+		dhcpcd_wpa_close(wpa);
 }
 
 void
@@ -1106,9 +1120,9 @@ dhcpcd_wpa_configure1(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s, const char *psk)
 		retval = DHCPCD_WPA_SUCCESS;
 	else
 		retval = DHCPCD_WPA_ERR_WRITE;
-	/* Selecting a network disbales the others.
+	/* Selecting a network disables the others.
 	 * This should not be saved. */
-	if (!dhcpcd_wpa_network_select(wpa, id))
+	if (!dhcpcd_wpa_network_select(wpa, id) && retval == DHCPCD_WPA_SUCCESS)
 		return DHCPCD_WPA_ERR_SELECT;
 	return retval;
 }

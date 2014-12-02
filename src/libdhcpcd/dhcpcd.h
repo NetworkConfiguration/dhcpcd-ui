@@ -48,6 +48,7 @@ extern "C" {
 #endif
 
 #define DHCPCD_RETRYOPEN	100	/* milliseconds */
+#define DHCPCD_WPA_PING		500	/* milliseconds */
 #define DHCPCD_WI_HIST_MAX	10	/* Recall 10 scans for averages */
 
 /* Each non printable byte of the SSID is represented as \000 */
@@ -243,6 +244,7 @@ int dhcpcd_wpa_find_network_new(DHCPCD_WPA *, const char *);
 bool dhcpcd_wpa_command(DHCPCD_WPA *, const char *);
 bool dhcpcd_wpa_command_arg(DHCPCD_WPA *, const char *, const char *);
 
+bool dhcpcd_wpa_ping(DHCPCD_WPA *);
 bool dhcpcd_wpa_scan(DHCPCD_WPA *);
 bool dhcpcd_wpa_reconfigure(DHCPCD_WPA *);
 bool dhcpcd_wpa_reassociate(DHCPCD_WPA *);
