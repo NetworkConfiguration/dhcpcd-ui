@@ -37,6 +37,8 @@
 #include "dhcpcd-qt.h"
 #include "dhcpcd-ssidmenuwidget.h"
 
+#define ICON_SIZE	16
+
 DhcpcdSsidMenuWidget::DhcpcdSsidMenuWidget(QWidget *parent,
     DhcpcdWi *wi, DHCPCD_WI_SCAN *scan)
     : QFrame(parent)
@@ -48,7 +50,7 @@ DhcpcdSsidMenuWidget::DhcpcdSsidMenuWidget(QWidget *parent,
 	QHBoxLayout *layout = new QHBoxLayout(this);
 	layout->setContentsMargins(1, 1, 1, 1);
 	selicon = new QLabel(this);
-	selicon->setMinimumSize(16, 16);
+	selicon->setMinimumSize(ICON_SIZE, ICON_SIZE);
 	layout->addWidget(selicon);
 
 	ssid = new QLabel(this);
@@ -98,9 +100,18 @@ void DhcpcdSsidMenuWidget::setScan(DHCPCD_WI_SCAN *scan)
 	i = dhcpcd_wpa_if(wpa);
 	associated = dhcpcd_wi_associated(i, scan);
 
+	/*
+	 * Icons are rescaled because they are not always the size requested
+	 * due to a bug in Qt-4.8.
+	 * https://qt.gitorious.org/qt/qt/merge_requests/2566
+	 */
+
 	if (associated) {
 		icon = DhcpcdQt::getIcon("actions", "dialog-ok-apply");
-		picon = icon.pixmap(16, 16);
+		picon = icon.pixmap(ICON_SIZE);
+		if (picon.height() != ICON_SIZE)
+			picon = picon.scaledToHeight(ICON_SIZE,
+			    Qt::SmoothTransformation);
 		selicon->setPixmap(picon);
 		ssid->setStyleSheet("font:bold;");
 	} else {
@@ -113,7 +124,9 @@ void DhcpcdSsidMenuWidget::setScan(DHCPCD_WI_SCAN *scan)
 		    "network-wireless-encrypted");
 	else
 		icon = DhcpcdQt::getIcon("status", "dialog-warning");
-	picon = icon.pixmap(16, 16);
+	picon = icon.pixmap(ICON_SIZE);
+	if (picon.height() != ICON_SIZE)
+		picon = picon.scaledToHeight(ICON_SIZE, Qt::SmoothTransformation);
 	encicon->setPixmap(picon);
 
 	if (scan->strength.value > 80)
@@ -131,7 +144,9 @@ void DhcpcdSsidMenuWidget::setScan(DHCPCD_WI_SCAN *scan)
 	else
 		icon = DhcpcdQt::getIcon("status",
 		    "network-wireless-connected-00");
-	picon = icon.pixmap(16, 16);
+	picon = icon.pixmap(ICON_SIZE);
+	if (picon.height() != ICON_SIZE)
+		picon = picon.scaledToHeight(ICON_SIZE, Qt::SmoothTransformation);
 	stricon->setPixmap(picon);
 }
 
