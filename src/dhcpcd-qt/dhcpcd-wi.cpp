@@ -86,33 +86,53 @@ DHCPCD_WI_SCAN *DhcpcdWi::getScans()
 
 bool DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
 {
-	int changed = 0;
+	bool changed = false;
 
 	if (menu) {
 		QList<DhcpcdSsidMenu*> lst;
 		DHCPCD_WI_SCAN *scan;
+		DHCPCD_IF *i;
+		bool found, associated;
+		QAction *before;
 
+		i = dhcpcd_wpa_if(wpa);
 		for (scan = scans; scan; scan = scan->next) {
-			bool found = false;
-			QAction *before = NULL;
+			found = false;
+			before = NULL;
+			associated = dhcpcd_wi_associated(i, scan);
 
 			lst = menu->findChildren<DhcpcdSsidMenu*>();
 			foreach(DhcpcdSsidMenu *sm, lst) {
 				DHCPCD_WI_SCAN *s = sm->getScan();
-				if (memcmp(scan->ssid, s->ssid,
-				    sizeof(scan->ssid)) == 0)
-				{
+
+				if (strcmp(scan->ssid, s->ssid) == 0) {
+					/* If association changes, remove
+					 * the entry and re-create it
+					 * so assoicates entries appear at
+					 * the top */
+					if (associated != sm->isAssociated()) {
+						menu->removeAction(sm);
+						break;
+					}
 					sm->setScan(scan);
 					found = true;
 					break;
 				}
-				if (dhcpcd_wi_scan_compare(scan, s) < 0)
+				if (!associated &&
+				    dhcpcd_wi_scan_compare(scan, s) < 0)
 					before = sm;
 			}
 
 			if (!found) {
+				if (associated) {
+					lst = menu->findChildren<DhcpcdSsidMenu*>();
+					if (lst.empty())
+						before = NULL;
+					else
+						before = lst.at(0);
+				}
 				createMenuItem(menu, scan, before);
-				changed++;
+				changed = true;
 			}
 		}
 
@@ -120,13 +140,12 @@ bool DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
 		foreach(DhcpcdSsidMenu *sm, lst) {
 			DHCPCD_WI_SCAN *s = sm->getScan();
 			for (scan = scans; scan; scan = scan->next) {
-				if (memcmp(scan->ssid, s->ssid,
-				    sizeof(scan->ssid)) == 0)
+				if (strcmp(scan->ssid, s->ssid) == 0)
 					break;
 			}
 			if (scan == NULL) {
 				menu->removeAction(sm);
-				changed--;
+				changed = true;
 			}
 		}
 	}
@@ -134,7 +153,7 @@ bool DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
 	dhcpcd_wi_scans_free(this->scans);
 	this->scans = scans;
 
-	return !(changed == 0);
+	return changed;
 }
 
 void DhcpcdWi::createMenuItem(QMenu *menu, DHCPCD_WI_SCAN *scan,

@@ -168,6 +168,16 @@ dhcpcd_wpa_scan(DHCPCD_WPA *wpa)
 	return dhcpcd_wpa_command(wpa, "SCAN");
 }
 
+bool
+dhcpcd_wi_associated(DHCPCD_IF *i, DHCPCD_WI_SCAN *scan)
+{
+
+	assert(i);
+	assert(scan);
+
+	return (i->up && i->ssid && strcmp(i->ssid, scan->ssid) == 0);
+}
+
 void
 dhcpcd_wi_scans_free(DHCPCD_WI_SCAN *wis)
 {

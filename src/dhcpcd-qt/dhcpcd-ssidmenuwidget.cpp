@@ -80,6 +80,12 @@ DHCPCD_WI_SCAN *DhcpcdSsidMenuWidget::getScan()
 	return scan;
 }
 
+bool DhcpcdSsidMenuWidget::isAssociated()
+{
+
+	return associated;
+}
+
 void DhcpcdSsidMenuWidget::setScan(DHCPCD_WI_SCAN *scan)
 {
 	DHCPCD_WPA *wpa;
@@ -90,13 +96,17 @@ void DhcpcdSsidMenuWidget::setScan(DHCPCD_WI_SCAN *scan)
 	this->scan = scan;
 	wpa = wi->getWpa();
 	i = dhcpcd_wpa_if(wpa);
+	associated = dhcpcd_wi_associated(i, scan);
 
-	if (i->up && i->ssid && strcmp(scan->ssid, i->ssid) == 0) {
+	if (associated) {
 		icon = DhcpcdQt::getIcon("actions", "dialog-ok-apply");
 		picon = icon.pixmap(16, 16);
 		selicon->setPixmap(picon);
-	} else
+		ssid->setStyleSheet("font:bold;");
+	} else {
 		selicon->setPixmap(NULL);
+		ssid->setStyleSheet(NULL);
+	}
 	ssid->setText(scan->ssid);
 	if (scan->flags & WSF_SECURE)
 		icon = DhcpcdQt::getIcon("status",
@@ -136,12 +146,18 @@ bool DhcpcdSsidMenuWidget::eventFilter(QObject *, QEvent *event)
 void DhcpcdSsidMenuWidget::enterEvent(QEvent *)
 {
 
-	ssid->setStyleSheet("color:palette(highlighted-text);");
+	if (associated)
+		ssid->setStyleSheet("color:palette(highlighted-text); font:bold;");
+	else
+		ssid->setStyleSheet("color:palette(highlighted-text);");
 	emit hovered();
 }
 
 void DhcpcdSsidMenuWidget::leaveEvent(QEvent *)
 {
 
-	ssid->setStyleSheet("color:palette(text);");
+	if (associated)
+		ssid->setStyleSheet("color:palette(text); font:bold;");
+	else
+		ssid->setStyleSheet("color:palette(text);");
 }

@@ -235,6 +235,7 @@ void dhcpcd_wpa_set_status_callback(DHCPCD_CONNECTION *,
     void (*)(DHCPCD_WPA *, const char *, void *), void *);
 int dhcpcd_wi_scan_compare(DHCPCD_WI_SCAN *a, DHCPCD_WI_SCAN *b);
 DHCPCD_WI_SCAN * dhcpcd_wi_scans(DHCPCD_IF *);
+bool dhcpcd_wi_associated(DHCPCD_IF *i, DHCPCD_WI_SCAN *s);
 void dhcpcd_wi_scans_free(DHCPCD_WI_SCAN *);
 void dhcpcd_wi_history_clear(DHCPCD_CONNECTION *);
 bool dhcpcd_wpa_set_network(DHCPCD_WPA *, int, const char *, const char *);

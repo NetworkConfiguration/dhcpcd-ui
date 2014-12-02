@@ -69,6 +69,14 @@ void DhcpcdSsidMenu::setScan(DHCPCD_WI_SCAN *scan)
 		ssidWidget->setScan(scan);
 }
 
+bool DhcpcdSsidMenu::isAssociated()
+{
+
+	if (ssidWidget)
+		return ssidWidget->isAssociated();
+	return false;
+}
+
 void DhcpcdSsidMenu::hover()
 {
 

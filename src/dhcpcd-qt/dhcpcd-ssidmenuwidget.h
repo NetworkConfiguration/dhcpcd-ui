@@ -43,6 +43,7 @@ public:
 
 	DHCPCD_WI_SCAN *getScan();
 	void setScan(DHCPCD_WI_SCAN *scan);
+	bool isAssociated();
 
 signals:
 	void triggered();
@@ -58,6 +59,7 @@ protected slots:
 private:
 	DhcpcdWi *wi;
 	DHCPCD_WI_SCAN *scan;
+	bool associated;
 
 	QLabel *selicon;
 	QLabel *ssid;

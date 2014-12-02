@@ -282,7 +282,6 @@ void DhcpcdQt::ifCallback(DHCPCD_IF *i)
 			}
 		}
 	}
-	
 }
 
 void DhcpcdQt::dhcpcd_if_cb(DHCPCD_IF *i, void *d)
@@ -462,7 +461,7 @@ void DhcpcdQt::notify(QString &title, QString &msg,
 	n->setText(msg);
 	n->sendEvent();
 #else
-	trayIcon->showMessage(title, msg, icon);
+	//trayIcon->showMessage(title, msg, icon);
 #endif
 }
 

@@ -108,6 +108,13 @@ get_strength_icon_name(int strength)
 		return "network-wireless-connected-00";
 }
 
+static bool
+is_associated(WI_SCAN *wi, DHCPCD_WI_SCAN *scan)
+{
+
+	return dhcpcd_wi_associated(wi->interface, scan);
+}
+
 static void
 update_item(WI_SCAN *wi, WI_MENU *m, DHCPCD_WI_SCAN *scan)
 {
@@ -118,8 +125,8 @@ update_item(WI_SCAN *wi, WI_MENU *m, DHCPCD_WI_SCAN *scan)
 
 	g_object_set_data(G_OBJECT(m->menu), "dhcpcd_wi_scan", scan);
 
-	if (wi->interface->up &&
-	    g_strcmp0(scan->ssid, wi->interface->ssid) == 0)
+	m->associated = is_associated(wi, scan);
+	if (m->associated)
 		sel = gtk_image_new_from_icon_name("dialog-ok-apply",
 		    GTK_ICON_SIZE_MENU);
 	else
@@ -127,7 +134,15 @@ update_item(WI_SCAN *wi, WI_MENU *m, DHCPCD_WI_SCAN *scan)
 	gtk_image_menu_item_set_image(
 	    GTK_IMAGE_MENU_ITEM(m->menu), sel);
 
-	gtk_label_set_text(GTK_LABEL(m->ssid), scan->ssid);
+	if (m->associated) {
+		gchar *lbl;
+
+		lbl = g_markup_printf_escaped("<b>%s</b>",
+		    scan->ssid);
+		gtk_label_set_markup(GTK_LABEL(m->ssid), lbl);
+		g_free(lbl);
+	} else
+		gtk_label_set_text(GTK_LABEL(m->ssid), scan->ssid);
 	if (scan->flags & WSF_SECURE)
 		icon = "network-wireless-encrypted";
 	else
@@ -157,7 +172,7 @@ static WI_MENU *
 create_menu(WI_SCAN *wis, DHCPCD_WI_SCAN *scan)
 {
 	WI_MENU *wim;
-	GtkWidget *box, *sel;
+	GtkWidget *box;
 	const char *icon;
 
 	wim = g_malloc(sizeof(*wim));
@@ -166,16 +181,7 @@ create_menu(WI_SCAN *wis, DHCPCD_WI_SCAN *scan)
 	box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
 	gtk_container_add(GTK_CONTAINER(wim->menu), box);
 
-	if (wis->interface->up &&
-	    g_strcmp0(scan->ssid, wis->interface->ssid) == 0)
-		sel = gtk_image_new_from_icon_name("dialog-ok-apply",
-		    GTK_ICON_SIZE_MENU);
-	else
-		sel = NULL;
-	gtk_image_menu_item_set_image(
-	    GTK_IMAGE_MENU_ITEM(wim->menu), sel);
-
-	wim->ssid = gtk_label_new(scan->ssid);
+	wim->ssid = gtk_label_new(NULL);
 	gtk_misc_set_alignment(GTK_MISC(wim->ssid), 0.0, 0.5);
 	gtk_box_pack_start(GTK_BOX(box), wim->ssid, TRUE, TRUE, 0);
 
@@ -201,6 +207,7 @@ create_menu(WI_SCAN *wis, DHCPCD_WI_SCAN *scan)
 		g_free(tip);
 	}
 #endif
+	update_item(wis, wim, scan);
 
 	g_signal_connect(G_OBJECT(wim->menu), "activate",
 	    G_CALLBACK(ssid_hook), NULL);
@@ -226,11 +233,16 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 	TAILQ_FOREACH_SAFE(wim, &wi->menus, next, win) {
 		found = false;
 		for (s = scans; s; s = s->next) {
-			if (memcmp(wim->scan->ssid, s->ssid,
-			    sizeof(s->ssid)) == 0)
-			{
-				found = true;
-				update_item(wi, wim, s);
+			if (strcmp(wim->scan->ssid, s->ssid) == 0) {
+				/* If assoication changes, we
+				 * need to remove the item to replace it */
+				if (wim->associated ==
+				    is_associated(wi, s))
+				{
+					found = true;
+					update_item(wi, wim, s);
+				}
+				break;
 			}
 		}
 		if (!found) {
@@ -244,13 +256,13 @@ menu_update_scans(WI_SCAN *wi, DHCPCD_WI_SCAN *scans)
 		found = false;
 		position = 0;
 		TAILQ_FOREACH(wim, &wi->menus, next) {
-			if (memcmp(wim->scan->ssid, s->ssid,
-			    sizeof(s->ssid)) == 0)
-			{
+			if (strcmp(wim->scan->ssid, s->ssid) == 0) {
 				found = true;
 				break;
 			}
-			if (dhcpcd_wi_scan_compare(wim->scan, s) < 0)
+			/* Assoicated scans are always first */
+			if (!is_associated(wi, s) &&
+			    dhcpcd_wi_scan_compare(wim->scan, s) < 0)
 				position++;
 		}
 		if (!found) {
@@ -297,15 +309,19 @@ add_scans(WI_SCAN *wi)
 	GtkWidget *m;
 	DHCPCD_WI_SCAN *wis;
 	WI_MENU *wim;
+	int position;
 
 	if (wi->scans == NULL)
 		return NULL;
 
 	m = gtk_menu_new();
+	position = 0;
 	for (wis = wi->scans; wis; wis = wis->next) {
 		wim = create_menu(wi, wis);
 		TAILQ_INSERT_TAIL(&wi->menus, wim, next);
-		gtk_menu_shell_append(GTK_MENU_SHELL(m), wim->menu);
+		gtk_menu_shell_insert(GTK_MENU_SHELL(m),
+		    wim->menu, is_associated(wi, wis) ? 0 : position);
+		position++;
 	}
 
 	return m;

@@ -45,6 +45,7 @@ public:
 	QWidget *createWidget(QWidget *parent);
 	DHCPCD_WI_SCAN *getScan();
 	void setScan(DHCPCD_WI_SCAN *scan);
+	bool isAssociated();
 
 public slots:
 	void hover();
