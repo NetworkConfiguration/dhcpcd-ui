@@ -467,7 +467,6 @@ void DhcpcdQt::notify(QString &title, QString &msg,
 #endif
 }
 
-
 void DhcpcdQt::closeEvent(QCloseEvent *event)
 {
 

@@ -75,7 +75,7 @@ DhcpcdWi::~DhcpcdWi()
 		pingTimer->deleteLater();
 		pingTimer = NULL;
 	}
-	
+
 	dhcpcd_wi_scans_free(scans);
 }
 
@@ -95,7 +95,7 @@ bool DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
 {
 	bool changed = false;
 
-	if (menu) {
+	if (menu && menu->isVisible()) {
 		QList<DhcpcdSsidMenu*> lst;
 		DHCPCD_WI_SCAN *scan;
 		DHCPCD_IF *i;
@@ -174,15 +174,29 @@ void DhcpcdWi::createMenuItem(QMenu *menu, DHCPCD_WI_SCAN *scan,
 
 void DhcpcdWi::createMenu1(QMenu *menu)
 {
+	DHCPCD_IF *i;
 	DHCPCD_WI_SCAN *scan;
+	QAction *before;
 
-	for (scan = scans; scan; scan = scan->next)
-		createMenuItem(menu, scan);
+	i = dhcpcd_wpa_if(wpa);
+	for (scan = scans; scan; scan = scan->next) {
+		before = NULL;
+		if (dhcpcd_wi_associated(i, scan)) {
+			QList<DhcpcdSsidMenu*> lst;
+
+			lst = menu->findChildren<DhcpcdSsidMenu*>();
+			if (!lst.empty())
+				before = lst.at(0);
+		}
+		createMenuItem(menu, scan, before);
+	}
 }
 
 void DhcpcdWi::createMenu(QMenu *menu)
 {
 
+	if (this->menu && this->menu != menu)
+		this->menu->deleteLater();
 	this->menu = menu;
 	createMenu1(menu);
 }
@@ -193,6 +207,8 @@ QMenu *DhcpcdWi::createIfMenu(QMenu *parent)
 	QIcon icon;
 
 	ifp = dhcpcd_wpa_if(wpa);
+	if (this->menu)
+		this->menu->deleteLater();
 	menu = new DhcpcdIfMenu(ifp, parent);
 	icon = DhcpcdQt::getIcon("devices", "network-wireless");
 	menu->setIcon(icon);
