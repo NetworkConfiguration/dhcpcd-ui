@@ -899,6 +899,7 @@ DHCPCD_IF *
 dhcpcd_wpa_if(DHCPCD_WPA *wpa)
 {
 
+	assert(wpa);
 	return dhcpcd_get_if(wpa->con, wpa->ifname, "link");
 }
 
