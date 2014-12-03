@@ -43,6 +43,7 @@ public:
 	~DhcpcdSsidMenu() {};
 
 	QWidget *createWidget(QWidget *parent);
+	void deleteWidget(QWidget *widget);
 	DHCPCD_WI_SCAN *getScan();
 	void setScan(DHCPCD_WI_SCAN *scan);
 	bool isAssociated();

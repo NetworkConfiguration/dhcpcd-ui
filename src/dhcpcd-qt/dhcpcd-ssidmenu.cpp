@@ -49,10 +49,20 @@ DhcpcdSsidMenu::DhcpcdSsidMenu(QWidget *parent,
 
 QWidget *DhcpcdSsidMenu::createWidget(QWidget *parent)
 {
+
 	ssidWidget = new DhcpcdSsidMenuWidget(parent, wi, scan);
 	connect(ssidWidget, SIGNAL(hovered()), this, SLOT(hover()));
 	connect(ssidWidget, SIGNAL(triggered()), this, SLOT(trigger()));
 	return ssidWidget;
+}
+
+void DhcpcdSsidMenu::deleteWidget(QWidget *widget)
+{
+
+	widget->hide();
+	widget->deleteLater();
+	if (ssidWidget == widget)
+		ssidWidget = NULL;
 }
 
 DHCPCD_WI_SCAN *DhcpcdSsidMenu::getScan()

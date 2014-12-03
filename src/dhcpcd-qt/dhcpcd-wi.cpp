@@ -95,7 +95,7 @@ bool DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
 {
 	bool changed = false;
 
-	if (menu && menu->isVisible()) {
+	if (menu) {
 		QList<DhcpcdSsidMenu*> lst;
 		DHCPCD_WI_SCAN *scan;
 		DHCPCD_IF *i;
