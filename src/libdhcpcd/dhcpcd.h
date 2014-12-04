@@ -49,6 +49,8 @@ extern "C" {
 
 #define DHCPCD_RETRYOPEN	100	/* milliseconds */
 #define DHCPCD_WPA_PING		500	/* milliseconds */
+#define DHCPCD_WPA_SCAN_LONG	60000	/* milliseconds */
+#define DHCPCD_WPA_SCAN_SHORT	5000	/* milliseconds */
 #define DHCPCD_WI_HIST_MAX	10	/* Recall 10 scans for averages */
 
 /* Each non printable byte of the SSID is represented as \000 */

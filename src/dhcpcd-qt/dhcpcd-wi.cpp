@@ -52,6 +52,9 @@ DhcpcdWi::DhcpcdWi(DhcpcdQt *parent, DHCPCD_WPA *wpa)
 
 	notifier = NULL;
 	pingTimer = NULL;
+#ifdef BG_SCAN
+	scanTimer = NULL;
+#endif
 }
 
 DhcpcdWi::~DhcpcdWi()
@@ -75,6 +78,14 @@ DhcpcdWi::~DhcpcdWi()
 		pingTimer->deleteLater();
 		pingTimer = NULL;
 	}
+
+#ifdef BG_SCAN
+	if (scanTimer) {
+		scanTimer->stop();
+		scanTimer->deleteLater();
+		scanTimer = NULL;
+	}
+#endif
 
 	dhcpcd_wi_scans_free(scans);
 }
@@ -178,6 +189,11 @@ void DhcpcdWi::createMenu1(QMenu *menu)
 	DHCPCD_WI_SCAN *scan;
 	QAction *before;
 
+#ifdef BG_SCAN
+	connect(menu, SIGNAL(aboutToShow()), this, SLOT(menuShown()));
+	connect(menu, SIGNAL(aboutToHide()), this, SLOT(menuHidden()));
+#endif
+
 	i = dhcpcd_wpa_if(wpa);
 	for (scan = scans; scan; scan = scan->next) {
 		before = NULL;
@@ -233,6 +249,11 @@ bool DhcpcdWi::open()
 	pingTimer = new QTimer(this);
 	connect(pingTimer, SIGNAL(timeout()), this, SLOT(ping()));
 	pingTimer->start(DHCPCD_WPA_PING);
+#ifdef BG_SCAN
+	scanTimer = new QTimer(this);
+	connect(scanTimer, SIGNAL(timeout()), this, SLOT(scan()));
+	scanTimer->start(DHCPCD_WPA_SCAN_LONG);
+#endif
 	return true;
 }
 
@@ -248,6 +269,32 @@ void DhcpcdWi::ping()
 	if (!dhcpcd_wpa_ping(wpa))
 		dhcpcd_wpa_close(wpa);
 }
+
+#ifdef BG_SCAN
+void DhcpcdWi::scan()
+{
+
+	dhcpcd_wpa_scan(wpa);
+}
+
+void DhcpcdWi::menuHidden()
+{
+
+	if (scanTimer) {
+		scanTimer->stop();
+		scanTimer->start(DHCPCD_WPA_SCAN_LONG);
+	}
+}
+
+void DhcpcdWi::menuShown()
+{
+
+	if (scanTimer) {
+		scanTimer->stop();
+		scanTimer->start(DHCPCD_WPA_SCAN_SHORT);
+	}
+}
+#endif
 
 void DhcpcdWi::connectSsid(DHCPCD_WI_SCAN *scan)
 {

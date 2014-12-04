@@ -601,6 +601,27 @@ dhcpcd_wpa_status_cb(DHCPCD_WPA *wpa, const char *status, _unused void *data)
 	}
 }
 
+#ifdef BG_SCAN
+static gboolean
+bgscan(gpointer data)
+{
+	WI_SCAN *w;
+	DHCPCD_CONNECTION *con;
+	DHCPCD_WPA *wpa;
+
+	con = (DHCPCD_CONNECTION *)data;
+	TAILQ_FOREACH(w, &wi_scans, next) {
+		if (w->interface->wireless && w->interface->up) {
+			wpa = dhcpcd_wpa_find(con, w->interface->ifname);
+			if (wpa)
+				dhcpcd_wpa_scan(wpa);
+		}
+	}
+
+	return TRUE;
+}
+#endif
+
 int
 main(int argc, char *argv[])
 {
@@ -641,6 +662,9 @@ main(int argc, char *argv[])
 		g_timeout_add(DHCPCD_RETRYOPEN, dhcpcd_try_open, con);
 
 	menu_init(status_icon, con);
+#ifdef BG_SCAN
+	g_timeout_add(DHCPCD_WPA_SCAN_LONG, bgscan, con);
+#endif
 
 	gtk_main();
 	dhcpcd_close(con);

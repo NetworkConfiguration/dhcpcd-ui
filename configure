@@ -135,7 +135,7 @@ if [ -z "$OS" ]; then
 	esac
 fi
 
-echo "Configuring dhcpcd for ... $OS"
+echo "Configuring dhcpcd-ui for ... $OS"
 rm -f $CONFIG_H $CONFIG_MK
 echo "# $OS" >$CONFIG_MK
 echo "/* $OS */" >$CONFIG_H
@@ -216,6 +216,7 @@ if [ -n "$LDFLAGS" ]; then
 	echo "LDFLAGS=" >>$CONFIG_MK
 	echo "LDFLAGS+=	$LDFLAGS" >>$CONFIG_MK
 fi
+QMAKE_CONFIG=
 
 for x in $INCLUDEDIR; do
 	echo "CPPFLAGS+=	-I$x" >>$CONFIG_MK
@@ -248,6 +249,23 @@ else
 	echo "CFLAGS+=	-DNDEBUG" >>$CONFIG_MK
 fi
 
+printf "OS supports background scanning ... "
+# Most OS's don't support background scanning
+case "$OS" in
+	linux*|freebsd*)
+		BGSCAN=true;;
+	*)	BGSCAN=false;;
+esac
+printf "%s ... " "$OS"
+if $BGSCAN; then
+	echo "yes"
+	echo "CFLAGS+=	-DBG_SCAN" >> $CONFIG_MK
+	QMAKE_CONFIG="$QMAKE_CONFIG CONFIG+=build_bgscan"
+else
+	echo "no"
+fi
+
+
 # Add CPPFLAGS and CFLAGS to CC for testing features
 XCC="$CC `$SED -n -e 's/CPPLAGS+=*\(.*\)/\1/p' $CONFIG_MK`"
 XCC="$XCC `$SED -n -e 's/CFLAGS+=*\(.*\)/\1/p' $CONFIG_MK`"
@@ -267,7 +285,7 @@ EOF
 	elif $XCC _gettext.c -o _gettext -lintl 2>&3; then
 		GETTEXT="yes (-lintl)"
 		LIB_INTL=-lintl
-		QMAKE_CONFIG="CONFIG+=has_libintl"
+		QMAKE_CONFIG="$QMAKE_CONFIG CONFIG+=has_libintl"
 	else
 		GETTEXT=no
 	fi

@@ -32,6 +32,9 @@ static const char *copyright = "Copyright (c) 2009-2014 Roy Marples";
 static GtkStatusIcon *sicon;
 static GtkWidget *menu;
 static GtkAboutDialog *about;
+#ifdef BG_SCAN
+static guint bgscan_timer;
+#endif
 
 static void
 on_pref(_unused GObject *o, gpointer data)
@@ -333,6 +336,13 @@ menu_abort(void)
 	WI_SCAN *wis;
 	WI_MENU *wim;
 
+#ifdef BG_SCAN
+	if (bgscan_timer) {
+		g_source_remove(bgscan_timer);
+		bgscan_timer = 0;
+	}
+#endif
+
 	TAILQ_FOREACH(wis, &wi_scans, next) {
 		wis->ifmenu = NULL;
 		while ((wim = TAILQ_FIRST(&wis->menus))) {
@@ -348,6 +358,32 @@ menu_abort(void)
 		menu = NULL;
 	}
 }
+
+#ifdef BG_SCAN
+static gboolean
+menu_bgscan(gpointer data)
+{
+	WI_SCAN *w;
+	DHCPCD_CONNECTION *con;
+	DHCPCD_WPA *wpa;
+
+	if (menu == NULL || !gtk_widget_get_visible(menu)) {
+		bgscan_timer = 0;
+		return FALSE;
+	}
+
+	con = (DHCPCD_CONNECTION *)data;
+	TAILQ_FOREACH(w, &wi_scans, next) {
+		if (w->interface->wireless && w->interface->up) {
+			wpa = dhcpcd_wpa_find(con, w->interface->ifname);
+			if (wpa)
+				dhcpcd_wpa_scan(wpa);
+		}
+	}
+
+	return TRUE;
+}
+#endif
 
 static void
 on_activate(GtkStatusIcon *icon)
@@ -386,6 +422,11 @@ on_activate(GtkStatusIcon *icon)
 		gtk_menu_popup(GTK_MENU(menu), NULL, NULL,
 		    gtk_status_icon_position_menu, icon,
 		    1, gtk_get_current_event_time());
+
+#ifdef BG_SCAN
+		bgscan_timer = g_timeout_add(DHCPCD_WPA_SCAN_SHORT,
+		    menu_bgscan, dhcpcd_if_connection(w->interface));
+#endif
 	}
 }
 
