@@ -71,6 +71,7 @@ typedef TAILQ_HEAD(wi_scan_head, wi_scan) WI_SCANS;
 extern WI_SCANS wi_scans;
 
 WI_SCAN * wi_scan_find(DHCPCD_WI_SCAN *);
+const char *get_strength_icon_name(int strength);
 
 void menu_init(GtkStatusIcon *, DHCPCD_CONNECTION *);
 void menu_update_scans(WI_SCAN *, DHCPCD_WI_SCAN *);

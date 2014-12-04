@@ -110,9 +110,48 @@ QList<DhcpcdWi *> *DhcpcdQt::getWis()
 	return wis;
 }
 
+const char * DhcpcdQt::signalStrengthIcon(DHCPCD_WI_SCAN *scan)
+{
+
+	if (scan->strength.value > 80)
+		return "network-wireless-connected-100";
+	else if (scan->strength.value > 55)
+		return "network-wireless-connected-75";
+	else if (scan->strength.value > 30)
+		return "network-wireless-connected-50";
+	else if (scan->strength.value > 5)
+		return "network-wireless-connected-25";
+	else
+		return "network-wireless-connected-00";
+}
+
+DHCPCD_WI_SCAN * DhcpcdQt::getStrongestSignal()
+{
+	DHCPCD_WI_SCAN *scan, *scans, *s;
+	DHCPCD_WPA *wpa;
+	DHCPCD_IF *i;
+
+	scan = NULL;
+	for (auto &wi : *wis) {
+		wpa = wi->getWpa();
+		i = dhcpcd_wpa_if(wpa);
+		scans = wi->getScans();
+		for (s = scans; s; s = s->next) {
+			if (dhcpcd_wi_associated(i, s) &&
+			    (scan == NULL ||
+			    s->strength.value > scan->strength.value))
+				scan = s;
+		}
+	}
+	return scan;
+}
+
 void DhcpcdQt::animate()
 {
 	const char *icon;
+	DHCPCD_WI_SCAN *scan;
+
+	scan = getStrongestSignal();
 
 	if (onLine) {
 		if (aniCounter++ > 6) {
@@ -122,20 +161,42 @@ void DhcpcdQt::animate()
 		}
 
 		if (aniCounter % 2 == 0)
-			icon = "network-idle";
+			icon = scan ? "network-wireless-connected-00" :
+			    "network-idle";
 		else
-			icon = "network-transmit-receive";
+			icon = scan ? DhcpcdQt::signalStrengthIcon(scan) :
+			    "network-transmit-receive";
 	} else {
-		switch(aniCounter++) {
-		case 0:
-			icon = "network-transmit";
-			break;
-		case 1:
-			icon = "network-receive";
-			break;
-		default:
-			icon = "network-idle";
-			aniCounter = 0;
+		if (scan) {
+			switch(aniCounter++) {
+			case 0:
+				icon = "network-wireless-connected-00";
+				break;
+			case 1:
+				icon = "network-wireless-connected-25";
+				break;
+			case 2:
+				icon = "network-wireless-connected-50";
+				break;
+			case 3:
+				icon = "network-wireless-connected-75";
+				break;
+			default:
+				icon = "network-wireless-connected-100";
+				aniCounter = 0;
+			}
+		} else {
+			switch(aniCounter++) {
+			case 0:
+				icon = "network-transmit";
+				break;
+			case 1:
+				icon = "network-receive";
+				break;
+			default:
+				icon = "network-idle";
+				aniCounter = 0;
+			}
 		}
 	}
 
@@ -369,6 +430,13 @@ void DhcpcdQt::scanCallback(DHCPCD_WPA *wpa)
 	} else
 		processScans(wi, scans);
 
+	if (!aniTimer->isActive()) {
+		DHCPCD_WI_SCAN *scan;
+
+		scan = getStrongestSignal();
+		if (scan)
+			setIcon("status", DhcpcdQt::signalStrengthIcon(scan));
+	}
 }
 
 void DhcpcdQt::dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, void *d)

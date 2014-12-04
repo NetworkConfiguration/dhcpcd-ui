@@ -129,21 +129,8 @@ void DhcpcdSsidMenuWidget::setScan(DHCPCD_WI_SCAN *scan)
 		picon = picon.scaledToHeight(ICON_SIZE, Qt::SmoothTransformation);
 	encicon->setPixmap(picon);
 
-	if (scan->strength.value > 80)
-		icon = DhcpcdQt::getIcon("status",
-		    "network-wireless-connected-100");
-	else if (scan->strength.value > 55)
-		icon = DhcpcdQt::getIcon("status",
-		    "network-wireless-connected-75");
-	else if (scan->strength.value > 30)
-		icon = DhcpcdQt::getIcon("status",
-		    "network-wireless-connected-50");
-	else if (scan->strength.value > 5)
-		icon = DhcpcdQt::getIcon("status",
-		    "network-wireless-connected-25");
-	else
-		icon = DhcpcdQt::getIcon("status",
-		    "network-wireless-connected-00");
+	icon = DhcpcdQt::getIcon("status",
+	    DhcpcdQt::signalStrengthIcon(scan));
 	picon = icon.pixmap(ICON_SIZE);
 	if (picon.height() != ICON_SIZE)
 		picon = picon.scaledToHeight(ICON_SIZE, Qt::SmoothTransformation);

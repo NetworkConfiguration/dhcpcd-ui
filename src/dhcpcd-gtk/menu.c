@@ -95,22 +95,6 @@ on_about(_unused GtkMenuItem *item)
 	gtk_widget_hide(GTK_WIDGET(about));
 }
 
-static const char *
-get_strength_icon_name(int strength)
-{
-
-	if (strength > 80)
-		return "network-wireless-connected-100";
-	else if (strength > 55)
-		return "network-wireless-connected-75";
-	else if (strength > 30)
-		return "network-wireless-connected-50";
-	else if (strength > 5)
-		return "network-wireless-connected-25";
-	else
-		return "network-wireless-connected-00";
-}
-
 static bool
 is_associated(WI_SCAN *wi, DHCPCD_WI_SCAN *scan)
 {

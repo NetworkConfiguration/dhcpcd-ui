@@ -75,25 +75,82 @@ wi_scan_find(DHCPCD_WI_SCAN *scan)
 	return NULL;
 }
 
+const char *
+get_strength_icon_name(int strength)
+{
+
+	if (strength > 80)
+		return "network-wireless-connected-100";
+	else if (strength > 55)
+		return "network-wireless-connected-75";
+	else if (strength > 30)
+		return "network-wireless-connected-50";
+	else if (strength > 5)
+		return "network-wireless-connected-25";
+	else
+		return "network-wireless-connected-00";
+}
+
+static DHCPCD_WI_SCAN *
+get_strongest_scan()
+{
+	WI_SCAN *w;
+	DHCPCD_WI_SCAN *scan, *s;
+
+	scan = NULL;
+	TAILQ_FOREACH(w, &wi_scans, next) {
+		for (s = w->scans; s; s = s->next) {
+			if (dhcpcd_wi_associated(w->interface, s) &&
+			    (scan == NULL ||
+			    s->strength.value > scan->strength.value))
+				scan = s;
+		}
+	}
+	return scan;
+}
+
 static gboolean
 animate_carrier(_unused gpointer data)
 {
 	const char *icon;
+	DHCPCD_WI_SCAN *scan;
 
 	if (ani_timer == 0)
 		return false;
 
-	switch(ani_counter++) {
-	case 0:
-		icon = "network-transmit";
-		break;
-	case 1:
-		icon = "network-receive";
-		break;
-	default:
-		icon = "network-idle";
-		ani_counter = 0;
-		break;
+	scan = get_strongest_scan();
+	if (scan) {
+		switch(ani_counter++) {
+		case 0:
+			icon = "network-wireless-connected-00";
+			break;
+		case 1:
+			icon = "network-wireless-connected-25";
+			break;
+		case 2:
+			icon = "network-wireless-connected-50";
+			break;
+		case 3:
+			icon = "network-wireless-connected-75";
+			break;
+		default:
+			icon = "network-wireless-connected-100";
+			ani_counter = 0;
+		}
+
+	} else {
+		switch(ani_counter++) {
+		case 0:
+			icon = "network-transmit";
+			break;
+		case 1:
+			icon = "network-receive";
+			break;
+		default:
+			icon = "network-idle";
+			ani_counter = 0;
+			break;
+		}
 	}
 	gtk_status_icon_set_from_icon_name(status_icon, icon);
 	return true;
@@ -103,6 +160,7 @@ static gboolean
 animate_online(_unused gpointer data)
 {
 	const char *icon;
+	DHCPCD_WI_SCAN *scan;
 
 	if (ani_timer == 0)
 		return false;
@@ -113,10 +171,13 @@ animate_online(_unused gpointer data)
 		return false;
 	}
 
+	scan = get_strongest_scan();
 	if (ani_counter % 2 == 0)
-		icon = "network-idle";
+		icon = scan ? "network-wireless-connected-00" :
+		    "network-idle";
 	else
-		icon = "network-transmit-receive";
+		icon = scan ? get_strength_icon_name(scan->strength.value) :
+		    "network-transmit-receive";
 	gtk_status_icon_set_from_icon_name(status_icon, icon);
 	return true;
 }

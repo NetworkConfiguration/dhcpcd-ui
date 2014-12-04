@@ -69,6 +69,7 @@ public:
 	    void *d);
 	void wpaStatusCallback(DHCPCD_WPA *wpa, const char *status);
 
+	static const char * signalStrengthIcon(DHCPCD_WI_SCAN *scan);
 	static QIcon getIcon(QString category, QString name);
 	QList<DhcpcdWi *> *getWis();
 
@@ -104,6 +105,7 @@ private:
 	QDialog *about;
 	QDialog *preferences;
 
+	DHCPCD_WI_SCAN *getStrongestSignal();
 	void processScans(DhcpcdWi *wi, DHCPCD_WI_SCAN *scans);
 	void addSsidMenu(QMenu *&menu, DHCPCD_IF *ifp, DhcpcdWi *&wi);
 	void createSsidMenu();
