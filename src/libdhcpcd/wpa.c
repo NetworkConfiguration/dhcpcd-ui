@@ -1092,10 +1092,11 @@ dhcpcd_wpa_configure1(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *s, const char *psk)
 		return DHCPCD_WPA_ERR;
 
 	mgmt = dhcpcd_wpa_var_mgmt(s);
+	if (mgmt && !dhcpcd_wpa_network_set(wpa, id, "key_mgmt", mgmt))
+		return DHCPCD_WPA_ERR_SET;
+
 	var = dhcpcd_wpa_var_psk(s);
-	if (mgmt && var) {
-		if (!dhcpcd_wpa_network_set(wpa, id, "key_mgmt", mgmt))
-			return DHCPCD_WPA_ERR_SET;
+	if (var) {
 
 		if (psk)
 			psk_len = strlen(psk);
