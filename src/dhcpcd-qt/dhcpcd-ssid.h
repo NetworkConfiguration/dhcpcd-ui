@@ -24,40 +24,27 @@
  * SUCH DAMAGE.
  */
 
-#include <QWidgetAction>
+#ifndef DHCPCD_SSID_H
+#define DHCPCD_SSID_H
+
+#include <QDialog>
 
 #include "dhcpcd.h"
 
-class QWidget;
-
 class DhcpcdWi;
-class DhcpcdSsidMenuWidget;
+class QLineEdit;
 
-class DhcpcdSsidMenu : public QWidgetAction
+class DhcpcdSsid : public QDialog
 {
 	Q_OBJECT
 
 public:
-	DhcpcdSsidMenu(QWidget *parent,
-	    DhcpcdWi *wi, DHCPCD_WI_SCAN *scan);
-	~DhcpcdSsidMenu() {};
-
-	QWidget *createWidget(QWidget *parent);
-	void deleteWidget(QWidget *widget);
-	DHCPCD_WI_SCAN *getScan();
-	void setScan(DHCPCD_WI_SCAN *scan);
-	bool isAssociated();
-
-public slots:
-	void hover();
-	void trigger();
-
-signals:
-	void hovered();
-	void triggered(DHCPCD_WI_SCAN *);
+	DhcpcdSsid(DhcpcdWi *parent, DHCPCD_WI_SCAN *scan);
+	QString getPsk(bool *ok);
 
 private:
-	DhcpcdWi *wi;
-	DHCPCD_WI_SCAN *scan;
-	DhcpcdSsidMenuWidget *ssidWidget;
+	DhcpcdWi *parent;
+	QLineEdit *psk;
 };
+
+#endif

@@ -24,78 +24,66 @@
  * SUCH DAMAGE.
  */
 
-#include <QWidget>
-#include <QEvent>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QHBoxLayout>
-#include <QRadioButton>
-#include <QIcon>
 #include <QLabel>
-#include <QPixmap>
-#include <QStyle>
+#include <QLineEdit>
+#include <QSpacerItem>
+#include <QVBoxLayout>
 
 #include "dhcpcd.h"
 #include "dhcpcd-qt.h"
 #include "dhcpcd-ssid.h"
-#include "dhcpcd-ssidmenu.h"
-#include "dhcpcd-ssidmenuwidget.h"
+#include "dhcpcd-wi.h"
 
-DhcpcdSsidMenu::DhcpcdSsidMenu(QWidget *parent,
-    DhcpcdWi *wi, DHCPCD_WI_SCAN *scan)
-    : QWidgetAction(parent)
+DhcpcdSsid::DhcpcdSsid(DhcpcdWi *parent, DHCPCD_WI_SCAN *scan)
+    : QDialog()
 {
+	this->parent = parent;
+	QVBoxLayout *layout;
+	setWindowIcon(DhcpcdQt::getIcon("status",
+	    "network-wireless-encrypted"));
+	setWindowTitle(scan->ssid);
+	setMinimumWidth(300);
+	resize(10, 10);
+	QPoint p = QCursor::pos();
+	move(p.x(), p.y());
 
-	this->wi = wi;
-	this->scan = scan;
+	layout = new QVBoxLayout(this);
+
+	QHBoxLayout *hbox = new QHBoxLayout();
+	layout->addLayout(hbox);
+	QLabel *label = new QLabel(tr("Pre Shared Key:"));
+	hbox->addWidget(label);
+	psk = new QLineEdit();
+	psk->setSizePolicy(QSizePolicy::Expanding,
+	    QSizePolicy::Fixed);
+	hbox->addWidget(psk);
+
+	hbox = new QHBoxLayout();
+	layout->addLayout(hbox);
+	hbox->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding,
+	    QSizePolicy::Expanding));
+	QDialogButtonBox *okcancel = new QDialogButtonBox(
+	    QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+	hbox->addWidget(okcancel);
+	connect(okcancel, SIGNAL(accepted()), this, SLOT(accept()));
+	connect(okcancel, SIGNAL(rejected()), this, SLOT(reject()));
 }
 
-QWidget *DhcpcdSsidMenu::createWidget(QWidget *parent)
+QString DhcpcdSsid::getPsk(bool *ok)
 {
+	int r;
 
-	ssidWidget = new DhcpcdSsidMenuWidget(parent, wi, scan);
-	connect(ssidWidget, SIGNAL(hovered()), this, SLOT(hover()));
-	connect(ssidWidget, SIGNAL(triggered()), this, SLOT(trigger()));
-	return ssidWidget;
-}
+	exec();
+	if (result() == QDialog::Rejected) {
+		if (ok)
+			*ok = false;
+		return QString::Null();
+	}
 
-void DhcpcdSsidMenu::deleteWidget(QWidget *widget)
-{
-
-	widget->hide();
-	widget->deleteLater();
-	if (ssidWidget == widget)
-		ssidWidget = NULL;
-}
-
-DHCPCD_WI_SCAN *DhcpcdSsidMenu::getScan()
-{
-
-	return scan;
-}
-
-void DhcpcdSsidMenu::setScan(DHCPCD_WI_SCAN *scan)
-{
-
-	this->scan = scan;
-	if (ssidWidget)
-		ssidWidget->setScan(scan);
-}
-
-bool DhcpcdSsidMenu::isAssociated()
-{
-
-	if (ssidWidget)
-		return ssidWidget->isAssociated();
-	return false;
-}
-
-void DhcpcdSsidMenu::hover()
-{
-
-	activate(QAction::Hover);
-}
-
-void DhcpcdSsidMenu::trigger()
-{
-
-	emit triggered(scan);
+	if (ok)
+		*ok = true;
+	return psk->text();
 }

@@ -38,6 +38,7 @@ class QTimer;
 class QWidgetAction;
 
 class DhcpcdQt;
+class DhcpcdSsid;
 class DhcpcdSsidMenu;
 
 class DhcpcdWi : public QObject
@@ -59,17 +60,18 @@ public:
 private slots:
 	void dispatch();
 	void ping();
+	void connectSsid(DHCPCD_WI_SCAN *scan);
 #ifdef BG_SCAN
 	void scan();
 	void menuHidden();
 	void menuShown();
 #endif
-	void connectSsid(DHCPCD_WI_SCAN *scan);
 
 private:
 	DhcpcdQt *dhcpcdQt;
 	DHCPCD_WPA *wpa;
 	DHCPCD_WI_SCAN *scans;
+	DhcpcdSsid *ssid;
 
 	QSocketNotifier *notifier;
 	QTimer *pingTimer;

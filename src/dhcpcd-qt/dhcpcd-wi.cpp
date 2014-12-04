@@ -40,6 +40,7 @@
 #include "dhcpcd-wi.h"
 #include "dhcpcd-qt.h"
 #include "dhcpcd-ifmenu.h"
+#include "dhcpcd-ssid.h"
 #include "dhcpcd-ssidmenu.h"
 
 DhcpcdWi::DhcpcdWi(DhcpcdQt *parent, DHCPCD_WPA *wpa)
@@ -49,6 +50,7 @@ DhcpcdWi::DhcpcdWi(DhcpcdQt *parent, DHCPCD_WPA *wpa)
 	this->wpa = wpa;
 	menu = NULL;
 	scans = NULL;
+	ssid = NULL;
 
 	notifier = NULL;
 	pingTimer = NULL;
@@ -77,6 +79,12 @@ DhcpcdWi::~DhcpcdWi()
 		pingTimer->stop();
 		pingTimer->deleteLater();
 		pingTimer = NULL;
+	}
+
+	if (ssid) {
+		ssid->reject();
+		ssid->deleteLater();
+		ssid = NULL;
 	}
 
 #ifdef BG_SCAN
@@ -270,32 +278,6 @@ void DhcpcdWi::ping()
 		dhcpcd_wpa_close(wpa);
 }
 
-#ifdef BG_SCAN
-void DhcpcdWi::scan()
-{
-
-	dhcpcd_wpa_scan(wpa);
-}
-
-void DhcpcdWi::menuHidden()
-{
-
-	if (scanTimer) {
-		scanTimer->stop();
-		scanTimer->start(DHCPCD_WPA_SCAN_LONG);
-	}
-}
-
-void DhcpcdWi::menuShown()
-{
-
-	if (scanTimer) {
-		scanTimer->stop();
-		scanTimer->start(DHCPCD_WPA_SCAN_SHORT);
-	}
-}
-#endif
-
 void DhcpcdWi::connectSsid(DHCPCD_WI_SCAN *scan)
 {
 	DHCPCD_WI_SCAN s;
@@ -307,8 +289,12 @@ void DhcpcdWi::connectSsid(DHCPCD_WI_SCAN *scan)
 
 	if (s.flags & WSF_PSK) {
 		bool ok;
-		QString pwd = QInputDialog::getText(dhcpcdQt, s.ssid,
-		    tr("Pre Shared key"), QLineEdit::Normal, NULL, &ok);
+		QString pwd;
+
+		ssid = new DhcpcdSsid(this, &s);
+		pwd = ssid->getPsk(&ok);
+		ssid->deleteLater();
+		ssid = NULL;
 		if (!ok)
 			return;
 		if (pwd.isNull() || pwd.isEmpty())
@@ -319,7 +305,6 @@ void DhcpcdWi::connectSsid(DHCPCD_WI_SCAN *scan)
 		err = dhcpcd_wpa_configure(wpa, &s, NULL);
 
 	QString errt;
-
 	switch (err) {
 	case DHCPCD_WPA_SUCCESS:
 		return;
@@ -355,3 +340,29 @@ void DhcpcdWi::connectSsid(DHCPCD_WI_SCAN *scan)
 	QMessageBox::critical(dhcpcdQt, tr("Error setting wireless properties"),
 	    errt);
 }
+
+#ifdef BG_SCAN
+void DhcpcdWi::scan()
+{
+
+	dhcpcd_wpa_scan(wpa);
+}
+
+void DhcpcdWi::menuHidden()
+{
+
+	if (scanTimer) {
+		scanTimer->stop();
+		scanTimer->start(DHCPCD_WPA_SCAN_LONG);
+	}
+}
+
+void DhcpcdWi::menuShown()
+{
+
+	if (scanTimer) {
+		scanTimer->stop();
+		scanTimer->start(DHCPCD_WPA_SCAN_SHORT);
+	}
+}
+#endif
