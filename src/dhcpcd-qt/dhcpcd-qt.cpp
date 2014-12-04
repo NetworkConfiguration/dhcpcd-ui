@@ -387,8 +387,7 @@ void DhcpcdQt::processScans(DhcpcdWi *wi, DHCPCD_WI_SCAN *scans)
 	    (ssidMenu == NULL || !ssidMenu->isVisible()))
 		notify(title, txt);
 
-	wi->setScans(scans);
-	if (ssidMenu && ssidMenu->isVisible())
+	if (wi->setScans(scans) && ssidMenu && ssidMenu->isVisible())
 		ssidMenu->popup(ssidMenuPos);
 }
 

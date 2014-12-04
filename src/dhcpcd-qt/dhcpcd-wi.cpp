@@ -171,7 +171,7 @@ bool DhcpcdWi::setScans(DHCPCD_WI_SCAN *scans)
 	dhcpcd_wi_scans_free(this->scans);
 	this->scans = scans;
 
-	return changed;
+	return (changed && menu && menu->isVisible());
 }
 
 void DhcpcdWi::createMenuItem(QMenu *menu, DHCPCD_WI_SCAN *scan,
