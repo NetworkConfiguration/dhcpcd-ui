@@ -650,4 +650,8 @@ prefs_show(DHCPCD_CONNECTION *con)
 	blocks_on_change(blocks, con);
 	show_config(NULL);
 	gtk_widget_show_all(dialog);
+
+	if (!dhcpcd_config_writeable(con))
+		config_err_dialog(con, true,
+		    _("The dhcpcd configuration file is not writeable"));
 }
