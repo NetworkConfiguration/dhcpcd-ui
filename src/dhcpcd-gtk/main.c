@@ -639,6 +639,17 @@ dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, _unused void *data)
 		}
 		menu_update_scans(w, scans);
 	}
+
+	if (!ani_timer) {
+		s1 = get_strongest_scan();
+		if (s1)
+			msg = get_strength_icon_name(s1->strength.value);
+		else if (online)
+			msg = "network-transmit-receive";
+		else
+			msg = "network-offline";
+		gtk_status_icon_set_from_icon_name(status_icon, msg);
+	}
 }
 
 static void

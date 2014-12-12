@@ -113,16 +113,17 @@ QList<DhcpcdWi *> *DhcpcdQt::getWis()
 const char * DhcpcdQt::signalStrengthIcon(DHCPCD_WI_SCAN *scan)
 {
 
+	if (scan == NULL)
+		return "network-wireless-connected-00";
 	if (scan->strength.value > 80)
 		return "network-wireless-connected-100";
-	else if (scan->strength.value > 55)
+	if (scan->strength.value > 55)
 		return "network-wireless-connected-75";
-	else if (scan->strength.value > 30)
+	if (scan->strength.value > 30)
 		return "network-wireless-connected-50";
-	else if (scan->strength.value > 5)
+	if (scan->strength.value > 5)
 		return "network-wireless-connected-25";
-	else
-		return "network-wireless-connected-00";
+	return "network-wireless-connected-00";
 }
 
 DHCPCD_WI_SCAN * DhcpcdQt::getStrongestSignal()
@@ -431,10 +432,17 @@ void DhcpcdQt::scanCallback(DHCPCD_WPA *wpa)
 
 	if (!aniTimer->isActive()) {
 		DHCPCD_WI_SCAN *scan;
+		const char *icon;
 
 		scan = getStrongestSignal();
 		if (scan)
-			setIcon("status", DhcpcdQt::signalStrengthIcon(scan));
+			icon = DhcpcdQt::signalStrengthIcon(scan);
+		else if (onLine)
+			icon = "network-transmit-receive";
+		else
+			icon = "network-offline";
+
+		setIcon("status", icon);
 	}
 }
 
