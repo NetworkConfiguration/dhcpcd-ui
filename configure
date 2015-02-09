@@ -391,7 +391,7 @@ if [ -n "$WITH_GTK" -a "$WITH_GTK" != no ]; then
 	if [ "$NOTIFY" = yes -o -z "$NOTIFY" ]; then
 		if ! pkg-config --cflags libnotify >/dev/null 2>&3; then
 			echo "libnotify not found" >&2
-			[ "$NOTIFY" = yes -n "$_WITH_GTK" ] && exit 1
+			[ "$NOTIFY" = yes -a -n "$_WITH_GTK" ] && exit 1
 		fi
 		NOTIFY=yes
 	fi
@@ -429,7 +429,7 @@ fi
 
 NOTIFY="$_NOTIFY"
 if $DHCPCD_QT && [ -z "$NOTFY" -o "$NOTIFY" = yes ]; then
-	if type knotify4 >/dev/null 2>&3; then
+	if kde4-config --path lib --locate libkdeui.so >/dev/null 2>&3; then
 		QMAKE_CONFIG="$QMAKE_CONFIG CONFIG+=has_libkdeui"
 		echo "Building dhcpcd-qt with notification support"
 	elif [ "$NOTIFY" = yes ]; then

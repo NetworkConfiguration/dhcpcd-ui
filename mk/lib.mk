@@ -7,7 +7,7 @@ SONAME?=		${SHLIB}
 
 OBJS+=			${SRCS:.c=.o}
 SOBJS+=			${OBJS:.o=.So}
-LIBS?=			${LIBNAME} ${SHLIB}
+LIBS=			${LIBNAME} ${SHLIB}
 
 CLEANFILES+=		${OBJS} ${SOBJS} ${LIBS} ${SHLIB_LINK}
 
