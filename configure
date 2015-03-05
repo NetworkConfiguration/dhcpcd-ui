@@ -11,6 +11,7 @@ HOST=
 HOSTCC=
 BUILD=
 WITH_DHCPCD_ONLINE=yes
+WITH_CURSES=
 WITH_GTK=
 WITH_QT=
 WITH_ICONS=
@@ -46,6 +47,8 @@ for x; do
 	--disable-maintainer-mode|--disable-dependency-tracking) ;;
 	--with-dhcpcd-online) WITH_DHCPCD_ONLINE=${var:-yes};;
 	--without-dhcpcd-online) WITH_DHCPCD_ONLINE=no;;
+	--with-curses) WITH_CURSES=${var:-yes};;
+	--without-curses) WITH_CURSES=${var:-no};;
 	--with-gtk|--with-gtk+) WITH_GTK=${var:-yes};;
 	--without-gtk|--without-gtk+) WITH_GTK=no;;
 	--with-qt) WITH_QT=${var:-yes};;
@@ -445,9 +448,51 @@ if [ "$WITH_ICONS" = yes ]; then
 	echo "MKICONS=	icons" >>$CONFIG_MK
 fi
 
+LIB_CURSES=
+if [ "$WITH_CURSES" = yes -o -z "$WITH_CURSES" ]; then
+	printf "Looking for libcurses ... "
+	cat <<EOF >_curses.c
+#include <curses.h>
+int main(void) {
+	initscr();
+	return 0;
+}
+EOF
+	if $XCC _curses.c -o _curses -lcurses 2>&3; then
+		LIB_CURSES=-lcurses
+	fi
+	rm -f _curses.c _curses
+fi
+if [ -n "$LIB_CURSES" ]; then
+	echo "$LIB_CURSES"
+	echo "LIB_CURSES=	$LIB_CURSES" >>$CONFIG_MK
+	UI="dhcpcd-curses${UI:+ }$UI"
+
+	if [ "$DEBUG" != no -a "$DEBUG" != false ]; then
+		printf "Testing for _nc_free_and_exit() in $LIB_CURSES ... "
+		cat <<EOF >_curses.c
+#include <curses.h>
+int main(void) {
+	_nc_free_and_exit();
+	return 0;
+}
+EOF
+		if $XCC _curses.c -o _curses "$LIB_CURSES" 2>&3; then
+			echo "yes"
+			echo "CURSES_CPPFLAGS=	-DHAVE_NC_FREE_AND_EXIT" >>$CONFIG_MK
+		else
+			echo "no"
+		fi
+		rm -f _curses.c _curses
+	fi
+else
+	echo "no"
+fi
+
 if [ -n "$WITH_DHCPCD_ONLINE" -a "$WITH_DHCPCD_ONLINE" != no ]; then
 	UI="dhcpcd-online${UI:+ }$UI"
 fi
+
 echo "UI=		${UI:+libdhcpcd }$UI" >>$CONFIG_MK
 
 echo
