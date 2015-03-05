@@ -189,6 +189,8 @@ create_menu(WI_SCAN *wis, DHCPCD_WI_SCAN *scan)
 	if (scan->wpa_flags[0] == '\0')
 		gtk_widget_set_tooltip_text(wim->menu, scan->bssid);
 	else {
+		char *tip;
+
 		tip = g_strconcat(scan->bssid, " ", scan->wpa_flags, NULL);
 		gtk_widget_set_tooltip_text(wim->menu, tip);
 		g_free(tip);
