@@ -1,0 +1,564 @@
+/*
+ * dhcpcd - DHCP client daemon
+ * Copyright (c) 2006-2015 Roy Marples <roy@marples.name>
+ * All rights reserved
+
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#include <sys/ioctl.h>
+
+#include <curses.h>
+#include <err.h>
+#include <errno.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include "dhcpcd-curses.h"
+
+#ifdef HAVE_NC_FREE_AND_EXIT
+	void _nc_free_and_exit(void);
+#endif
+
+const int handle_sigs[] = {
+	SIGHUP,
+	SIGINT,
+	SIGPIPE,
+	SIGTERM,
+	SIGWINCH,
+	0
+};
+
+/* Handling signals needs *some* context */
+static struct ctx *_ctx;
+
+static void
+set_status(struct ctx *ctx, const char *status)
+{
+	int h, w;
+
+	getmaxyx(ctx->win_status, h, w);
+	w -= strlen(status);
+	mvwprintw(ctx->win_status, 0, w, "%s", status);
+	wrefresh(ctx->win_status);
+}
+
+static int
+set_summary(struct ctx *ctx, const char *msg)
+{
+	int r;
+
+	wclear(ctx->win_summary);
+	r = wprintw(ctx->win_summary, "%s", msg);
+	wrefresh(ctx->win_summary);
+	return r;
+}
+
+static int
+debug(struct ctx *ctx, const char *fmt, ...)
+{
+	va_list args;
+	int r;
+
+	if (ctx->win_debug == NULL)
+		return 0;
+	waddch(ctx->win_debug, '\n');
+	va_start(args, fmt);
+	r = vwprintw(ctx->win_debug, fmt, args);
+	va_end(args);
+	wrefresh(ctx->win_debug);
+	return r;
+}
+
+static int
+warning(struct ctx *ctx, const char *fmt, ...)
+{
+	va_list args;
+	int r;
+
+	if (ctx->win_debug == NULL)
+		return 0;
+	waddch(ctx->win_debug, '\n');
+	va_start(args, fmt);
+	r = vwprintw(ctx->win_debug, fmt, args);
+	va_end(args);
+	wrefresh(ctx->win_debug);
+	return r;
+}
+
+static int
+notify(struct ctx *ctx, const char *fmt, ...)
+{
+	va_list args;
+	int r;
+
+	if (ctx->win_debug == NULL)
+		return 0;
+	waddch(ctx->win_debug, '\n');
+	va_start(args, fmt);
+	r = vwprintw(ctx->win_debug, fmt, args);
+	va_end(args);
+	wrefresh(ctx->win_debug);
+	return r;
+}
+
+static void
+update_online(struct ctx *ctx, bool show_if)
+{
+	bool online, carrier;
+	char *msg, *msgs, *nmsg;
+	size_t msgs_len, mlen;
+	DHCPCD_IF *ifs, *i;
+
+	online = carrier = false;
+	msgs = NULL;
+	msgs_len = 0;
+	ifs = dhcpcd_interfaces(ctx->con);
+	for (i = ifs; i; i = i->next) {
+		if (strcmp(i->type, "link") == 0) {
+			if (i->up)
+				carrier = true;
+		} else {
+			if (i->up)
+				online = true;
+		}
+		msg = dhcpcd_if_message(i, NULL);
+		if (msg) {
+			if (show_if) {
+				if (i->up)
+					notify(ctx, "%s", msg);
+				else
+					warning(ctx, "%s", msg);
+			}
+			if (msgs == NULL) {
+				msgs = msg;
+				msgs_len = strlen(msgs) + 1;
+			} else {
+				mlen = strlen(msg) + 1;
+				nmsg = realloc(msgs, msgs_len + mlen);
+				if (nmsg) {
+					msgs = nmsg;
+					msgs[msgs_len - 1] = '\n';
+					memcpy(msgs + msgs_len, msg, mlen);
+					msgs_len += mlen;
+				} else
+					warn("realloc");
+				free(msg);
+			}
+		} else if (show_if) {
+			if (i->up)
+				notify(ctx, "%s: %s", i->ifname, i->reason);
+			else
+				warning(ctx, "%s: %s", i->ifname, i->reason);
+		}
+	}
+
+	set_summary(ctx, msgs);
+	free(msgs);
+}
+
+static void
+dispatch(void *arg)
+{
+	struct ctx *ctx = arg;
+
+	dhcpcd_dispatch(ctx->con);
+}
+
+static void
+try_open(void *arg)
+{
+	struct ctx *ctx = arg;
+	static int last_error;
+
+	ctx->fd = dhcpcd_open(ctx->con, true);
+	if (ctx->fd == -1) {
+		if (errno == EACCES || errno == EPERM) {
+			ctx->fd = dhcpcd_open(ctx->con, false);
+			if (ctx->fd != -1)
+				goto unprived;
+		}
+		if (errno != last_error) {
+			last_error = errno;
+			set_status(ctx, strerror(errno));
+		}
+		eloop_timeout_add_sec(ctx->eloop, DHCPCD_RETRYOPEN,
+		    try_open, ctx);
+		return;
+	}
+
+unprived:
+	/* Start listening to WPA events */
+	dhcpcd_wpa_start(ctx->con);
+
+	eloop_event_add(ctx->eloop, ctx->fd, dispatch, ctx, NULL, NULL);
+}
+
+static void
+status_cb(DHCPCD_CONNECTION *con, const char *status, void *arg)
+{
+	struct ctx *ctx = arg;
+
+	debug(ctx, _("Status changed to %s"), status);
+	set_status(ctx, status);
+
+	if (strcmp(status, "down") != 0) {
+		bool refresh;
+
+		if (ctx->last_status == NULL || strcmp(ctx->last_status, "down") == 0) {
+			debug(ctx, _("Connected to dhcpcd-%s"), dhcpcd_version(con));
+			refresh = true;
+		} else
+			refresh = strcmp(ctx->last_status, "opened") ? false : true;
+		update_online(ctx, refresh);
+	}
+
+	free(ctx->last_status);
+	ctx->last_status = strdup(status);
+
+	if (strcmp(status, "down") == 0) {
+		ctx->online = ctx->carrier = false;
+		eloop_timeout_add_sec(ctx->eloop, DHCPCD_RETRYOPEN,
+		    try_open, ctx);
+		return;
+	}
+}
+
+static void
+if_cb(DHCPCD_IF *i, void *arg)
+{
+	struct ctx *ctx = arg;
+
+	if (strcmp(i->reason, "RENEW") &&
+	    strcmp(i->reason, "STOP") &&
+	    strcmp(i->reason, "STOPPED"))
+	{
+		char *msg;
+		bool new_msg;
+
+		msg = dhcpcd_if_message(i, &new_msg);
+		if (msg) {
+			if (i->up)
+				warning(ctx, msg);
+			else
+				notify(ctx, msg);
+			free(msg);
+		}
+	}
+
+	update_online(ctx, false);
+
+	if (i->wireless) {
+		/* PROCESS SCANS */
+	}
+}
+
+static void
+wpa_dispatch(void *arg)
+{
+	DHCPCD_WPA *wpa = arg;
+
+	dhcpcd_wpa_dispatch(wpa);
+}
+
+
+static void
+wpa_scan_cb(DHCPCD_WPA *wpa, void *arg)
+{
+	struct ctx *ctx = arg;
+	DHCPCD_IF *i;
+	WI_SCAN *wi;
+	DHCPCD_WI_SCAN *scans, *s1, *s2;
+	int fd, lerrno;
+
+	/* This could be a new WPA so watch it */
+	if ((fd = dhcpcd_wpa_get_fd(wpa)) == -1) {
+		debug(ctx, "%s (%p)", _("no fd for WPA"), wpa);
+		return;
+	}
+	eloop_event_add(ctx->eloop,
+	    dhcpcd_wpa_get_fd(wpa), wpa_dispatch, wpa, NULL, NULL);
+
+	i = dhcpcd_wpa_if(wpa);
+	if (i == NULL) {
+		debug(ctx, "%s (%p)", _("No interface for WPA"), wpa);
+		return;
+	}
+	debug(ctx, "%s: %s", i->ifname, _("Received scan results"));
+	lerrno = errno;
+	errno = 0;
+	scans = dhcpcd_wi_scans(i);
+	if (scans == NULL && errno)
+		debug(ctx, "%s: %s", i->ifname, strerror(errno));
+	errno = lerrno;
+	TAILQ_FOREACH(wi, &ctx->wi_scans, next) {
+		if (wi->interface == i)
+			break;
+	}
+	if (wi == NULL) {
+		wi = malloc(sizeof(*wi));
+		wi->interface = i;
+		wi->scans = scans;
+		TAILQ_INSERT_TAIL(&ctx->wi_scans, wi, next);
+	} else {
+		const char *title;
+		char *msgs, *nmsg;
+		size_t msgs_len, mlen;
+
+		title = NULL;
+		msgs = NULL;
+		for (s1 = scans; s1; s1 = s1->next) {
+			for (s2 = wi->scans; s2; s2 = s2->next)
+				if (strcmp(s1->ssid, s2->ssid) == 0)
+					break;
+			if (s2 == NULL) {
+				if (msgs == NULL) {
+					msgs = strdup(s1->ssid);
+					msgs_len = strlen(msgs) + 1;
+				} else {
+					if (title == NULL)
+						title = _("New Access Points");
+					mlen = strlen(s1->ssid) + 1;
+					nmsg = realloc(msgs, msgs_len + mlen);
+					if (nmsg) {
+						msgs = nmsg;
+						msgs[msgs_len - 1] = '\n';
+						memcpy(msgs + msgs_len,
+						    s1->ssid, mlen);
+						msgs_len += mlen;
+					} else
+						warn("realloc");
+				}
+			}
+		}
+		if (msgs) {
+			if (title == NULL)
+				title = _("New Access Point");
+			mlen = strlen(title) + 1;
+			nmsg = realloc(msgs, msgs_len + mlen);
+			if (nmsg) {
+				msgs = nmsg;
+				memmove(msgs + mlen, msgs, msgs_len);
+				memcpy(msgs, title, mlen);
+				msgs[mlen - 1] = '\n';
+			} else
+				warn("realloc");
+			notify(ctx, "%s", msgs);
+			free(msgs);
+		}
+
+		dhcpcd_wi_scans_free(wi->scans);
+		wi->scans = scans;
+	}
+}
+
+static void
+wpa_status_cb(DHCPCD_WPA *wpa, const char *status, void *arg)
+{
+	struct ctx *ctx = arg;
+	DHCPCD_IF *i;
+	WI_SCAN *w, *wn;
+
+	i = dhcpcd_wpa_if(wpa);
+	debug(ctx, _("%s: WPA status %s"), i->ifname, status);
+	if (strcmp(status, "down") == 0) {
+		eloop_event_delete(ctx->eloop, dhcpcd_wpa_get_fd(wpa), 0);
+		TAILQ_FOREACH_SAFE(w, &ctx->wi_scans, next, wn) {
+			if (w->interface == i) {
+				TAILQ_REMOVE(&ctx->wi_scans, w, next);
+				dhcpcd_wi_scans_free(w->scans);
+				free(w);
+			}
+		}
+	}
+}
+
+#ifdef BG_SCAN
+static void
+bg_scan(void *arg)
+{
+	struct ctx *ctx = arg;
+	WI_SCAN *w;
+	DHCPCD_WPA *wpa;
+
+	TAILQ_FOREACH(w, &ctx->wi_scans, next) {
+		if (w->interface->wireless && w->interface->up) {
+			wpa = dhcpcd_wpa_find(ctx->con, w->interface->ifname);
+			if (wpa)
+				dhcpcd_wpa_scan(wpa);
+		}
+	}
+
+	/* DHCPCD_WPA_SCAN_SHORT is in milliseconds */
+	eloop_timeout_add_sec(ctx->eloop,
+	     DHCPCD_WPA_SCAN_SHORT / 1000, bg_scan, ctx);
+}
+#endif
+
+static void
+signal_handler(int sig)
+{
+	struct winsize ws;
+
+	switch(sig) {
+	case SIGWINCH:
+		if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0)
+			resizeterm(ws.ws_row, ws.ws_col);
+		break;
+	case SIGINT:
+		debug(_ctx, _("SIGINT caught, exiting"));
+		eloop_exit(_ctx->eloop, EXIT_FAILURE);
+		break;
+	case SIGTERM:
+		debug(_ctx, _("SIGTERM caught, exiting"));
+		eloop_exit(_ctx->eloop, EXIT_FAILURE);
+		break;
+	case SIGHUP:
+		debug(_ctx, _("SIGHUP caught, ignoring"));
+		break;
+	case SIGPIPE:
+		debug(_ctx, _("SIGPIPE caught, ignoring"));
+		break;
+	}
+}
+
+static int
+setup_signals()
+{
+	struct sigaction sa;
+	int i;
+
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = signal_handler;
+
+	for (i = 0; handle_sigs[i]; i++) {
+		if (sigaction(handle_sigs[i], &sa, NULL) == -1)
+			return -1;
+	}
+	return 0;
+}
+
+static int
+create_windows(struct ctx *ctx)
+{
+	int h, w;
+
+	getmaxyx(ctx->stdscr, h, w);
+
+	if ((ctx->win_status = newwin(1, w, 0, 0)) == NULL)
+		return -1;
+
+	if ((ctx->win_summary_border = newwin(10, w - 2, 2, 1)) == NULL)
+		return -1;
+	box(ctx->win_summary_border, 0, 0);
+	mvwprintw(ctx->win_summary_border, 0, 5, " %s ",
+	    _("Connection Summary"));
+	wrefresh(ctx->win_summary_border);
+	if ((ctx->win_summary = newwin(8, w - 4, 3, 2)) == NULL)
+		return -1;
+	scrollok(ctx->win_summary, TRUE);
+
+#if 1
+	if ((ctx->win_debug_border = newwin(8, w - 2, h - 10, 1)) == NULL)
+		return -1;
+	box(ctx->win_debug_border, 0, 0);
+	mvwprintw(ctx->win_debug_border, 0, 5, " %s ",
+	    _("Event Log"));
+	wrefresh(ctx->win_debug_border);
+	if ((ctx->win_debug = newwin(6, w - 4, h - 9, 2)) == NULL)
+		return -1;
+	scrollok(ctx->win_debug, TRUE);
+#endif
+	return 0;
+}
+
+int
+main(void)
+{
+	struct ctx ctx;
+	WI_SCAN *wi;
+
+	memset(&ctx, 0, sizeof(ctx));
+	ctx.fd = -1;
+	TAILQ_INIT(&ctx.wi_scans);
+	_ctx = &ctx;
+
+	if (setup_signals() == -1)
+		err(EXIT_FAILURE, "setup_signals");
+
+	if ((ctx.con = dhcpcd_new()) == NULL)
+		err(EXIT_FAILURE, "dhcpcd_new");
+
+	if ((ctx.eloop = eloop_init()) == NULL)
+		err(EXIT_FAILURE, "malloc");
+	
+	if ((ctx.stdscr = initscr()) == NULL)
+		err(EXIT_FAILURE, "initscr");
+
+	if (create_windows(&ctx) == -1)
+		err(EXIT_FAILURE, "create_windows");
+
+	curs_set(0);
+	noecho();
+	keypad(ctx.stdscr, TRUE);
+
+	wprintw(ctx.win_status, "%s %s", _("dhcpcd Curses Interface"), VERSION);
+	dhcpcd_set_progname(ctx.con, "dhcpcd-curses");
+	dhcpcd_set_status_callback(ctx.con, status_cb, &ctx);
+	dhcpcd_set_if_callback(ctx.con, if_cb, &ctx);
+	dhcpcd_wpa_set_scan_callback(ctx.con, wpa_scan_cb, &ctx);
+	dhcpcd_wpa_set_status_callback(ctx.con, wpa_status_cb, &ctx);
+
+	eloop_timeout_add_sec(ctx.eloop, 0, try_open, &ctx);
+#ifdef BG_SCAN
+	/* DHCPCD_WPA_SCAN_SHORT is in milliseconds */
+	eloop_timeout_add_sec(ctx.eloop,
+	    DHCPCD_WPA_SCAN_SHORT / 1000, bg_scan, &ctx);
+#endif
+	eloop_start(ctx.eloop);
+
+	/* Close the dhcpcd connection first incase any callbacks trigger */
+	dhcpcd_close(ctx.con);
+	dhcpcd_free(ctx.con);
+
+	/* Free our saved scans */
+	while ((wi = TAILQ_FIRST(&ctx.wi_scans))) {
+		TAILQ_REMOVE(&ctx.wi_scans, wi, next);
+		dhcpcd_wi_scans_free(wi->scans);
+		free(wi);
+	}
+
+	/* Free everything else */
+	eloop_free(ctx.eloop);
+	endwin();
+	free(ctx.last_status);
+
+#ifdef HAVE_NC_FREE_AND_EXIT
+	/* undefined ncurses function to allow valgrind debugging */
+	_nc_free_and_exit();
+#endif
+
+	return EXIT_SUCCESS;
+}
