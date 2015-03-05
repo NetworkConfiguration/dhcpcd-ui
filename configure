@@ -381,10 +381,12 @@ if [ "$WITH_GTK" = yes -o -z "$WITH_GTK" ]; then
 		WITH_GTK="gtk+-2.0"
 	elif pkg-config --cflags gtk+-3.0 >/dev/null 2>&3; then
 		WITH_GTK="gtk+-3.0"
+	else
+		echo "No suitable GTK+ library has been found"
 	fi
 elif [ -n "$WITH_GTK" -a "$WITH_GTK" != no ]; then
 	if ! pkg-config --cflags $WITH_GTK >/dev/null 2>&3; then
-		echo "$0: no suitable GTK+ library has been found" >&2
+		echo "No suitable GTK+ library has been found" >&2
 		exit 1
 	fi
 fi
@@ -425,8 +427,11 @@ if [ -z "$WITH_QT" -o "$WITH_QT" != no ]; then
 		UI="$UI${UI+ }dhcpcd-qt"
 		DHCPCD_QT=true
 	else
-		echo "$0: no suitable Qt library has been found" >&2
-		[ -z "$WITH_QT" ] || exit 1
+		if [ -n "$WITH_QT" ]; then
+			echo "No suitable Qt library has been found" >&2
+			exit 1
+		fi
+		echo "No suitable Qt library has been found"
 	fi
 fi
 
@@ -485,7 +490,7 @@ EOF
 		fi
 		rm -f _curses.c _curses
 	fi
-else
+elif [ ! "$WITH_CURSES" = no ]; then
 	echo "no"
 fi
 
