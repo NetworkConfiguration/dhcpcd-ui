@@ -387,17 +387,17 @@ on_activate(GtkStatusIcon *icon)
 
 	if ((l = TAILQ_LAST(&wi_scans, wi_scan_head)) && l != w) {
 		menu = gtk_menu_new();
-		TAILQ_FOREACH(w, &wi_scans, next) {
+		TAILQ_FOREACH(l, &wi_scans, next) {
 			item = gtk_image_menu_item_new_with_label(
-				w->interface->ifname);
+				l->interface->ifname);
 			image = gtk_image_new_from_icon_name(
 				"network-wireless", GTK_ICON_SIZE_MENU);
 			gtk_image_menu_item_set_image(
 				GTK_IMAGE_MENU_ITEM(item), image);
 			gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-			w->ifmenu = add_scans(w);
+			l->ifmenu = add_scans(l);
 			gtk_menu_item_set_submenu(GTK_MENU_ITEM(item),
-			    w->ifmenu);
+			    l->ifmenu);
 		}
 	} else {
 		w->ifmenu = menu = add_scans(w);
