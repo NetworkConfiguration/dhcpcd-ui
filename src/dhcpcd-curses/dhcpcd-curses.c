@@ -76,7 +76,7 @@ set_summary(struct ctx *ctx, const char *msg)
 	return r;
 }
 
-static int
+__printflike(2, 3) static int
 debug(struct ctx *ctx, const char *fmt, ...)
 {
 	va_list args;
@@ -92,7 +92,7 @@ debug(struct ctx *ctx, const char *fmt, ...)
 	return r;
 }
 
-static int
+__printflike(2, 3) static int
 warning(struct ctx *ctx, const char *fmt, ...)
 {
 	va_list args;
@@ -108,7 +108,7 @@ warning(struct ctx *ctx, const char *fmt, ...)
 	return r;
 }
 
-static int
+__printflike(2, 3) static int
 notify(struct ctx *ctx, const char *fmt, ...)
 {
 	va_list args;
@@ -227,11 +227,15 @@ status_cb(DHCPCD_CONNECTION *con, const char *status, void *arg)
 	if (strcmp(status, "down") != 0) {
 		bool refresh;
 
-		if (ctx->last_status == NULL || strcmp(ctx->last_status, "down") == 0) {
-			debug(ctx, _("Connected to dhcpcd-%s"), dhcpcd_version(con));
+		if (ctx->last_status == NULL ||
+		    strcmp(ctx->last_status, "down") == 0)
+		{
+			debug(ctx, _("Connected to dhcpcd-%s"),
+			    dhcpcd_version(con));
 			refresh = true;
 		} else
-			refresh = strcmp(ctx->last_status, "opened") ? false : true;
+			refresh =
+			    strcmp(ctx->last_status, "opened") ? false : true;
 		update_online(ctx, refresh);
 	}
 
@@ -261,9 +265,9 @@ if_cb(DHCPCD_IF *i, void *arg)
 		msg = dhcpcd_if_message(i, &new_msg);
 		if (msg) {
 			if (i->up)
-				warning(ctx, msg);
+				warning(ctx, "%s", msg);
 			else
-				notify(ctx, msg);
+				notify(ctx, "%s", msg);
 			free(msg);
 		}
 	}
@@ -513,7 +517,7 @@ main(void)
 
 	if ((ctx.eloop = eloop_init()) == NULL)
 		err(EXIT_FAILURE, "malloc");
-	
+
 	if ((ctx.stdscr = initscr()) == NULL)
 		err(EXIT_FAILURE, "initscr");
 
@@ -539,7 +543,11 @@ main(void)
 #endif
 	eloop_start(ctx.eloop);
 
-	/* Close the dhcpcd connection first incase any callbacks trigger */
+	/* Un-resgister the callbacks to avoid spam on close */
+	dhcpcd_set_status_callback(ctx.con, NULL, NULL);
+	dhcpcd_set_if_callback(ctx.con, NULL, NULL);
+	dhcpcd_wpa_set_scan_callback(ctx.con, NULL, NULL);
+	dhcpcd_wpa_set_status_callback(ctx.con, NULL, NULL);
 	dhcpcd_close(ctx.con);
 	dhcpcd_free(ctx.con);
 

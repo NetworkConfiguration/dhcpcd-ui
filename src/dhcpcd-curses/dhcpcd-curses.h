@@ -42,6 +42,14 @@
 #include "eloop.h"
 #include "queue.h"
 
+#ifndef __printflike
+#ifdef __GNUC__
+#define __printflike(a, b) __attribute__((format(printf, a, b)))
+#else
+#define __printflike(a, b)
+#endif
+#endif
+
 typedef struct wi_scan {
 	TAILQ_ENTRY(wi_scan) next;
 	DHCPCD_IF *interface;
