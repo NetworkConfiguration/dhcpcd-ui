@@ -54,15 +54,23 @@ const int handle_sigs[] = {
 /* Handling signals needs *some* context */
 static struct ctx *_ctx;
 
+static void try_open(void *);
+
 static void
 set_status(struct ctx *ctx, const char *status)
 {
 	int h, w;
+	size_t slen;
 
 	getmaxyx(ctx->win_status, h, w);
-	w -= strlen(status);
+	w -= (slen = strlen(status));
+	if (ctx->status_len > slen) {
+		wmove(ctx->win_status, 0, w - (int)(ctx->status_len - slen));
+		wclrtoeol(ctx->win_status);
+	}
 	mvwprintw(ctx->win_status, 0, w, "%s", status);
 	wrefresh(ctx->win_status);
+	ctx->status_len = slen;
 }
 
 static int
@@ -71,7 +79,10 @@ set_summary(struct ctx *ctx, const char *msg)
 	int r;
 
 	wclear(ctx->win_summary);
-	r = wprintw(ctx->win_summary, "%s", msg);
+	if (msg)
+		r = wprintw(ctx->win_summary, "%s", msg);
+	else
+		r = 0;
 	wrefresh(ctx->win_summary);
 	return r;
 }
@@ -184,6 +195,14 @@ dispatch(void *arg)
 {
 	struct ctx *ctx = arg;
 
+	if (dhcpcd_get_fd(ctx->con) == -1) {
+		warning(ctx, _("dhcpcd connection lost"));
+		eloop_event_delete(ctx->eloop, -1, NULL, ctx->con, 0);
+		eloop_timeout_add_msec(ctx->eloop, DHCPCD_RETRYOPEN,
+		    try_open, ctx);
+		return;
+	}
+
 	dhcpcd_dispatch(ctx->con);
 }
 
@@ -204,7 +223,7 @@ try_open(void *arg)
 			last_error = errno;
 			set_status(ctx, strerror(errno));
 		}
-		eloop_timeout_add_sec(ctx->eloop, DHCPCD_RETRYOPEN,
+		eloop_timeout_add_msec(ctx->eloop, DHCPCD_RETRYOPEN,
 		    try_open, ctx);
 		return;
 	}
@@ -224,7 +243,15 @@ status_cb(DHCPCD_CONNECTION *con, const char *status, void *arg)
 	debug(ctx, _("Status changed to %s"), status);
 	set_status(ctx, status);
 
-	if (strcmp(status, "down") != 0) {
+	if (strcmp(status, "down") == 0) {
+		eloop_event_delete(ctx->eloop, ctx->fd, NULL, NULL, 0);
+		ctx->fd = -1;
+		ctx->online = ctx->carrier = false;
+		eloop_timeout_delete(ctx->eloop, NULL, ctx);
+		set_summary(ctx, NULL);
+		eloop_timeout_add_msec(ctx->eloop, DHCPCD_RETRYOPEN,
+		    try_open, ctx);
+	} else {
 		bool refresh;
 
 		if (ctx->last_status == NULL ||
@@ -241,13 +268,6 @@ status_cb(DHCPCD_CONNECTION *con, const char *status, void *arg)
 
 	free(ctx->last_status);
 	ctx->last_status = strdup(status);
-
-	if (strcmp(status, "down") == 0) {
-		ctx->online = ctx->carrier = false;
-		eloop_timeout_add_sec(ctx->eloop, DHCPCD_RETRYOPEN,
-		    try_open, ctx);
-		return;
-	}
 }
 
 static void
@@ -388,7 +408,7 @@ wpa_status_cb(DHCPCD_WPA *wpa, const char *status, void *arg)
 	i = dhcpcd_wpa_if(wpa);
 	debug(ctx, _("%s: WPA status %s"), i->ifname, status);
 	if (strcmp(status, "down") == 0) {
-		eloop_event_delete(ctx->eloop, dhcpcd_wpa_get_fd(wpa), 0);
+		eloop_event_delete(ctx->eloop, -1, NULL, wpa, 0);
 		TAILQ_FOREACH_SAFE(w, &ctx->wi_scans, next, wn) {
 			if (w->interface == i) {
 				TAILQ_REMOVE(&ctx->wi_scans, w, next);
@@ -415,9 +435,8 @@ bg_scan(void *arg)
 		}
 	}
 
-	/* DHCPCD_WPA_SCAN_SHORT is in milliseconds */
-	eloop_timeout_add_sec(ctx->eloop,
-	     DHCPCD_WPA_SCAN_SHORT / 1000, bg_scan, ctx);
+	eloop_timeout_add_msec(ctx->eloop, DHCPCD_WPA_SCAN_SHORT,
+	    bg_scan, ctx);
 }
 #endif
 
@@ -537,9 +556,8 @@ main(void)
 
 	eloop_timeout_add_sec(ctx.eloop, 0, try_open, &ctx);
 #ifdef BG_SCAN
-	/* DHCPCD_WPA_SCAN_SHORT is in milliseconds */
-	eloop_timeout_add_sec(ctx.eloop,
-	    DHCPCD_WPA_SCAN_SHORT / 1000, bg_scan, &ctx);
+	eloop_timeout_add_msec(ctx.eloop, DHCPCD_WPA_SCAN_SHORT,
+	    bg_scan, &ctx);
 #endif
 	eloop_start(ctx.eloop);
 

@@ -64,6 +64,7 @@ struct ctx {
 	bool online;
 	bool carrier;
 	char *last_status;
+	size_t status_len;
 	WI_SCANS wi_scans;
 
 	WINDOW *stdscr;

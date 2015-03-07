@@ -84,15 +84,19 @@ typedef void *ELOOP_CTX;
     eloop_q_timeout_add_tv(a, ELOOP_QUEUE, b, c, d)
 #define eloop_timeout_add_sec(a, b, c, d) \
     eloop_q_timeout_add_sec(a, ELOOP_QUEUE, b, c, d)
+#define eloop_timeout_add_msec(a, b, c, d) \
+    eloop_q_timeout_add_msec(a, ELOOP_QUEUE, b, c, d)
 #define eloop_timeout_delete(a, b, c) \
     eloop_q_timeout_delete(a, ELOOP_QUEUE, b, c)
 
 int eloop_event_add(ELOOP_CTX *, int,
     void (*)(void *), void *,
     void (*)(void *), void *);
-void eloop_event_delete(ELOOP_CTX *, int, int);
+void eloop_event_delete(ELOOP_CTX *, int, void (*)(void *), void *, int);
 int eloop_q_timeout_add_sec(ELOOP_CTX *, int queue,
     time_t, void (*)(void *), void *);
+int eloop_q_timeout_add_msec(ELOOP_CTX *, int queue,
+    suseconds_t, void (*)(void *), void *);
 int eloop_q_timeout_add_tv(ELOOP_CTX *, int queue,
     const struct timeval *, void (*)(void *), void *);
 int eloop_timeout_add_now(ELOOP_CTX *, void (*)(void *), void *);

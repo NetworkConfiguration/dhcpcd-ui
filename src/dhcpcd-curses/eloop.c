@@ -34,6 +34,8 @@
 #include <stdlib.h>
 #include <syslog.h>
 
+#include <stdio.h>
+
 #define IN_ELOOP
 
 #include "config.h"
@@ -192,12 +194,15 @@ eloop_event_add(ELOOP_CTX *ctx, int fd,
 }
 
 void
-eloop_event_delete(ELOOP_CTX *ctx, int fd, int write_only)
+eloop_event_delete(ELOOP_CTX *ctx, int fd, void (*callback)(void *), void *arg,
+    int write_only)
 {
 	struct eloop_event *e;
 
 	TAILQ_FOREACH(e, &ctx->events, next) {
-		if (e->fd == fd) {
+		if (e->fd == fd ||
+		    e->read_cb == callback || (arg && e->read_cb_arg == arg))
+		{
 			if (write_only) {
 				e->write_cb = NULL;
 				e->write_cb_arg = NULL;
@@ -275,6 +280,26 @@ eloop_q_timeout_add_sec(ELOOP_CTX *ctx, int queue, time_t when,
 
 	tv.tv_sec = when;
 	tv.tv_usec = 0;
+	return eloop_q_timeout_add_tv(ctx, queue, &tv, callback, arg);
+}
+
+#define USEC_PER_SEC		1000000L
+#define timernorm(tv) do {						\
+	while ((tv)->tv_usec >=  USEC_PER_SEC) {			\
+		(tv)->tv_sec++;						\
+		(tv)->tv_usec -= USEC_PER_SEC;				\
+	}								\
+} while (0 /* CONSTCOND */);
+
+int
+eloop_q_timeout_add_msec(ELOOP_CTX *ctx, int queue, suseconds_t when,
+    void (*callback)(void *), void *arg)
+{
+	struct timeval tv;
+
+	tv.tv_sec = 0;
+	tv.tv_usec = when * 1000;
+	timernorm(&tv);
 	return eloop_q_timeout_add_tv(ctx, queue, &tv, callback, arg);
 }
 
