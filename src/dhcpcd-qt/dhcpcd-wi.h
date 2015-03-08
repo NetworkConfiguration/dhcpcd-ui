@@ -61,11 +61,9 @@ private slots:
 	void dispatch();
 	void ping();
 	void connectSsid(DHCPCD_WI_SCAN *scan);
-#ifdef BG_SCAN
 	void scan();
 	void menuHidden();
 	void menuShown();
-#endif
 
 private:
 	DhcpcdQt *dhcpcdQt;
@@ -75,9 +73,7 @@ private:
 
 	QSocketNotifier *notifier;
 	QTimer *pingTimer;
-#ifdef BG_SCAN
 	QTimer *scanTimer;
-#endif
 
 	QMenu *menu;
 	void createMenuItem(QMenu *menu, DHCPCD_WI_SCAN *scan,

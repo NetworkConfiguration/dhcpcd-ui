@@ -419,7 +419,6 @@ wpa_status_cb(DHCPCD_WPA *wpa, const char *status, void *arg)
 	}
 }
 
-#ifdef BG_SCAN
 static void
 bg_scan(void *arg)
 {
@@ -428,9 +427,11 @@ bg_scan(void *arg)
 	DHCPCD_WPA *wpa;
 
 	TAILQ_FOREACH(w, &ctx->wi_scans, next) {
-		if (w->interface->wireless && w->interface->up) {
+		if (w->interface->wireless& w->interface->up) {
 			wpa = dhcpcd_wpa_find(ctx->con, w->interface->ifname);
-			if (wpa)
+			if (wpa &&
+			    (!w->interface->up ||
+			    dhcpcd_wpa_can_background_scan(wpa)))
 				dhcpcd_wpa_scan(wpa);
 		}
 	}
@@ -438,7 +439,6 @@ bg_scan(void *arg)
 	eloop_timeout_add_msec(ctx->eloop, DHCPCD_WPA_SCAN_SHORT,
 	    bg_scan, ctx);
 }
-#endif
 
 static void
 signal_handler(int sig)
@@ -555,10 +555,8 @@ main(void)
 	dhcpcd_wpa_set_status_callback(ctx.con, wpa_status_cb, &ctx);
 
 	eloop_timeout_add_sec(ctx.eloop, 0, try_open, &ctx);
-#ifdef BG_SCAN
 	eloop_timeout_add_msec(ctx.eloop, DHCPCD_WPA_SCAN_SHORT,
 	    bg_scan, &ctx);
-#endif
 	eloop_start(ctx.eloop);
 
 	/* Un-resgister the callbacks to avoid spam on close */

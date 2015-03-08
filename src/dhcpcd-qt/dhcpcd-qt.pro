@@ -18,10 +18,6 @@ INCLUDEPATH+=		../libdhcpcd/
 
 LIBS+=			-L../libdhcpcd ../libdhcpcd/libdhcpcd.a
 
-build_bgscan {
-	DEFINES+=	BG_SCAN
-}
-
 has_libintl {
 	LIBS +=		-lintl
 }

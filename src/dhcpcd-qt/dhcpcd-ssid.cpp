@@ -74,7 +74,6 @@ DhcpcdSsid::DhcpcdSsid(DhcpcdWi *parent, DHCPCD_WI_SCAN *scan)
 
 QString DhcpcdSsid::getPsk(bool *ok)
 {
-	int r;
 
 	exec();
 	if (result() == QDialog::Rejected) {

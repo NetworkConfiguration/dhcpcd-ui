@@ -247,6 +247,7 @@ bool dhcpcd_wpa_command(DHCPCD_WPA *, const char *);
 bool dhcpcd_wpa_command_arg(DHCPCD_WPA *, const char *, const char *);
 
 bool dhcpcd_wpa_ping(DHCPCD_WPA *);
+bool dhcpcd_wpa_can_background_scan(DHCPCD_WPA *);
 bool dhcpcd_wpa_scan(DHCPCD_WPA *);
 bool dhcpcd_wpa_reconfigure(DHCPCD_WPA *);
 bool dhcpcd_wpa_reassociate(DHCPCD_WPA *);

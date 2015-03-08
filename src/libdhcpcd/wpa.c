@@ -173,6 +173,18 @@ dhcpcd_attach_detach(DHCPCD_WPA *wpa, bool attach)
 }
 
 bool
+dhcpcd_wpa_can_background_scan(DHCPCD_WPA *wpa)
+{
+
+	wpa = NULL; /* BSD will use this moving forwards */
+#ifdef __linux__
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool
 dhcpcd_wpa_scan(DHCPCD_WPA *wpa)
 {
 
