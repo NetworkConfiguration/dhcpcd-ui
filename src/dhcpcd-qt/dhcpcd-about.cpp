@@ -1,6 +1,6 @@
 /*
  * dhcpcd-qt
- * Copyright 2014 Roy Marples <roy@marples.name>
+ * Copyright 2014-2015 Roy Marples <roy@marples.name>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -63,7 +63,7 @@ DhcpcdAbout::DhcpcdAbout(DhcpcdQt *parent)
 	partLabel = new QLabel(tr("Part of the dhcpcd project"), this);
 	partLabel->setAlignment(Qt::AlignCenter);
 	layout->addWidget(partLabel);
-	copyrightLabel = new QLabel("Copyright (c) 2009-2014 Roy Marples", this);
+	copyrightLabel = new QLabel("Copyright (c) 2009-2015 Roy Marples", this);
 	copyrightLabel->setAlignment(Qt::AlignCenter);
 	layout->addWidget(copyrightLabel);
 	urlLabel = new QLabel(

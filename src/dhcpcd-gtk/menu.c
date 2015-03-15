@@ -1,6 +1,6 @@
 /*
  * dhcpcd-gtk
- * Copyright 2009-2014 Roy Marples <roy@marples.name>
+ * Copyright 2009-2015 Roy Marples <roy@marples.name>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 #include "config.h"
 #include "dhcpcd-gtk.h"
 
-static const char *copyright = "Copyright (c) 2009-2014 Roy Marples";
+static const char *copyright = "Copyright (c) 2009-2015 Roy Marples";
 
 static GtkStatusIcon *sicon;
 static GtkWidget *menu;
