@@ -53,14 +53,14 @@ struct eloop_event {
 
 struct eloop_timeout {
 	TAILQ_ENTRY(eloop_timeout) next;
-	struct timeval when;
+	struct timespec when;
 	void (*callback)(void *);
 	void *arg;
 	int queue;
 };
 
 typedef struct eloop_ctx {
-	size_t events_len;
+	nfds_t events_len;
 	TAILQ_HEAD (event_head, eloop_event) events;
 	struct event_head free_events;
 
@@ -71,7 +71,7 @@ typedef struct eloop_ctx {
 	void *timeout0_arg;
 
 	struct pollfd *fds;
-	size_t fds_len;
+	nfds_t fds_len;
 
 	int exitnow;
 	int exitcode;
@@ -98,7 +98,7 @@ int eloop_q_timeout_add_sec(ELOOP_CTX *, int queue,
 int eloop_q_timeout_add_msec(ELOOP_CTX *, int queue,
     suseconds_t, void (*)(void *), void *);
 int eloop_q_timeout_add_tv(ELOOP_CTX *, int queue,
-    const struct timeval *, void (*)(void *), void *);
+    const struct timespec *, void (*)(void *), void *);
 int eloop_timeout_add_now(ELOOP_CTX *, void (*)(void *), void *);
 void eloop_q_timeout_delete(ELOOP_CTX *, int, void (*)(void *), void *);
 ELOOP_CTX * eloop_init(void);

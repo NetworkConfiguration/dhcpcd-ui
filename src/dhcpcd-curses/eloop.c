@@ -39,14 +39,8 @@
 #define IN_ELOOP
 
 #include "config.h"
+#include "common.h"
 #include "eloop.h"
-
-#ifndef TIMEVAL_TO_TIMESPEC
-#define	TIMEVAL_TO_TIMESPEC(tv, ts) do {				\
-	(ts)->tv_sec = (tv)->tv_sec;					\
-	(ts)->tv_nsec = (tv)->tv_usec * 1000;				\
-} while (0 /* CONSTCOND */)
-#endif
 
 /* Handy function to get the time.
  * We only care about time advancements, not the actual time itself
@@ -55,18 +49,13 @@
  */
 #define NO_MONOTONIC "host does not support a monotonic clock - timing can skew"
 static int
-get_monotonic(struct timeval *tp)
+get_monotonic(struct timespec *ts)
 {
-#if defined(_POSIX_MONOTONIC_CLOCK) && defined(CLOCK_MONOTONIC)
-	struct timespec ts;
 
-	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
-		tp->tv_sec = ts.tv_sec;
-		tp->tv_usec = (suseconds_t)(ts.tv_nsec / 1000);
+#if defined(_POSIX_MONOTONIC_CLOCK) && defined(CLOCK_MONOTONIC)
+	return clock_gettime(CLOCK_MONOTONIC, ts);
 		return 0;
-	}
 #elif defined(__APPLE__)
-#define NSEC_PER_SEC 1000000000
 	/* We can use mach kernel functions here.
 	 * This is crap though - why can't they implement clock_gettime?*/
 	static struct mach_timebase_info info = { 0, 0 };
@@ -84,13 +73,12 @@ get_monotonic(struct timeval *tp)
 		nano = mach_absolute_time();
 		if ((info.denom != 1 || info.numer != 1) && factor != 0.0)
 			nano *= factor;
-		tp->tv_sec = nano / NSEC_PER_SEC;
-		rem = nano % NSEC_PER_SEC;
-		if (rem < 0) {
-			tp->tv_sec--;
-			rem += NSEC_PER_SEC;
+		ts->tv_sec = nano / NSEC_PER_SEC;
+		ts->tv_nsec = nano % NSEC_PER_SEC;
+		if (ts->tv_nsec < 0) {
+			ts->tv_sec--;
+			ts->tv_nsec += NSEC_PER_SEC;
 		}
-		tp->tv_usec = rem / 1000;
 		return 0;
 	}
 #endif
@@ -102,7 +90,15 @@ get_monotonic(struct timeval *tp)
 		posix_clock_set = 1;
 	}
 #endif
-	return gettimeofday(tp, NULL);
+	{
+		struct timeval tv;
+		if (gettimeofday(&tv, NULL) == 0) {
+			TIMEVAL_TO_TIMESPEC(&tv, ts);
+			return 0;
+		}
+	}
+
+	return -1;
 }
 
 static void
@@ -219,16 +215,16 @@ eloop_event_delete(ELOOP_CTX *ctx, int fd, void (*callback)(void *), void *arg,
 
 int
 eloop_q_timeout_add_tv(ELOOP_CTX *ctx, int queue,
-    const struct timeval *when, void (*callback)(void *), void *arg)
+    const struct timespec *when, void (*callback)(void *), void *arg)
 {
-	struct timeval now;
-	struct timeval w;
+	struct timespec now;
+	struct timespec w;
 	struct eloop_timeout *t, *tt = NULL;
 
 	get_monotonic(&now);
-	timeradd(&now, when, &w);
+	timespecadd(&now, when, &w);
 	/* Check for time_t overflow. */
-	if (timercmp(&w, &now, <)) {
+	if (timespeccmp(&w, &now, <)) {
 		errno = ERANGE;
 		return -1;
 	}
@@ -254,8 +250,7 @@ eloop_q_timeout_add_tv(ELOOP_CTX *ctx, int queue,
 		}
 	}
 
-	t->when.tv_sec = w.tv_sec;
-	t->when.tv_usec = w.tv_usec;
+	t->when = *when;
 	t->callback = callback;
 	t->arg = arg;
 	t->queue = queue;
@@ -263,7 +258,7 @@ eloop_q_timeout_add_tv(ELOOP_CTX *ctx, int queue,
 	/* The timeout list should be in chronological order,
 	 * soonest first. */
 	TAILQ_FOREACH(tt, &ctx->timeouts, next) {
-		if (timercmp(&t->when, &tt->when, <)) {
+		if (timespeccmp(&t->when, &tt->when, <)) {
 			TAILQ_INSERT_BEFORE(tt, t, next);
 			return 0;
 		}
@@ -276,30 +271,22 @@ int
 eloop_q_timeout_add_sec(ELOOP_CTX *ctx, int queue, time_t when,
     void (*callback)(void *), void *arg)
 {
-	struct timeval tv;
+	struct timespec tv;
 
 	tv.tv_sec = when;
-	tv.tv_usec = 0;
+	tv.tv_nsec = 0;
 	return eloop_q_timeout_add_tv(ctx, queue, &tv, callback, arg);
 }
-
-#define USEC_PER_SEC		1000000L
-#define timernorm(tv) do {						\
-	while ((tv)->tv_usec >=  USEC_PER_SEC) {			\
-		(tv)->tv_sec++;						\
-		(tv)->tv_usec -= USEC_PER_SEC;				\
-	}								\
-} while (0 /* CONSTCOND */);
 
 int
 eloop_q_timeout_add_msec(ELOOP_CTX *ctx, int queue, suseconds_t when,
     void (*callback)(void *), void *arg)
 {
-	struct timeval tv;
+	struct timespec tv;
 
 	tv.tv_sec = 0;
-	tv.tv_usec = when * 1000;
-	timernorm(&tv);
+	tv.tv_nsec = when * MSEC_PER_NSEC;
+	timespecnorm(&tv);
 	return eloop_q_timeout_add_tv(ctx, queue, &tv, callback, arg);
 }
 
@@ -391,12 +378,10 @@ void eloop_free(ELOOP_CTX *ctx)
 int
 eloop_start(ELOOP_CTX *ctx)
 {
-	struct timeval now;
 	int n;
 	struct eloop_event *e;
 	struct eloop_timeout *t;
-	struct timeval tv;
-	struct timespec ts, *tsp;
+	struct timespec now, ts, tv, *tsp;
 	void (*t0)(void *);
 	int timeout;
 
@@ -413,14 +398,13 @@ eloop_start(ELOOP_CTX *ctx)
 		}
 		if ((t = TAILQ_FIRST(&ctx->timeouts))) {
 			get_monotonic(&now);
-			if (timercmp(&now, &t->when, >)) {
+			if (timespeccmp(&now, &t->when, >)) {
 				TAILQ_REMOVE(&ctx->timeouts, t, next);
 				t->callback(t->arg);
 				TAILQ_INSERT_TAIL(&ctx->free_timeouts, t, next);
 				continue;
 			}
-			timersub(&t->when, &now, &tv);
-			TIMEVAL_TO_TIMESPEC(&tv, &ts);
+			timespecsub(&t->when, &now, &tv);
 			tsp = &ts;
 		} else
 			/* No timeouts, so wait forever */

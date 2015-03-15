@@ -59,11 +59,11 @@ static void try_open(void *);
 static void
 set_status(struct ctx *ctx, const char *status)
 {
-	int h, w;
+	int w;
 	size_t slen;
 
-	getmaxyx(ctx->win_status, h, w);
-	w -= (slen = strlen(status));
+	w = getmaxx(ctx->win_status);
+	w -= (int)(slen = strlen(status));
 	if (ctx->status_len > slen) {
 		wmove(ctx->win_status, 0, w - (int)(ctx->status_len - slen));
 		wclrtoeol(ctx->win_status);

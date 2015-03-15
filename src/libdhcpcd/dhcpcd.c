@@ -260,12 +260,12 @@ dhcpcd_encode_string_escape(char *dst, size_t len, const char *src, size_t slen)
 {
 	const char *end;
 	size_t bytes;
-	int c;
+	unsigned char c;
 
 	end = src + slen;
 	bytes = 0;
 	while (src < end) {
-		c = *src++;
+		c = (unsigned char)*src++;
 		if ((c == '\\' || !isascii(c) || !isprint(c))) {
 			if (c == '\\') {
 				if (dst) {
@@ -285,9 +285,9 @@ dhcpcd_encode_string_escape(char *dst, size_t len, const char *src, size_t slen)
 					return -1;
 				}
 				*dst++ = '\\';
-		                *dst++ = (((unsigned char)c >> 6) & 03) + '0';
-		                *dst++ = (((unsigned char)c >> 3) & 07) + '0';
-		                *dst++ = ( (unsigned char)c       & 07) + '0';
+		                *dst++ = (char)(((c >> 6) & 03) + '0');
+		                *dst++ = (char)(((c >> 3) & 07) + '0');
+		                *dst++ = (char)(( c       & 07) + '0');
 				len -= 4;
 			}
 			bytes += 4;

@@ -173,7 +173,7 @@ dhcpcd_attach_detach(DHCPCD_WPA *wpa, bool attach)
 }
 
 bool
-dhcpcd_wpa_can_background_scan(DHCPCD_WPA *wpa)
+dhcpcd_wpa_can_background_scan(__unused DHCPCD_WPA *wpa)
 {
 
 	wpa = NULL; /* BSD will use this moving forwards */
