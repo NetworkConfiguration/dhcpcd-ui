@@ -38,6 +38,13 @@
 #define MSEC_PER_SEC		1000L
 #define MSEC_PER_NSEC		1000000L
 
+#ifndef TIMEVAL_TO_TIMESPEC
+#define	TIMEVAL_TO_TIMESPEC(tv, ts) do {				\
+	(ts)->tv_sec = (tv)->tv_sec;					\
+	(ts)->tv_nsec = (tv)->tv_usec * USEC_PER_NSEC;			\
+} while (0 /* CONSTCOND */)
+#endif
+
 /* Some systems don't define timespec macros */
 #ifndef timespecclear
 #define timespecclear(tsp)      (tsp)->tv_sec = (time_t)((tsp)->tv_nsec = 0L)

@@ -172,11 +172,12 @@ dhcpcd_attach_detach(DHCPCD_WPA *wpa, bool attach)
 	return true;
 }
 
+#define UNUSED(x)	(void)(x)
 bool
-dhcpcd_wpa_can_background_scan(__unused DHCPCD_WPA *wpa)
+dhcpcd_wpa_can_background_scan(DHCPCD_WPA *wpa)
 {
 
-	wpa = NULL; /* BSD will use this moving forwards */
+	UNUSED(wpa); /* BSD will use this moving forwards */
 #ifdef __linux__
 	return true;
 #else
