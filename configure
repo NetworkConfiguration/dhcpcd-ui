@@ -400,6 +400,7 @@ fi
 
 DHCPCD_QT=false
 if [ -z "$WITH_QT" -o "$WITH_QT" != no ]; then
+	printf "Looking for qmake ... "
 	if [ -z "$QMAKE" ]; then
 		if [ -x "$QTDIR"/bin/qmake ]; then
 			QMAKE="$QTDIR"/bin/qmake
@@ -410,12 +411,13 @@ if [ -z "$WITH_QT" -o "$WITH_QT" != no ]; then
 	if [ -x "$QMAKE" ]; then
 		UI="$UI${UI+ }dhcpcd-qt"
 		DHCPCD_QT=true
+		echo "$QMAKE"
 	else
+		echo "no"
 		if [ -n "$WITH_QT" ]; then
 			echo "No suitable Qt library has been found" >&2
 			exit 1
 		fi
-		echo "No suitable Qt library has been found"
 	fi
 fi
 
