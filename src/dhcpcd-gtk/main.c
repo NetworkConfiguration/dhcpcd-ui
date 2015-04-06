@@ -233,7 +233,16 @@ update_online(DHCPCD_CONNECTION *con, bool showif)
 			gtk_status_icon_set_from_icon_name(status_icon,
 			    "network-offline");
 		}
+	} else {
+		const char *icon;
+		DHCPCD_WI_SCAN *scan;
+
+		scan = get_strongest_scan();
+		icon = scan ? get_strength_icon_name(scan->strength.value) :
+		    "network-transmit-receive";
+		gtk_status_icon_set_from_icon_name(status_icon, icon);
 	}
+
 	gtk_status_icon_set_tooltip_text(status_icon, msgs);
 	g_free(msgs);
 }
