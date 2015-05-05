@@ -47,6 +47,10 @@ extern "C" {
 #define WPA_CTRL_DIR		"/var/run/wpa_supplicant"
 #endif
 
+#ifndef DHCPCD_TMP_DIR
+#define DHCPCD_TMP_DIR		"/tmp/dhcpcd"
+#endif
+
 #define DHCPCD_RETRYOPEN	100	/* milliseconds */
 #define DHCPCD_WPA_PING		500	/* milliseconds */
 #define DHCPCD_WPA_SCAN_LONG	60000	/* milliseconds */

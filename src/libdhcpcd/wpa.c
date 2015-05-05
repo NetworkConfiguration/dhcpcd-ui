@@ -58,13 +58,16 @@ wpa_open(const char *ifname, char **path)
 	socklen_t len;
 	struct sockaddr_un sun;
 
+	if (mkdir(DHCPCD_TMP_DIR, 0700) == -1 && errno != EEXIST)
+		return -1;
+
 	if ((fd = socket(AF_UNIX,
 	    SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0)) == -1)
 		return -1;
 	memset(&sun, 0, sizeof(sun));
 	sun.sun_family = AF_UNIX;
 	snprintf(sun.sun_path, sizeof(sun.sun_path),
-	    "/tmp/libdhcpcd-wpa-%d.%d", getpid(), counter++);
+	    DHCPCD_TMP_DIR "/libdhcpcd-wpa-%d.%d", getpid(), counter++);
 	*path = strdup(sun.sun_path);
 	len = (socklen_t)SUN_LEN(&sun);
 	if (bind(fd, (struct sockaddr *)&sun, len) == -1) {
