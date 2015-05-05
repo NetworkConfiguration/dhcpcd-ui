@@ -92,6 +92,7 @@ DhcpcdWi::~DhcpcdWi()
 	}
 
 	dhcpcd_wi_scans_free(scans);
+	dhcpcd_wpa_close(wpa);
 }
 
 DHCPCD_WPA *DhcpcdWi::getWpa()
