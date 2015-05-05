@@ -24,26 +24,54 @@
  * SUCH DAMAGE.
  */
 
-#include <QtGui>
+#include <sys/file.h>
+#include <fcntl.h>
+#include <string.h>
+#include <unistd.h>
 
-#include "dhcpcd-qt.h"
+#include <cerrno>
+#include <iostream>
+#include <string>
+
 #include "dhcpcd-singleton.h"
 
-int
-main(int argc, char **argv)
+using namespace std;
+
+DhcpcdSingleton::DhcpcdSingleton()
 {
-	/* Ensure we are only started the once by pesky session managers. */
-	DhcpcdSingleton singleton;
-	if (!singleton.lock())
-		return -1;
 
-	QApplication app(argc, argv);
+	fd = -1;
+}
 
-	if (!QSystemTrayIcon::isSystemTrayAvailable())
-		qWarning("System tray may not be available");
+DhcpcdSingleton::~DhcpcdSingleton()
+{
 
-	QApplication::setQuitOnLastWindowClosed(false);
+}
 
-	DhcpcdQt dhcpcdQt;
-	return app.exec();
+bool DhcpcdSingleton::lock()
+{
+	string file;
+	const char *display;
+
+	file = "/tmp/.dhcpcd-qt-";
+	file += getlogin();
+	display = getenv("DISPLAY");
+	if (display && *display != '\0' && strchr(display, '/') == NULL) {
+		file += '.';
+		file += display;
+	}
+	file += ".lock";
+	fd = open(file.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK, 0664);
+	if (fd == -1) {
+		cerr << "dhcpcd-qt: " << "open: " << file << ": "
+		    << strerror(errno) << endl;
+		return false;
+	}
+	if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
+		if (errno != EAGAIN || 1 == 1)
+			cerr << "dhcpcd-qt: " << "flock: " << file << ": "
+			    << strerror(errno) << endl;
+		return false;
+	}
+	return true;
 }

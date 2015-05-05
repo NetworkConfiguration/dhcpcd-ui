@@ -24,26 +24,19 @@
  * SUCH DAMAGE.
  */
 
-#include <QtGui>
+#ifndef DHCPCD_SINGLETON_H
+#define DHCPCD_SINGLETON_H
 
-#include "dhcpcd-qt.h"
-#include "dhcpcd-singleton.h"
-
-int
-main(int argc, char **argv)
+class DhcpcdSingleton
 {
-	/* Ensure we are only started the once by pesky session managers. */
-	DhcpcdSingleton singleton;
-	if (!singleton.lock())
-		return -1;
+public:
+	DhcpcdSingleton();
+	~DhcpcdSingleton();
 
-	QApplication app(argc, argv);
+	bool lock();
 
-	if (!QSystemTrayIcon::isSystemTrayAvailable())
-		qWarning("System tray may not be available");
+private:
+	int fd;
+};
 
-	QApplication::setQuitOnLastWindowClosed(false);
-
-	DhcpcdQt dhcpcdQt;
-	return app.exec();
-}
+#endif

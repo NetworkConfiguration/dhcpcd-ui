@@ -5,13 +5,13 @@ HEADERS=		dhcpcd-qt.h dhcpcd-about.h dhcpcd-preferences.h \
 			dhcpcd-wi.h dhcpcd-ifmenu.h \
 			dhcpcd-ssid.h \
 			dhcpcd-ssidmenu.h dhcpcd-ssidmenuwidget.h \
-			dhcpcd-ipv4validator.h
+			dhcpcd-ipv4validator.h dhcpcd-singleton.h
 SOURCES=		main.cpp dhcpcd-qt.cpp dhcpcd-about.cpp \
 			dhcpcd-preferences.cpp dhcpcd-wi.cpp \
 			dhcpcd-ifmenu.cpp \
 			dhcpcd-ssid.cpp \
 			dhcpcd-ssidmenu.cpp dhcpcd-ssidmenuwidget.cpp \
-			dhcpcd-ipv4validator.cpp
+			dhcpcd-ipv4validator.cpp dhcpcd-singleton.cpp
 
 INCLUDEPATH+=		../../
 INCLUDEPATH+=		../libdhcpcd/
