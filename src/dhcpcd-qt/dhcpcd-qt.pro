@@ -45,7 +45,7 @@ target.path=		$$PREFIX/bin
 man8.path=		$$MANDIR/man8
 man8.files=		dhcpcd-qt.8
 
-desktop.path=		$$PREFIX/share/applications
+desktop.path=		$$SYSCONFDIR/xdg/autostart
 desktop.files=		dhcpcd-qt.desktop
 
 notifyrc.path=		$$PREFIX/share/apps/dhcpcd-qt

@@ -6,7 +6,7 @@ include ${TOPDIR}/iconfig.mk
 
 ICONDIR?=	${PREFIX}/share/dhcpcd/icons
 APPDIR?=	${PREFIX}/share/applications
-FILESDIR=	${APPDIR}
+FILESDIR=	${SYSCONFDIR}/xdg/autostart
 FILES=		dhcpcd-gtk.desktop
 MAN8=		dhcpcd-gtk.8
 
