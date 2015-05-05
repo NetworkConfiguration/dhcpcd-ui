@@ -68,7 +68,7 @@ bool DhcpcdSingleton::lock()
 		return false;
 	}
 	if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
-		if (errno != EAGAIN || 1 == 1)
+		if (errno != EAGAIN)
 			cerr << "dhcpcd-qt: " << "flock: " << file << ": "
 			    << strerror(errno) << endl;
 		return false;
