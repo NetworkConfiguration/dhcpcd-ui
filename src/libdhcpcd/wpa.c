@@ -58,7 +58,7 @@ wpa_open(const char *ifname, char **path)
 	socklen_t len;
 	struct sockaddr_un sun;
 
-	if (mkdir(DHCPCD_TMP_DIR, 0700) == -1 && errno != EEXIST)
+	if (mkdir(DHCPCD_TMP_DIR, DHCPCD_TMP_DIR_PERM) == -1 && errno != EEXIST)
 		return -1;
 
 	if ((fd = socket(AF_UNIX,

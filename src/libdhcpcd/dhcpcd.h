@@ -50,6 +50,9 @@ extern "C" {
 #ifndef DHCPCD_TMP_DIR
 #define DHCPCD_TMP_DIR		"/tmp/dhcpcd"
 #endif
+#ifndef DHCPCD_TMP_DIR_PERM
+#define DHCPCD_TMP_DIR_PERM	0700
+#endif
 
 #define DHCPCD_RETRYOPEN	100	/* milliseconds */
 #define DHCPCD_WPA_PING		500	/* milliseconds */

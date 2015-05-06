@@ -33,6 +33,7 @@
 #include <iostream>
 #include <string>
 
+#include "dhcpcd.h"
 #include "dhcpcd-singleton.h"
 
 using namespace std;
@@ -53,7 +54,16 @@ bool DhcpcdSingleton::lock()
 	string file;
 	const char *display;
 
-	file = "/tmp/.dhcpcd-qt-";
+	if (mkdir(DHCPCD_TMP_DIR, DHCPCD_TMP_DIR_PERM) == -1 &&
+	    errno != EEXIST)
+	{
+		cerr << "dhcpcd-qt: " << "mkdir: " << DHCPCD_TMP_DIR << ": "
+		    << strerror(errno) << endl;
+		return false;
+	}
+
+	file = DHCPCD_TMP_DIR;
+	file += "/dhcpcd-qt-";
 	file += getlogin();
 	display = getenv("DISPLAY");
 	if (display && *display != '\0' && strchr(display, '/') == NULL) {
