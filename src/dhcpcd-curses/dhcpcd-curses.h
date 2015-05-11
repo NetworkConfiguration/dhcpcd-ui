@@ -52,6 +52,14 @@
 #endif
 #endif
 
+#ifndef __unused
+#ifdef __GNUC__
+#define __unused   __attribute__((__unused__))
+#else
+#define __unused
+#endif
+#endif
+
 #define MSECS_PER_NSEC	1000
 
 typedef struct wi_scan {
@@ -71,6 +79,10 @@ struct ctx {
 	unsigned int last_status;
 	size_t status_len;
 	WI_SCANS wi_scans;
+
+	struct event *sigint;
+	struct event *sigterm;
+	struct event *sigwinch;
 
 	WINDOW *stdscr;
 	WINDOW *win_status;

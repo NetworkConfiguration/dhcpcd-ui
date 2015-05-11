@@ -471,16 +471,15 @@ sigwinch_cb(__unused evutil_socket_t fd, __unused short what,
 static int
 setup_signals(struct ctx *ctx)
 {
-	struct event *ev;
 
-	ev = evsignal_new(ctx->evbase, SIGINT, sigint_cb, ctx);
-	if (ev == NULL || event_add(ev, NULL) == -1)
+	ctx->sigint = evsignal_new(ctx->evbase, SIGINT, sigint_cb, ctx);
+	if (ctx->sigint == NULL || event_add(ctx->sigint, NULL) == -1)
 		return -1;
-	ev = evsignal_new(ctx->evbase, SIGTERM, sigterm_cb, ctx);
-	if (ev == NULL || event_add(ev, NULL) == -1)
+	ctx->sigterm = evsignal_new(ctx->evbase, SIGTERM, sigterm_cb, ctx);
+	if (ctx->sigterm == NULL || event_add(ctx->sigterm, NULL) == -1)
 		return -1;
-	ev = evsignal_new(ctx->evbase, SIGWINCH, sigwinch_cb, ctx);
-	if (ev == NULL || event_add(ev, NULL) == -1)
+	ctx->sigwinch = evsignal_new(ctx->evbase, SIGWINCH, sigwinch_cb, ctx);
+	if (ctx->sigwinch == NULL || event_add(ctx->sigwinch, NULL) == -1)
 		return -1;
 	return 0;
 }
@@ -564,7 +563,8 @@ main(void)
 		err(EXIT_FAILURE, "event_new");
 	if (event_object_add(ctx.evobjects, ev, &tv0, &ctx) == NULL)
 		err(EXIT_FAILURE, "event_object_add");
-	if ((ev = event_new(ctx.evbase, EV_PERSIST, 0, bg_scan_cb, &ctx)) == NULL)
+	if ((ev = event_new(ctx.evbase, EV_PERSIST, 0,
+	    bg_scan_cb, &ctx)) == NULL)
 		err(EXIT_FAILURE, "event_new");
 	if (event_add(ev, &tv_short) == -1)
 		err(EXIT_FAILURE, "event_add");
@@ -586,6 +586,20 @@ main(void)
 	}
 
 	/* Free everything else */
+	if (ctx.sigint) {
+		event_del(ctx.sigint);
+		event_free(ctx.sigint);
+	}
+	if (ctx.sigterm) {
+		event_del(ctx.sigterm);
+		event_free(ctx.sigterm);
+	}
+	if (ctx.sigwinch) {
+		event_del(ctx.sigwinch);
+		event_free(ctx.sigwinch);
+	}
+	event_del(ev);
+	event_free(ev);
 	event_base_free(ctx.evbase);
 	event_object_free(ctx.evobjects);
 	endwin();
