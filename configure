@@ -439,8 +439,30 @@ if [ "$WITH_ICONS" = yes ]; then
 	echo "MKICONS=	icons" >>$CONFIG_MK
 fi
 
-LIB_CURSES=
+if [ "$WITH_EVENT" = yes -o -z "$WITH_EVENT" ]; then
+	printf "Looking for libevent ... "
+	cat <<EOF >_event.c
+#include <event.h>
+int main(void) {
+	event_base_new();
+	return 0;
+}
+EOF
+	LIB_EVENT=
+	if $XCC _event.c -levent -o _event.c 2>&3; then
+		LIB_EVENT=-levent
+	fi
+	rm -f _event.c _event
+fi
+if [ -n "$LIB_EVENT" ]; then
+	echo "$LIB_EVENT"
+	echo "LIB_EVENT=	$LIB_EVENT" >>$CONFIG_MK
+else
+	echo "not found"
+fi
+
 if [ "$WITH_CURSES" = yes -o -z "$WITH_CURSES" ]; then
+	LIB_CURSES=
 	printf "Looking for libcurses ... "
 	cat <<EOF >_curses.c
 #include <curses.h>
@@ -454,7 +476,7 @@ EOF
 	fi
 	rm -f _curses.c _curses
 fi
-if [ -n "$LIB_CURSES" ]; then
+if [ -n "$LIB_CURSES" -a -n "$LIB_EVENT" ]; then
 	echo "$LIB_CURSES"
 	echo "LIB_CURSES=	$LIB_CURSES" >>$CONFIG_MK
 	UI="dhcpcd-curses${UI:+ }$UI"

@@ -27,6 +27,7 @@
 
 #include <sys/ioctl.h>
 
+#include <assert.h>
 #include <curses.h>
 #include <err.h>
 #include <errno.h>
@@ -37,24 +38,13 @@
 #include <unistd.h>
 
 #include "dhcpcd-curses.h"
+#include "event-object.h"
 
 #ifdef HAVE_NC_FREE_AND_EXIT
 	void _nc_free_and_exit(void);
 #endif
 
-const int handle_sigs[] = {
-	SIGHUP,
-	SIGINT,
-	SIGPIPE,
-	SIGTERM,
-	SIGWINCH,
-	0
-};
-
-/* Handling signals needs *some* context */
-static struct ctx *_ctx;
-
-static void try_open(void *);
+static void try_open_cb(evutil_socket_t, short, void *);
 
 static void
 set_status(struct ctx *ctx, const char *status)
@@ -138,23 +128,14 @@ notify(struct ctx *ctx, const char *fmt, ...)
 static void
 update_online(struct ctx *ctx, bool show_if)
 {
-	bool online, carrier;
 	char *msg, *msgs, *nmsg;
 	size_t msgs_len, mlen;
 	DHCPCD_IF *ifs, *i;
 
-	online = carrier = false;
 	msgs = NULL;
 	msgs_len = 0;
 	ifs = dhcpcd_interfaces(ctx->con);
 	for (i = ifs; i; i = i->next) {
-		if (i->type == DHT_LINK) {
-			if (i->up)
-				carrier = true;
-		} else {
-			if (i->up)
-				online = true;
-		}
 		msg = dhcpcd_if_message(i, NULL);
 		if (msg) {
 			if (show_if) {
@@ -191,15 +172,21 @@ update_online(struct ctx *ctx, bool show_if)
 }
 
 static void
-dispatch(void *arg)
+dispatch_cb(evutil_socket_t fd, __unused short what, void *arg)
 {
 	struct ctx *ctx = arg;
 
-	if (dhcpcd_get_fd(ctx->con) == -1) {
-		warning(ctx, _("dhcpcd connection lost"));
-		eloop_event_delete(ctx->eloop, -1, NULL, ctx->con, 0);
-		eloop_timeout_add_msec(ctx->eloop, DHCPCD_RETRYOPEN,
-		    try_open, ctx);
+	if (fd == -1 || dhcpcd_get_fd(ctx->con) == -1) {
+		struct timeval tv = { 0, DHCPCD_RETRYOPEN * MSECS_PER_NSEC };
+		struct event *ev;
+
+		if (fd != -1)
+			warning(ctx, _("dhcpcd connection lost"));
+		event_object_find_delete(ctx->evobjects, ctx);
+		ev = evtimer_new(ctx->evbase, try_open_cb, ctx);
+		if (ev == NULL ||
+		    event_object_add(ctx->evobjects, ev, &tv, ctx) == NULL)
+			warning(ctx, "dispatch: event: %s", strerror(errno));
 		return;
 	}
 
@@ -207,13 +194,18 @@ dispatch(void *arg)
 }
 
 static void
-try_open(void *arg)
+try_open_cb(__unused evutil_socket_t fd, __unused short what, void *arg)
 {
 	struct ctx *ctx = arg;
 	static int last_error;
+	EVENT_OBJECT *eo;
+	struct event *ev;
 
+	eo = event_object_find(ctx->evobjects, ctx);
 	ctx->fd = dhcpcd_open(ctx->con, true);
 	if (ctx->fd == -1) {
+		struct timeval tv = { 0, DHCPCD_RETRYOPEN * MSECS_PER_NSEC };
+
 		if (errno == EACCES || errno == EPERM) {
 			ctx->fd = dhcpcd_open(ctx->con, false);
 			if (ctx->fd != -1)
@@ -223,16 +215,22 @@ try_open(void *arg)
 			last_error = errno;
 			set_status(ctx, strerror(errno));
 		}
-		eloop_timeout_add_msec(ctx->eloop, DHCPCD_RETRYOPEN,
-		    try_open, ctx);
+		event_del(eo->event);
+		event_add(eo->event, &tv);
 		return;
 	}
 
 unprived:
+	event_object_delete(ctx->evobjects, eo);
+
 	/* Start listening to WPA events */
 	dhcpcd_wpa_start(ctx->con);
 
-	eloop_event_add(ctx->eloop, ctx->fd, dispatch, ctx, NULL, NULL);
+	ev = event_new(ctx->evbase, ctx->fd, EV_READ | EV_PERSIST,
+	    dispatch_cb, ctx);
+	if (ev == NULL ||
+	    event_object_add(ctx->evobjects, ev, NULL, ctx) == NULL)
+		warning(ctx, "event_new: %s", strerror(errno));
 }
 
 static void
@@ -245,13 +243,10 @@ status_cb(DHCPCD_CONNECTION *con,
 	set_status(ctx, status_msg);
 
 	if (status == DHC_DOWN) {
-		eloop_event_delete(ctx->eloop, ctx->fd, NULL, NULL, 0);
 		ctx->fd = -1;
 		ctx->online = ctx->carrier = false;
-		eloop_timeout_delete(ctx->eloop, NULL, ctx);
 		set_summary(ctx, NULL);
-		eloop_timeout_add_msec(ctx->eloop, DHCPCD_RETRYOPEN,
-		    try_open, ctx);
+		dispatch_cb(-1, 0, ctx);
 	} else {
 		bool refresh;
 
@@ -299,7 +294,7 @@ if_cb(DHCPCD_IF *i, void *arg)
 }
 
 static void
-wpa_dispatch(void *arg)
+wpa_dispatch_cb(__unused evutil_socket_t fd, __unused short what, void *arg)
 {
 	DHCPCD_WPA *wpa = arg;
 
@@ -311,6 +306,7 @@ static void
 wpa_scan_cb(DHCPCD_WPA *wpa, void *arg)
 {
 	struct ctx *ctx = arg;
+	EVENT_OBJECT *eo;
 	DHCPCD_IF *i;
 	WI_SCAN *wi;
 	DHCPCD_WI_SCAN *scans, *s1, *s2;
@@ -321,8 +317,15 @@ wpa_scan_cb(DHCPCD_WPA *wpa, void *arg)
 		debug(ctx, "%s (%p)", _("no fd for WPA"), wpa);
 		return;
 	}
-	eloop_event_add(ctx->eloop,
-	    dhcpcd_wpa_get_fd(wpa), wpa_dispatch, wpa, NULL, NULL);
+	if ((eo = event_object_find(ctx->evobjects, wpa)) == NULL) {
+		struct event *ev;
+
+		ev = event_new(ctx->evbase, fd, EV_READ | EV_PERSIST,
+		    wpa_dispatch_cb, wpa);
+		if (ev == NULL ||
+		    event_object_add(ctx->evobjects, ev, NULL, wpa) == NULL)
+			warning(ctx, "event_new: %s", strerror(errno));
+	}
 
 	i = dhcpcd_wpa_if(wpa);
 	if (i == NULL) {
@@ -408,7 +411,7 @@ wpa_status_cb(DHCPCD_WPA *wpa,
 	i = dhcpcd_wpa_if(wpa);
 	debug(ctx, _("%s: WPA status %s"), i->ifname, status_msg);
 	if (status == DHC_DOWN) {
-		eloop_event_delete(ctx->eloop, -1, NULL, wpa, 0);
+		event_object_find_delete(ctx->evobjects, wpa);
 		TAILQ_FOREACH_SAFE(w, &ctx->wi_scans, next, wn) {
 			if (w->interface == i) {
 				TAILQ_REMOVE(&ctx->wi_scans, w, next);
@@ -420,7 +423,7 @@ wpa_status_cb(DHCPCD_WPA *wpa,
 }
 
 static void
-bg_scan(void *arg)
+bg_scan_cb(__unused evutil_socket_t fd, __unused short what, void *arg)
 {
 	struct ctx *ctx = arg;
 	WI_SCAN *w;
@@ -435,51 +438,50 @@ bg_scan(void *arg)
 				dhcpcd_wpa_scan(wpa);
 		}
 	}
-
-	eloop_timeout_add_msec(ctx->eloop, DHCPCD_WPA_SCAN_SHORT,
-	    bg_scan, ctx);
 }
 
 static void
-signal_handler(int sig)
+sigint_cb(__unused evutil_socket_t fd, __unused short what, void *arg)
+{
+	struct ctx *ctx = arg;
+
+	debug(ctx, _("caught SIGINT, exiting"));
+	event_base_loopbreak(ctx->evbase);
+}
+
+static void
+sigterm_cb(__unused evutil_socket_t fd, __unused short what, void *arg)
+{
+	struct ctx *ctx = arg;
+
+	debug(ctx, _("caught SIGTERM, exiting"));
+	event_base_loopbreak(ctx->evbase);
+}
+
+static void
+sigwinch_cb(__unused evutil_socket_t fd, __unused short what,
+    __unused void *arg)
 {
 	struct winsize ws;
 
-	switch(sig) {
-	case SIGWINCH:
-		if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0)
-			resizeterm(ws.ws_row, ws.ws_col);
-		break;
-	case SIGINT:
-		debug(_ctx, _("SIGINT caught, exiting"));
-		eloop_exit(_ctx->eloop, EXIT_FAILURE);
-		break;
-	case SIGTERM:
-		debug(_ctx, _("SIGTERM caught, exiting"));
-		eloop_exit(_ctx->eloop, EXIT_FAILURE);
-		break;
-	case SIGHUP:
-		debug(_ctx, _("SIGHUP caught, ignoring"));
-		break;
-	case SIGPIPE:
-		debug(_ctx, _("SIGPIPE caught, ignoring"));
-		break;
-	}
+	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0)
+		resizeterm(ws.ws_row, ws.ws_col);
 }
 
 static int
-setup_signals()
+setup_signals(struct ctx *ctx)
 {
-	struct sigaction sa;
-	int i;
+	struct event *ev;
 
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = signal_handler;
-
-	for (i = 0; handle_sigs[i]; i++) {
-		if (sigaction(handle_sigs[i], &sa, NULL) == -1)
-			return -1;
-	}
+	ev = evsignal_new(ctx->evbase, SIGINT, sigint_cb, ctx);
+	if (ev == NULL || event_add(ev, NULL) == -1)
+		return -1;
+	ev = evsignal_new(ctx->evbase, SIGTERM, sigterm_cb, ctx);
+	if (ev == NULL || event_add(ev, NULL) == -1)
+		return -1;
+	ev = evsignal_new(ctx->evbase, SIGWINCH, sigwinch_cb, ctx);
+	if (ev == NULL || event_add(ev, NULL) == -1)
+		return -1;
 	return 0;
 }
 
@@ -522,20 +524,24 @@ main(void)
 {
 	struct ctx ctx;
 	WI_SCAN *wi;
+	struct timeval tv0 = { 0, 0 };
+	struct timeval tv_short = { 0, DHCPCD_WPA_SCAN_SHORT };
+	struct event *ev;
 
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.fd = -1;
+	if ((ctx.evobjects = event_object_new()) == NULL)
+		err(EXIT_FAILURE, "event_object_new");
 	TAILQ_INIT(&ctx.wi_scans);
-	_ctx = &ctx;
 
-	if (setup_signals() == -1)
+	if ((ctx.evbase = event_base_new()) == NULL)
+		err(EXIT_FAILURE, "event_base_new");
+
+	if (setup_signals(&ctx) == -1)
 		err(EXIT_FAILURE, "setup_signals");
 
 	if ((ctx.con = dhcpcd_new()) == NULL)
 		err(EXIT_FAILURE, "dhcpcd_new");
-
-	if ((ctx.eloop = eloop_init()) == NULL)
-		err(EXIT_FAILURE, "malloc");
 
 	if ((ctx.stdscr = initscr()) == NULL)
 		err(EXIT_FAILURE, "initscr");
@@ -554,10 +560,15 @@ main(void)
 	dhcpcd_wpa_set_scan_callback(ctx.con, wpa_scan_cb, &ctx);
 	dhcpcd_wpa_set_status_callback(ctx.con, wpa_status_cb, &ctx);
 
-	eloop_timeout_add_sec(ctx.eloop, 0, try_open, &ctx);
-	eloop_timeout_add_msec(ctx.eloop, DHCPCD_WPA_SCAN_SHORT,
-	    bg_scan, &ctx);
-	eloop_start(ctx.eloop);
+	if ((ev = event_new(ctx.evbase, 0, 0, try_open_cb, &ctx)) == NULL)
+		err(EXIT_FAILURE, "event_new");
+	if (event_object_add(ctx.evobjects, ev, &tv0, &ctx) == NULL)
+		err(EXIT_FAILURE, "event_object_add");
+	if ((ev = event_new(ctx.evbase, EV_PERSIST, 0, bg_scan_cb, &ctx)) == NULL)
+		err(EXIT_FAILURE, "event_new");
+	if (event_add(ev, &tv_short) == -1)
+		err(EXIT_FAILURE, "event_add");
+	event_base_dispatch(ctx.evbase);
 
 	/* Un-resgister the callbacks to avoid spam on close */
 	dhcpcd_set_status_callback(ctx.con, NULL, NULL);
@@ -575,7 +586,8 @@ main(void)
 	}
 
 	/* Free everything else */
-	eloop_free(ctx.eloop);
+	event_base_free(ctx.evbase);
+	event_object_free(ctx.evobjects);
 	endwin();
 
 #ifdef HAVE_NC_FREE_AND_EXIT

@@ -25,59 +25,25 @@
  * SUCH DAMAGE.
  */
 
-#ifndef DHCPCD_CURSES_H
-#define DHCPCD_CURSES_H
+#ifndef EVENT_OBJECT_H
+#define EVENT_OBJECT_H
 
 #include <event.h>
-
-#ifdef HAS_GETTEXT
-#include <libintl.h>
-#define _ gettext
-#else
-#define _(a) (a)
-#endif
-
-#include <curses.h>
-
-#include "config.h"
-#include "dhcpcd.h"
 #include "queue.h"
-#include "event-object.h"
 
-#ifndef __printflike
-#ifdef __GNUC__
-#define __printflike(a, b) __attribute__((format(printf, a, b)))
-#else
-#define __printflike(a, b)
-#endif
-#endif
+typedef struct event_object {
+	TAILQ_ENTRY(event_object) next;
+	struct event *event;
+	void *object;
+} EVENT_OBJECT;
+typedef TAILQ_HEAD(event_object_head, event_object) EVENT_OBJECTS;
 
-#define MSECS_PER_NSEC	1000
-
-typedef struct wi_scan {
-	TAILQ_ENTRY(wi_scan) next;
-	DHCPCD_IF *interface;
-	DHCPCD_WI_SCAN *scans;
-} WI_SCAN;
-typedef TAILQ_HEAD(wi_scan_head, wi_scan) WI_SCANS;
-
-struct ctx {
-	struct event_base *evbase;
-	EVENT_OBJECTS *evobjects;
-	DHCPCD_CONNECTION *con;
-	int fd;
-	bool online;
-	bool carrier;
-	unsigned int last_status;
-	size_t status_len;
-	WI_SCANS wi_scans;
-
-	WINDOW *stdscr;
-	WINDOW *win_status;
-	WINDOW *win_debug;
-	WINDOW *win_debug_border;
-	WINDOW *win_summary;
-	WINDOW *win_summary_border;
-};
+EVENT_OBJECT *event_object_find(EVENT_OBJECTS *, void *);
+EVENT_OBJECT *event_object_add(EVENT_OBJECTS *, struct event *,
+    struct timeval *, void *);
+void event_object_delete(EVENT_OBJECTS *, EVENT_OBJECT *);
+void event_object_find_delete(EVENT_OBJECTS *, void *);
+EVENT_OBJECTS *event_object_new(void);
+void event_object_free(EVENT_OBJECTS *);
 
 #endif

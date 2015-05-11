@@ -1,5 +1,5 @@
 PROG=		dhcpcd-curses
-SRCS=		dhcpcd-curses.c eloop.c
+SRCS=		dhcpcd-curses.c event-object.c
 
 TOPDIR=		../..
 include ${TOPDIR}/iconfig.mk
@@ -7,7 +7,7 @@ include ${TOPDIR}/iconfig.mk
 MAN8=		dhcpcd-curses.8
 
 CPPFLAGS+=	-I${TOPDIR} ${CURSES_CPPFLAGS}
-LDADD+=		${LIB_DHCPCD} ${LIB_CURSES} ${LIB_INTL}
+LDADD+=		${LIB_DHCPCD} ${LIB_CURSES} ${LIB_INTL} ${LIB_EVENT}
 
 .PHONY: dhcpcd-curses
 
