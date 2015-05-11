@@ -193,7 +193,7 @@ update_online(DHCPCD_CONNECTION *con, bool showif)
 	msgs = NULL;
 	ifs = dhcpcd_interfaces(con);
 	for (i = ifs; i; i = i->next) {
-		if (g_strcmp0(i->type, "link") == 0) {
+		if (i->type == DHT_LINK) {
 			if (i->up)
 				iscarrier = true;
 		} else {
@@ -388,17 +388,17 @@ dhcpcd_watch(int fd,
 }
 
 static void
-dhcpcd_status_cb(DHCPCD_CONNECTION *con, const char *status,
-    _unused void *data)
+dhcpcd_status_cb(DHCPCD_CONNECTION *con,
+    unsigned int status, const char *status_msg, _unused void *data)
 {
-	static char *last = NULL;
+	static unsigned int last = DHC_UNKNOWN;
 	const char *msg;
 	bool refresh;
 	WI_SCAN *w;
 
-	g_message("Status changed to %s", status);
-	if (g_strcmp0(status, "down") == 0) {
-		msg = N_(last ?
+	g_message("Status changed to %s", status_msg);
+	if (status == DHC_DOWN) {
+		msg = N_(last == DHC_UNKNOWN ?
 		    "Connection to dhcpcd lost" : "dhcpcd not running");
 		if (ani_timer != 0) {
 			g_source_remove(ani_timer);
@@ -420,17 +420,16 @@ dhcpcd_status_cb(DHCPCD_CONNECTION *con, const char *status,
 		dhcpcd_unwatch(-1, con);
 		g_timeout_add(DHCPCD_RETRYOPEN, dhcpcd_try_open, con);
 	} else {
-		if ((last == NULL || g_strcmp0(last, "down") == 0)) {
+		if (last == DHC_UNKNOWN || last == DHC_DOWN) {
 			g_message(_("Connected to %s-%s"), "dhcpcd",
 			    dhcpcd_version(con));
 			refresh = true;
 		} else
-			refresh = g_strcmp0(last, "opened") ? false : true;
+			refresh = last == DHC_OPENED ? true : false;
 		update_online(con, refresh);
 	}
 
-	g_free(last);
-	last = g_strdup(status);
+	last = status;
 }
 
 static gboolean
@@ -492,9 +491,8 @@ dhcpcd_if_cb(DHCPCD_IF *i, _unused void *data)
 	bool new_msg;
 
 	/* We should ignore renew and stop so we don't annoy the user */
-	if (g_strcmp0(i->reason, "RENEW") &&
-	    g_strcmp0(i->reason, "STOP") &&
-	    g_strcmp0(i->reason, "STOPPED"))
+	if (i->state != DHS_RENEW &&
+	    i->state != DHS_STOP && i->state != DHS_STOPPED)
 	{
 		msg = dhcpcd_if_message(i, &new_msg);
 		if (msg) {
@@ -545,8 +543,7 @@ dhcpcd_wpa_cb(_unused GIOChannel *gio, _unused GIOCondition c,
 		/* If the interface hasn't left, try re-opening */
 		i = dhcpcd_wpa_if(wpa);
 		if (i == NULL ||
-		    g_strcmp0(i->reason, "DEPARTED") == 0 ||
-		    g_strcmp0(i->reason, "STOPPED") == 0)
+		    i->state == DHS_DEPARTED || i->state == DHS_STOPPED)
 			return TRUE;
 		g_warning(_("dhcpcd WPA connection lost: %s"), i->ifname);
 		g_timeout_add(DHCPCD_RETRYOPEN, dhcpcd_wpa_try_open, wpa);
@@ -662,14 +659,15 @@ dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, _unused void *data)
 }
 
 static void
-dhcpcd_wpa_status_cb(DHCPCD_WPA *wpa, const char *status, _unused void *data)
+dhcpcd_wpa_status_cb(DHCPCD_WPA *wpa,
+    unsigned int status, const char *status_msg, _unused void *data)
 {
 	DHCPCD_IF *i;
 	WI_SCAN *w, *wn;
 
 	i = dhcpcd_wpa_if(wpa);
-	g_message("%s: WPA status %s", i->ifname, status);
-	if (g_strcmp0(status, "down") == 0) {
+	g_message("%s: WPA status %s", i->ifname, status_msg);
+	if (status == DHC_DOWN) {
 		dhcpcd_unwatch(-1, wpa);
 		TAILQ_FOREACH_SAFE(w, &wi_scans, next, wn) {
 			if (w->interface == i) {

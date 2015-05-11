@@ -58,16 +58,17 @@ public:
 
 	DHCPCD_CONNECTION *getConnection();
 	static void dhcpcd_status_cb(DHCPCD_CONNECTION *con,
-	    const char *status, void *d);
-	void statusCallback(const char *status);
+	    unsigned int status, const char *status_msg, void *d);
+	void statusCallback(unsigned int, const char *status);
 	static void dhcpcd_if_cb(DHCPCD_IF *i, void *d);
 	void ifCallback(DHCPCD_IF *i);
 
 	static void dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, void *d);
 	void scanCallback(DHCPCD_WPA *wpa);
-	static void dhcpcd_wpa_status_cb(DHCPCD_WPA *wpa, const char *status,
-	    void *d);
-	void wpaStatusCallback(DHCPCD_WPA *wpa, const char *status);
+	static void dhcpcd_wpa_status_cb(DHCPCD_WPA *wpa, unsigned int status,
+	    const char *status_msg, void *d);
+	void wpaStatusCallback(DHCPCD_WPA *wpa,
+	    unsigned int status, const char *status_msg);
 
 	static const char * signalStrengthIcon(DHCPCD_WI_SCAN *scan);
 	static QIcon getIcon(QString category, QString name);
@@ -95,7 +96,7 @@ private:
 	QList<DhcpcdWi *> *wis;
 	DhcpcdWi *findWi(DHCPCD_WPA *wpa);
 
-	char *lastStatus;
+	unsigned int lastStatus;
 	bool onLine;
 	bool carrier;
 	QTimer *aniTimer;

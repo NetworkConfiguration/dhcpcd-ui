@@ -65,7 +65,7 @@ show_config(DHCPCD_OPTION *conf)
 		autocnf = false;
 	else {
 		if ((val = dhcpcd_config_get(conf, "inform")) == NULL &&
-		    (iface && iface->flags & IFF_POINTOPOINT))
+		    (iface && iface->ifflags & IFF_POINTOPOINT))
 			autocnf = false;
 		else
 			autocnf = true;
@@ -130,7 +130,7 @@ make_config(DHCPCD_OPTION **conf)
 
 	ret = true;
 	a = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(autoconf));
-	if (iface && iface->flags & IFF_POINTOPOINT)
+	if (iface && iface->ifflags & IFF_POINTOPOINT)
 		set_option(conf, true, "ip_address=", a ? NULL : ns, &ret);
 	else {
 		val = gtk_entry_get_text(GTK_ENTRY(address));
@@ -333,7 +333,7 @@ names_on_change(_unused GtkWidget *widget, gpointer data)
 			}
 	}
 	gtk_widget_set_sensitive(address,
-	    !iface || (iface->flags & IFF_POINTOPOINT) == 0);
+	    !iface || (iface->ifflags & IFF_POINTOPOINT) == 0);
 	if (block && name) {
 		errno = 0;
 		config = dhcpcd_config_read(con, block, name);
@@ -517,7 +517,7 @@ prefs_show(DHCPCD_CONNECTION *con)
 		return;
 	}
 
-	if (g_strcmp0(dhcpcd_status(con), "down") == 0)
+	if (dhcpcd_status(con, NULL) == DHC_DOWN)
 		return;
 
 	dialog = gtk_window_new(GTK_WINDOW_TOPLEVEL);

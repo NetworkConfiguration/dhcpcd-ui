@@ -853,7 +853,8 @@ dhcpcd_wpa_close(DHCPCD_WPA *wpa)
 	shutdown(wpa->listen_fd, SHUT_RDWR);
 
 	if (wpa->con->wpa_status_cb)
-		wpa->con->wpa_status_cb(wpa, "down",
+		wpa->con->wpa_status_cb(wpa,
+		    DHC_DOWN, "down",
 		    wpa->con->wpa_status_context);
 
 	close(wpa->command_fd);
@@ -916,7 +917,7 @@ dhcpcd_wpa_if(DHCPCD_WPA *wpa)
 {
 
 	assert(wpa);
-	return dhcpcd_get_if(wpa->con, wpa->ifname, "link");
+	return dhcpcd_get_if(wpa->con, wpa->ifname, DHT_LINK);
 }
 
 int
@@ -991,7 +992,8 @@ dhcpcd_wpa_set_scan_callback(DHCPCD_CONNECTION *con,
 
 
 void dhcpcd_wpa_set_status_callback(DHCPCD_CONNECTION * con,
-    void (*cb)(DHCPCD_WPA *, const char *, void *), void *context)
+    void (*cb)(DHCPCD_WPA *, unsigned int, const char *, void *),
+    void *context)
 {
 
 	assert(con);
@@ -1037,10 +1039,8 @@ dhcpcd_wpa_if_event(DHCPCD_IF *i)
 	DHCPCD_WPA *wpa;
 
 	assert(i);
-	if (strcmp(i->type, "link") == 0) {
-		if (strcmp(i->reason, "STOPPED") == 0 ||
-		    strcmp(i->reason, "DEPARTED") == 0)
-		{
+	if (i->type == DHT_LINK) {
+		if (i->state == DHS_STOPPED || i->state == DHS_DEPARTED) {
 			wpa = dhcpcd_wpa_find(i->con, i->ifname);
 			if (wpa)
 				dhcpcd_wpa_close(wpa);

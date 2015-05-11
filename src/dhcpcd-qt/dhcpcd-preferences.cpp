@@ -255,7 +255,7 @@ void DhcpcdPreferences::showConfig()
                 a = false;
         else
                 a = !((val = dhcpcd_config_get(config, "inform")) == NULL &&
-                    (iface && iface->flags & IFF_POINTOPOINT));
+                    (iface && iface->ifflags & IFF_POINTOPOINT));
 	autoConf->setChecked(a);
 	ip->setText(val);
 	router->setText(dhcpcd_config_get_static(config, "routers="));
@@ -272,7 +272,7 @@ bool DhcpcdPreferences::changedConfig()
                 a = false;
         else
                 a = !((val = dhcpcd_config_get(config, "inform")) == NULL &&
-                    (iface && iface->flags & IFF_POINTOPOINT));
+                    (iface && iface->ifflags & IFF_POINTOPOINT));
 	if (autoConf->isChecked() != a)
 		return true;
 	if (ip->text().compare(val))
@@ -326,7 +326,7 @@ bool DhcpcdPreferences::makeConfig()
 
 	a = autoConf->isChecked();
 	ret = true;
-	if (iface && iface->flags & IFF_POINTOPOINT)
+	if (iface && iface->ifflags & IFF_POINTOPOINT)
 		setOption("ip_address=", a ? NULL : ns, &ret);
         else {
 		val = getString(ip);
@@ -413,9 +413,9 @@ void DhcpcdPreferences::showBlock(const QString &txt)
 
 	if (eBlock && eWhat) {
 		if (strcmp(eWhat, "interface") == 0)
-			iface = dhcpcd_get_if(con, eBlock, "link");
+			iface = dhcpcd_get_if(con, eBlock, DHT_LINK);
 		ip->setEnabled(iface == NULL ||
-		    !(iface->flags & IFF_POINTOPOINT));
+		    !(iface->ifflags & IFF_POINTOPOINT));
 		errno = 0;
 		config = dhcpcd_config_read(con, eWhat, eBlock);
 		if (config == NULL && errno) {
@@ -481,7 +481,7 @@ void DhcpcdPreferences::rebind()
 	found = false;
 	worked = true;
 	for (i = dhcpcd_interfaces(con); i; i = i->next) {
-		if (strcmp(i->type, "link") == 0 &&
+		if (i->type == DHT_LINK &&
 		    (i->ssid && strcmp(i->ssid, eBlock) == 0))
 		{
 			found = true;

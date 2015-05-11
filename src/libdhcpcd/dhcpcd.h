@@ -67,6 +67,48 @@ extern "C" {
 #define TYPESIZE		8
 #define REASONSIZE		16
 
+#define DHC_UNKNOWN		 0
+#define DHC_DOWN		 1
+#define DHC_OPENED		 2
+#define DHC_INITIALISED		 3
+#define DHC_DISCONNECTED	 4
+#define DHC_CONNECTING		 5
+#define DHC_CONNECTED		 6
+#define DHC_MAX			 7
+
+#define DHT_UNKNOWN		 0
+#define DHT_LINK		 1
+#define DHT_DHCP		 2
+#define DHT_IPV4		 2
+#define DHT_RA			 3
+#define DHT_DHCP6		 4
+#define DHT_MAX			 5
+
+#define DHS_UNKNOWN		 0
+#define DHS_DUMP		 1
+#define DHS_TEST		 2
+#define DHS_STOPPED		 3
+#define DHS_FAIL		 4
+#define DHS_STOP		 5
+#define DHS_PREINIT		 6
+#define DHS_DEPARTED		 7
+#define DHS_NOCARRIER		 8
+#define DHS_NAK			 9
+#define DHS_EXPIRE		10
+#define DHS_RECONFIGURE		11
+#define DHS_CARRIER		12
+#define DHS_STATIC		13
+#define DHS_3RDPARTY		14
+#define DHS_IPV4LL		15
+#define DHS_INFORM		16
+#define DHS_BOUND		17
+#define DHS_RENEW		18
+#define DHS_REBIND		19
+#define	DHS_REBOOT		20
+#define DHS_ROUTERADVERT	21
+#define DHS_DELEGATED		22
+#define DHR_MAX			23
+
 typedef struct dhcpcd_wi_avs {
 	int value;
 	int average;
@@ -93,10 +135,11 @@ typedef struct dhcpcd_wi_scan {
 typedef struct dhcpcd_if {
 	struct dhcpcd_if *next;
 	const char *ifname;
-	const char *type;
+	unsigned int type;
+	unsigned int state;
 	const char *reason;
 
-	unsigned int flags;
+	unsigned int ifflags;
 	bool up;
 	bool wireless;
 	const char *ssid;
@@ -112,10 +155,11 @@ typedef struct dhcpcd_if {
 typedef struct dhcpcd_if {
 	struct dhcpcd_if *next;
 	const char *ifname;
-	const char *type;
+	unsigned int type;
+	unsigned int state;
 	const char *reason;
 
-	int flags;
+	unsigned int ifflags;
 	bool up;
 	bool wireless;
 	const char *ssid;
@@ -165,12 +209,13 @@ typedef struct dhcpcd_connection {
 
 	void (*if_cb)(DHCPCD_IF *, void *);
 	void *if_context;
-	void (*status_cb)(struct dhcpcd_connection *, const char *, void *);
+	void (*status_cb)(struct dhcpcd_connection *,
+	    unsigned int, const char *, void *);
 	void *status_context;
 	bool wpa_started;
 	void (*wi_scanresults_cb)(DHCPCD_WPA *, void *);
 	void *wi_scanresults_context;
-	void (*wpa_status_cb)(DHCPCD_WPA *, const char *, void *);
+	void (*wpa_status_cb)(DHCPCD_WPA *, unsigned int, const char *, void *);
 	void *wpa_status_context;
 
 	char *buf;
@@ -181,7 +226,7 @@ typedef struct dhcpcd_connection {
 	char *error;
 	int err;
 	int errors;
-	const char *status;
+	unsigned int status;
 
 	char *cffile;
 } DHCPCD_CONNECTION;
@@ -196,7 +241,7 @@ DHCPCD_CONNECTION * dhcpcd_new(void);
 const char * dhcpcd_version(DHCPCD_CONNECTION *);
 void dhcpcd_set_progname(DHCPCD_CONNECTION *, const char *);
 const char * dhcpcd_get_progname(const DHCPCD_CONNECTION *);
-const char * dhcpcd_status(DHCPCD_CONNECTION *);
+unsigned int dhcpcd_status(DHCPCD_CONNECTION *, const char **);
 const char * dhcpcd_cffile(DHCPCD_CONNECTION *);
 bool dhcpcd_realloc(DHCPCD_CONNECTION *, size_t);
 int dhcpcd_open(DHCPCD_CONNECTION *, bool priv);
@@ -205,7 +250,7 @@ void dhcpcd_free(DHCPCD_CONNECTION *);
 void dhcpcd_set_if_callback(DHCPCD_CONNECTION *,
     void (*)(DHCPCD_IF *, void *), void *);
 void dhcpcd_set_status_callback(DHCPCD_CONNECTION *,
-    void (*)(DHCPCD_CONNECTION *, const char *, void *), void *);
+    void (*)(DHCPCD_CONNECTION *, unsigned int, const char *, void *), void *);
 int dhcpcd_get_fd(DHCPCD_CONNECTION *);
 bool dhcpcd_privileged(DHCPCD_CONNECTION *);
 void dhcpcd_dispatch(DHCPCD_CONNECTION *);
@@ -213,7 +258,7 @@ DHCPCD_IF * dhcpcd_interfaces(DHCPCD_CONNECTION *);
 char **dhcpcd_interface_names(DHCPCD_CONNECTION *, size_t *);
 void dhcpcd_freev(char **);
 char **dhcpcd_interface_names_sorted(DHCPCD_CONNECTION *);
-DHCPCD_IF * dhcpcd_get_if(DHCPCD_CONNECTION *, const char *, const char *);
+DHCPCD_IF * dhcpcd_get_if(DHCPCD_CONNECTION *, const char *, unsigned int);
 DHCPCD_CONNECTION * dhcpcd_if_connection(DHCPCD_IF *);
 const char *dhcpcd_get_value(const DHCPCD_IF *, const char *);
 const char *dhcpcd_get_prefix_value(const DHCPCD_IF *, const char *,
@@ -242,7 +287,7 @@ void dhcpcd_wpa_if_event(DHCPCD_IF *);
 void dhcpcd_wpa_set_scan_callback(DHCPCD_CONNECTION *,
     void (*)(DHCPCD_WPA *, void *), void *);
 void dhcpcd_wpa_set_status_callback(DHCPCD_CONNECTION *,
-    void (*)(DHCPCD_WPA *, const char *, void *), void *);
+    void (*)(DHCPCD_WPA *, unsigned int, const char *, void *), void *);
 int dhcpcd_wi_scan_compare(DHCPCD_WI_SCAN *a, DHCPCD_WI_SCAN *b);
 DHCPCD_WI_SCAN * dhcpcd_wi_scans(DHCPCD_IF *);
 bool dhcpcd_wi_associated(DHCPCD_IF *i, DHCPCD_WI_SCAN *s);

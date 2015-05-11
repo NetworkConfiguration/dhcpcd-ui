@@ -148,7 +148,7 @@ update_online(struct ctx *ctx, bool show_if)
 	msgs_len = 0;
 	ifs = dhcpcd_interfaces(ctx->con);
 	for (i = ifs; i; i = i->next) {
-		if (strcmp(i->type, "link") == 0) {
+		if (i->type == DHT_LINK) {
 			if (i->up)
 				carrier = true;
 		} else {
@@ -236,14 +236,15 @@ unprived:
 }
 
 static void
-status_cb(DHCPCD_CONNECTION *con, const char *status, void *arg)
+status_cb(DHCPCD_CONNECTION *con,
+    unsigned int status, const char *status_msg, void *arg)
 {
 	struct ctx *ctx = arg;
 
-	debug(ctx, _("Status changed to %s"), status);
-	set_status(ctx, status);
+	debug(ctx, _("Status changed to %s"), status_msg);
+	set_status(ctx, status_msg);
 
-	if (strcmp(status, "down") == 0) {
+	if (status == DHC_DOWN) {
 		eloop_event_delete(ctx->eloop, ctx->fd, NULL, NULL, 0);
 		ctx->fd = -1;
 		ctx->online = ctx->carrier = false;
@@ -254,20 +255,19 @@ status_cb(DHCPCD_CONNECTION *con, const char *status, void *arg)
 	} else {
 		bool refresh;
 
-		if (ctx->last_status == NULL ||
-		    strcmp(ctx->last_status, "down") == 0)
+		if (ctx->last_status == DHC_UNKNOWN ||
+		    ctx->last_status == DHC_DOWN)
 		{
 			debug(ctx, _("Connected to dhcpcd-%s"),
 			    dhcpcd_version(con));
 			refresh = true;
 		} else
 			refresh =
-			    strcmp(ctx->last_status, "opened") ? false : true;
+			    ctx->last_status == DHC_OPENED ? true : false;
 		update_online(ctx, refresh);
 	}
 
-	free(ctx->last_status);
-	ctx->last_status = strdup(status);
+	ctx->last_status = status;
 }
 
 static void
@@ -275,9 +275,8 @@ if_cb(DHCPCD_IF *i, void *arg)
 {
 	struct ctx *ctx = arg;
 
-	if (strcmp(i->reason, "RENEW") &&
-	    strcmp(i->reason, "STOP") &&
-	    strcmp(i->reason, "STOPPED"))
+	if (i->state == DHS_RENEW ||
+	    i->state == DHS_STOP || i->state == DHS_STOPPED)
 	{
 		char *msg;
 		bool new_msg;
@@ -399,15 +398,16 @@ wpa_scan_cb(DHCPCD_WPA *wpa, void *arg)
 }
 
 static void
-wpa_status_cb(DHCPCD_WPA *wpa, const char *status, void *arg)
+wpa_status_cb(DHCPCD_WPA *wpa,
+    unsigned int status, const char *status_msg, void *arg)
 {
 	struct ctx *ctx = arg;
 	DHCPCD_IF *i;
 	WI_SCAN *w, *wn;
 
 	i = dhcpcd_wpa_if(wpa);
-	debug(ctx, _("%s: WPA status %s"), i->ifname, status);
-	if (strcmp(status, "down") == 0) {
+	debug(ctx, _("%s: WPA status %s"), i->ifname, status_msg);
+	if (status == DHC_DOWN) {
 		eloop_event_delete(ctx->eloop, -1, NULL, wpa, 0);
 		TAILQ_FOREACH_SAFE(w, &ctx->wi_scans, next, wn) {
 			if (w->interface == i) {
@@ -577,7 +577,6 @@ main(void)
 	/* Free everything else */
 	eloop_free(ctx.eloop);
 	endwin();
-	free(ctx.last_status);
 
 #ifdef HAVE_NC_FREE_AND_EXIT
 	/* undefined ncurses function to allow valgrind debugging */

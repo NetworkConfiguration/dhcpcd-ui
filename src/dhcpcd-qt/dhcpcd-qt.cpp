@@ -51,7 +51,7 @@ DhcpcdQt::DhcpcdQt()
 	createTrayIcon();
 
 	onLine = carrier = false;
-	lastStatus = NULL;
+	lastStatus = DHC_UNKNOWN;
 	aniTimer = new QTimer(this);
 	connect(aniTimer, SIGNAL(timeout()), this, SLOT(animate()));
 	notifier = NULL;
@@ -90,8 +90,6 @@ DhcpcdQt::~DhcpcdQt()
 		dhcpcd_close(con);
 		dhcpcd_free(con);
 	}
-
-	free(lastStatus);
 
 	for (auto &wi : *wis)
 		wi->deleteLater();
@@ -214,7 +212,7 @@ void DhcpcdQt::updateOnline(bool showIf)
 	isOn = isCarrier = false;
 	ifs = dhcpcd_interfaces(con);
 	for (i = ifs; i; i = i->next) {
-		if (strcmp(i->type, "link") == 0) {
+		if (i->type == DHT_LINK) {
 			if (i->up)
 				isCarrier = true;
 		} else {
@@ -252,11 +250,11 @@ void DhcpcdQt::updateOnline(bool showIf)
 	trayIcon->setToolTip(msgs);
 }
 
-void DhcpcdQt::statusCallback(const char *status)
+void DhcpcdQt::statusCallback(unsigned int status, const char *status_msg)
 {
 
-	qDebug("Status changed to %s", status);
-	if (strcmp(status, "down") == 0) {
+	qDebug("Status changed to %s", status_msg);
+	if (status == DHC_DOWN) {
 		aniTimer->stop();
 		aniCounter = 0;
 		onLine = carrier = false;
@@ -280,18 +278,17 @@ void DhcpcdQt::statusCallback(const char *status)
 	} else {
 		bool refresh;
 
-		if (lastStatus == NULL || strcmp(lastStatus, "down") == 0) {
+		if (lastStatus == DHC_UNKNOWN || lastStatus == DHC_DOWN) {
 			qDebug("Connected to dhcpcd-%s", dhcpcd_version(con));
 			refresh = true;
 		} else
-			refresh = strcmp(lastStatus, "opened") ? false : true;
+			refresh = lastStatus == DHC_OPENED ? true : false;
 		updateOnline(refresh);
 	}
 
-	free(lastStatus);
-	lastStatus = strdup(status);
+	lastStatus = status;
 
-	if (strcmp(status, "down") == 0) {
+	if (status == DHC_DOWN) {
 		if (retryOpenTimer == NULL) {
 			retryOpenTimer = new QTimer(this);
 			connect(retryOpenTimer, SIGNAL(timeout()),
@@ -302,11 +299,11 @@ void DhcpcdQt::statusCallback(const char *status)
 }
 
 void DhcpcdQt::dhcpcd_status_cb(_unused DHCPCD_CONNECTION *con,
-    const char *status, void *d)
+    unsigned int status, const char *status_msg, void *d)
 {
 	DhcpcdQt *dhcpcdQt = (DhcpcdQt *)d;
 
-	dhcpcdQt->statusCallback(status);
+	dhcpcdQt->statusCallback(status, status_msg);
 }
 
 void DhcpcdQt::ifCallback(DHCPCD_IF *i)
@@ -314,9 +311,8 @@ void DhcpcdQt::ifCallback(DHCPCD_IF *i)
 	char *msg;
 	bool new_msg;
 
-	if (strcmp(i->reason, "RENEW") &&
-	    strcmp(i->reason, "STOP") &&
-	    strcmp(i->reason, "STOPPED"))
+	if (i->state == DHS_RENEW ||
+	    i->state == DHS_STOP || i->state == DHS_STOPPED)
 	{
 		msg = dhcpcd_if_message(i, &new_msg);
 		if (msg) {
@@ -453,13 +449,14 @@ void DhcpcdQt::dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, void *d)
 	dhcpcdQt->scanCallback(wpa);
 }
 
-void DhcpcdQt::wpaStatusCallback(DHCPCD_WPA *wpa, const char *status)
+void DhcpcdQt::wpaStatusCallback(DHCPCD_WPA *wpa,
+    unsigned int status, const char *status_msg)
 {
 	DHCPCD_IF *i;
 
 	i = dhcpcd_wpa_if(wpa);
-	qDebug("%s: WPA status %s", i->ifname, status);
-	if (strcmp(status, "down") == 0) {
+	qDebug("%s: WPA status %s", i->ifname, status_msg);
+	if (status == DHC_DOWN) {
 		DhcpcdWi *wi = findWi(wpa);
 		if (wi) {
 			wis->removeOne(wi);
@@ -468,12 +465,12 @@ void DhcpcdQt::wpaStatusCallback(DHCPCD_WPA *wpa, const char *status)
 	}
 }
 
-void DhcpcdQt::dhcpcd_wpa_status_cb(DHCPCD_WPA *wpa, const char *status,
-    void *d)
+void DhcpcdQt::dhcpcd_wpa_status_cb(DHCPCD_WPA *wpa,
+    unsigned int status, const char *status_msg, void *d)
 {
 	DhcpcdQt *dhcpcdQt = (DhcpcdQt *)d;
 
-	dhcpcdQt->wpaStatusCallback(wpa, status);
+	dhcpcdQt->wpaStatusCallback(wpa, status, status_msg);
 }
 
 void DhcpcdQt::tryOpen() {

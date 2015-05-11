@@ -426,7 +426,7 @@ on_popup(GtkStatusIcon *icon, guint button, guint32 atime, gpointer data)
 	image = gtk_image_new_from_icon_name("preferences-system-network",
 	    GTK_ICON_SIZE_MENU);
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
-	if (g_strcmp0(dhcpcd_status(con), "down") == 0)
+	if (dhcpcd_status(con, NULL) == DHC_DOWN)
 		gtk_widget_set_sensitive(item, false);
 	else
 		g_signal_connect(G_OBJECT(item), "activate",

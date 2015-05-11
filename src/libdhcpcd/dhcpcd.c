@@ -68,8 +68,46 @@
 #define iswhite(c)	(c == ' ' || c == '\t' || c == '\n')
 #endif
 
-static const char * const dhcpcd_types[] =
-    { "link", "ipv4", "ra", "dhcp6", NULL };
+static const char * const dhcpcd_cstates[DHC_MAX] = {
+	"unknown",
+	"down",
+	"opened",
+	"initialised",
+	"disconnected",
+	"connecting",
+	"connected"
+};
+
+struct dhcpcd_vs {
+	unsigned int val;
+	const char *str;
+};
+
+static const struct dhcpcd_vs dhcpcd_states[] = {
+    { DHS_DUMP,		"DUMP" },
+    { DHS_TEST,		"TEST" },
+    { DHS_STOPPED,	"STOPPED" },
+    { DHS_FAIL,		"FAIL" },
+    { DHS_STOP,		"STOP" },
+    { DHS_PREINIT,	"PREINIT" },
+    { DHS_DEPARTED,	"DEPARTED" },
+    { DHS_NOCARRIER,	"NOCARRIER" },
+    { DHS_NAK,		"NAK" },
+    { DHS_EXPIRE,	"EXPIRE" },
+    { DHS_RECONFIGURE,	"RECONFIGURE" },
+    { DHS_CARRIER,	"CARRIER" },
+    { DHS_STATIC,	"STATIC" },
+    { DHS_3RDPARTY,	"3RDPARTY" },
+    { DHS_IPV4LL,	"IPV4LL" },
+    { DHS_INFORM,	"INFORM" },
+    { DHS_BOUND,	"BOUND" },
+    { DHS_RENEW,	"RENEW" },
+    { DHS_REBIND,	"REBIND" },
+    { DHS_REBOOT,	"REBOOT" },
+    { DHS_ROUTERADVERT,	"ROUTERADVERT" },
+    { DHS_BOUND,	"DELEGATED" },
+    { DHS_UNKNOWN,	NULL    }
+};
 
 static ssize_t
 dhcpcd_command_fd(DHCPCD_CONNECTION *con,
@@ -459,46 +497,47 @@ strtobool(const char *var)
 	    strcmp(var, "no") == 0) ? false : true;
 }
 
-static const char *
+static unsigned int
 get_status(DHCPCD_CONNECTION *con)
 {
 	DHCPCD_IF *i;
-	const char *status;
+	unsigned int status;
 
 	assert(con);
 	if (con->command_fd == -1)
-		return "down";
+		return DHC_DOWN;
 
 	if (con->listen_fd == -1)
-		return "opened";
+		return DHC_OPENED;
 
 	if (con->interfaces == NULL)
-		return "initialised";
+		return DHC_INITIALISED;
 
-	status = "disconnected";
+	status = DHC_DISCONNECTED;
 	for (i = con->interfaces; i; i = i->next) {
 		if (i->up) {
-			if (strcmp(i->type, "link")) {
-				status = "connected";
+			if (i->type == DHT_LINK) {
+				status = DHC_CONNECTED;
 				break;
 			} else
-				status = "connecting";
+				status = DHC_CONNECTING;
 		}
 	}
 	return status;
 }
 
 static void
-update_status(DHCPCD_CONNECTION *con, const char *nstatus)
+update_status(DHCPCD_CONNECTION *con, unsigned int nstatus)
 {
 
 	assert(con);
-	if (nstatus == NULL)
+	if (nstatus == DHC_UNKNOWN)
 		nstatus = get_status(con);
-	if (con->status == NULL || strcmp(nstatus, con->status)) {
+	if (con->status != nstatus) {
 		con->status = nstatus;
 		if (con->status_cb)
-			con->status_cb(con, con->status, con->status_context);
+			con->status_cb(con, con->status,
+			    dhcpcd_cstates[con->status], con->status_context);
 	}
 }
 
@@ -523,7 +562,7 @@ dhcpcd_interface_names(DHCPCD_CONNECTION *con, size_t *nnames)
 
 	n = 0;
 	for (i = con->interfaces; i; i = i->next) {
-		if (strcmp(i->type, "link") == 0)
+		 if (i->type == DHT_LINK)
 			n++;
 	}
 	names = malloc(sizeof(char *) * (n + 1));
@@ -531,7 +570,7 @@ dhcpcd_interface_names(DHCPCD_CONNECTION *con, size_t *nnames)
 		return NULL;
 	n = 0;
 	for (i = con->interfaces; i; i = i->next) {
-		if (strcmp(i->type, "link") == 0) {
+		if (i->type == DHT_LINK) {
 			names[n] = strdup(i->ifname);
 			if (names[n] == NULL) {
 				dhcpcd_freev(names);
@@ -585,7 +624,7 @@ dhcpcd_interface_names_sorted(DHCPCD_CONNECTION *con)
 }
 
 DHCPCD_IF *
-dhcpcd_get_if(DHCPCD_CONNECTION *con, const char *ifname, const char *type)
+dhcpcd_get_if(DHCPCD_CONNECTION *con, const char *ifname, unsigned int type)
 {
 	DHCPCD_IF *i;
 
@@ -594,19 +633,74 @@ dhcpcd_get_if(DHCPCD_CONNECTION *con, const char *ifname, const char *type)
 	assert(type);
 
 	for (i = con->interfaces; i; i = i->next)
-		if (strcmp(i->ifname, ifname) == 0 &&
-		    strcmp(i->type, type) == 0)
+		if (i->type == type && strcmp(i->ifname, ifname) == 0)
 			return i;
 	return NULL;
+}
+
+static unsigned int
+dhcpcd_reason_to_state1(const char *reason, int *isdhcp6)
+{
+	unsigned int i;
+	char rbuf[32], *p;
+
+	assert(reason);
+
+	/* Take a copy of reason and trim 6 from the end
+	 * so our DHCPv6 state can match DHCP states */
+	if (strlcpy(rbuf, reason, sizeof(rbuf)) >= sizeof(rbuf))
+		return DHS_UNKNOWN;
+	p = rbuf + (strlen(rbuf) - 1);
+	if (*p == '6') {
+		if (isdhcp6)
+			*isdhcp6 = 1;
+		*p = '\0';
+	} else if (isdhcp6)
+		*isdhcp6 = 0;
+
+	for (i = 0; dhcpcd_states[i].val != DHS_UNKNOWN; i++) {
+		if (strcmp(rbuf, dhcpcd_states[i].str) == 0)
+			return dhcpcd_states[i].val;
+	}
+	return DHS_UNKNOWN;
+}
+
+static void
+dhcpcd_reason_to_statetype(const char *reason,
+    unsigned int *state, unsigned int *type)
+{
+	int isdhcp6;
+
+	assert(state);
+	assert(type);
+	*state = dhcpcd_reason_to_state1(reason, &isdhcp6);
+	switch (*state) {
+	case DHS_UNKNOWN:
+	case DHS_PREINIT:
+	case DHS_CARRIER:
+	case DHS_NOCARRIER:
+	case DHS_DEPARTED:
+	case DHS_STOPPED:
+		*type = DHT_LINK;
+		return;
+	case DHS_ROUTERADVERT:
+		*type =  DHT_RA;
+		return;
+	}
+
+	if (isdhcp6)
+		*type = DHT_DHCP6;
+	else
+		*type = DHT_IPV4;
 }
 
 static DHCPCD_IF *
 dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 {
-	const char *ifname, *ifclass, *reason, *type, *order, *flags;
+	const char *ifname, *ifclass, *reason, *order, *flags;
+	unsigned int state, type;
 	char *orderdup, *o, *p;
 	DHCPCD_IF *e, *i, *l, *n, *nl;
-	int ti;
 	bool addedi;
 
 #if 0
@@ -627,15 +721,15 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 		errno = ESRCH;
 		return NULL;
 	}
+	dhcpcd_reason_to_statetype(reason, &state, &type);
+
 	ifclass = get_value(data, len, "ifclass");
 	/* Skip pseudo interfaces */
 	if (ifclass && *ifclass != '\0') {
 		errno = ENOTSUP;
 		return NULL;
 	}
-	if (strcmp(reason, "RECONFIGURE") == 0 ||
-	    strcmp(reason, "INFORM") == 0 || strcmp(reason, "INFORM6") == 0)
-	{
+	if (state == DHS_RECONFIGURE || state == DHS_INFORM) {
 		errno = ENOTSUP;
 		return NULL;
 	}
@@ -645,31 +739,16 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 		return NULL;
 	}
 
-	if (strcmp(reason, "PREINIT") == 0 ||
-	    strcmp(reason, "UNKNOWN") == 0 ||
-	    strcmp(reason, "CARRIER") == 0 ||
-	    strcmp(reason, "NOCARRIER") == 0 ||
-	    strcmp(reason, "DEPARTED") == 0 ||
-	    strcmp(reason, "STOPPED") == 0)
-		type = "link";
-	else if (strcmp(reason, "ROUTERADVERT") == 0)
-		type = "ra";
-	else if (reason[strlen(reason) - 1] == '6')
-		type = "dhcp6";
-	else
-		type = "ipv4";
-
 	i = NULL;
        /* Remove all instances on carrier drop */
-        if (strcmp(reason, "NOCARRIER") == 0 ||
-            strcmp(reason, "DEPARTED") == 0 ||
-            strcmp(reason, "STOPPED") == 0)
+        if (state == DHS_NOCARRIER ||
+	    state == DHS_DEPARTED || state == DHS_STOPPED)
         {
                 l = NULL;
                 for (e = con->interfaces; e; e = n) {
                         n = e->next;
                         if (strcmp(e->ifname, ifname) == 0) {
-                                if (strcmp(e->type, type) == 0)
+                                if (e->type == type)
                                         l = i = e;
                                 else {
                                         if (l)
@@ -681,9 +760,9 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
                         } else
                                 l = e;
                 }
-        } else if (strcmp(type, "link")) {
+        } else if (type != DHT_LINK) {
 		/* If link is down, ignore it */
-		e = dhcpcd_get_if(con, ifname, "link");
+		e = dhcpcd_get_if(con, ifname, DHT_LINK);
 		if (e && !e->up)
 			return NULL;
 	}
@@ -696,9 +775,7 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
         if (i == NULL) {
                 l = NULL;
                 for (e = con->interfaces; e; e = e->next) {
-                        if (strcmp(e->ifname, ifname) == 0 &&
-                            strcmp(e->type, type) == 0)
-                        {
+                        if (e->type == type && strcmp(e->ifname, ifname) == 0) {
                                 i = e;
                                 break;
                         }
@@ -726,14 +803,14 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 	i->data_len = len;
 	i->ifname = ifname;
 	i->type = type;
+	i->state = state;
 	i->reason = reason;
 	flags = dhcpcd_get_value(i, "ifflags");
 	if (flags)
-		i->flags = (unsigned int)strtoul(flags, NULL, 0);
+		i->ifflags = (unsigned int)strtoul(flags, NULL, 0);
 	else
-		i->flags = 0;
-	if (strcmp(reason, "CARRIER") == 0 ||
-	    strcmp(reason, "DELEGATED6") == 0)
+		i->ifflags = 0;
+	if (state == DHS_CARRIER || state == DHS_DELEGATED)
 		i->up = true;
 	else
 		i->up = strtobool(dhcpcd_get_value(i, "if_up"));
@@ -747,11 +824,10 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 	p = orderdup;
 	addedi = false;
         while ((o = strsep(&p, " ")) != NULL) {
-                for (ti = 0; dhcpcd_types[ti]; ti++) {
+                for (type = 0; type < DHT_MAX; type++) {
                         l = NULL;
                         for (e = con->interfaces; e; e = e->next) {
-                                if (strcmp(e->ifname, o) == 0 &&
-                                    strcmp(e->type, dhcpcd_types[ti]) == 0)
+                                if (e->type == type && strcmp(e->ifname, o) == 0)
                                         break;
                                 l = e;
                         }
@@ -844,7 +920,7 @@ dhcpcd_dispatch(DHCPCD_CONNECTION *con)
 
 	/* Have to call update_status last as it could
 	 * cause the interface to be destroyed. */
-	update_status(con, NULL);
+	update_status(con, DHC_UNKNOWN);
 }
 
 DHCPCD_CONNECTION *
@@ -931,7 +1007,7 @@ dhcpcd_open(DHCPCD_CONNECTION *con, bool privileged)
 
 	con->open = true;
 	con->privileged = privileged;
-	update_status(con, NULL);
+	update_status(con, DHC_UNKNOWN);
 
 	con->listen_fd = dhcpcd_connect(path, SOCK_NONBLOCK);
 	if (con->listen_fd == -1)
@@ -948,7 +1024,7 @@ dhcpcd_open(DHCPCD_CONNECTION *con, bool privileged)
 	for (n = 0; n < nifs; n++)
 		dhcpcd_read_if(con, con->command_fd);
 
-	update_status(con, NULL);
+	update_status(con, DHC_UNKNOWN);
 
 	return con->listen_fd;
 
@@ -973,11 +1049,13 @@ dhcpcd_privileged(DHCPCD_CONNECTION *con)
 	return con->privileged;
 }
 
-const char *
-dhcpcd_status(DHCPCD_CONNECTION *con)
+unsigned int
+dhcpcd_status(DHCPCD_CONNECTION *con, const char **status)
 {
 
 	assert(con);
+	if (status)
+		*status = dhcpcd_cstates[con->status];
 	return con->status;
 }
 
@@ -1009,7 +1087,8 @@ dhcpcd_set_if_callback(DHCPCD_CONNECTION *con,
 
 void
 dhcpcd_set_status_callback(DHCPCD_CONNECTION *con,
-    void (*cb)(DHCPCD_CONNECTION *, const char *, void *), void *ctx)
+    void (*cb)(DHCPCD_CONNECTION *, unsigned int, const char *, void *),
+    void *ctx)
 {
 
 	assert(con);
@@ -1054,7 +1133,7 @@ dhcpcd_close(DHCPCD_CONNECTION *con)
 	if (con->listen_fd != -1)
 		shutdown(con->listen_fd, SHUT_RDWR);
 
-	update_status(con, "down");
+	update_status(con, DHC_DOWN);
 
 	if (con->command_fd != -1) {
 		close(con->command_fd);
@@ -1107,14 +1186,16 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 
 	assert(i);
 	/* Don't report non SLAAC configurations */
-	if (strcmp(i->type, "ra") == 0 && i->up &&
+	if (i->type == DHT_RA && i->up &&
 	    dhcpcd_get_value(i, "ra1_prefix") == NULL)
 		return NULL;
 
 	showssid = false;
-	if (strcmp(i->reason, "EXPIRE") == 0)
+	switch (i->state) {
+	case DHS_EXPIRE:
 		reason = _("Expired");
-	else if (strcmp(i->reason, "CARRIER") == 0) {
+		break;
+	case DHS_CARRIER:
 		if (i->wireless) {
 			showssid = true;
 			reason = _("Associated with");
@@ -1132,7 +1213,8 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 				return NULL;
 			reason = _("Link is up, configuring");
 		}
-	} else if (strcmp(i->reason, "NOCARRIER") == 0) {
+		break;
+	case DHS_NOCARRIER:
 		if (i->wireless) {
 			if (i->ssid) {
 				reason = _("Disassociated from");
@@ -1141,22 +1223,28 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 				reason = _("Not associated");
 		} else
 			reason = _("Link is down");
-	} else if (strcmp(i->reason, "DEPARTED") == 0)
+		break;
+	case DHS_DEPARTED:
 		reason = _("Departed");
-	else if (strcmp(i->reason, "UNKNOWN") == 0)
+		break;
+	case DHS_UNKNOWN:
 		reason = _("Unknown link state");
-	else if (strcmp(i->reason, "FAIL") == 0)
+		break;
+	case DHS_FAIL:
 		reason = _("Automatic configuration not possible");
-	else if (strcmp(i->reason, "3RDPARTY") == 0)
+		break;
+	case DHS_3RDPARTY:
 		reason = _("Waiting for 3rd Party configuration");
+		break;
+	}
 
 	if (reason == NULL) {
 		if (i->up) {
-			if (strcmp(i->reason, "DELEGATED6") == 0)
+			if (i->state == DHS_DELEGATED)
 				reason = _("Delegated");
 			else
 				reason = _("Configured");
-		} else if (strcmp(i->type, "ra") == 0)
+		} else if (i->type == DHT_RA)
 			reason = "Expired RA";
 		else
 			reason = i->reason;
