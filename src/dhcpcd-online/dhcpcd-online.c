@@ -84,16 +84,21 @@ do_exit(DHCPCD_CONNECTION *con, int code)
 }
 
 static void
-do_status_cb(DHCPCD_CONNECTION *con, const char *status, void *arg)
+do_status_cb(DHCPCD_CONNECTION *con,
+    unsigned int status, const char *status_msg, void *arg)
 {
 	struct pollfd *pfd;
 
-	syslog(LOG_INFO, "%s", status);
-	if (strcmp(status, "connected") == 0)
+	syslog(LOG_INFO, "%s", status_msg);
+	switch (status)
+	{
+	case DHC_CONNECTED:
 		do_exit(con, EXIT_SUCCESS);
-	if (strcmp(status, "down") == 0) {
+		break;
+	case DHC_DOWN:
 		pfd = arg;
 		pfd->fd = -1;
+		break;
 	}
 }
 
