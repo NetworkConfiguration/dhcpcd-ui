@@ -131,6 +131,19 @@ dhcpcd_wpa_command(DHCPCD_WPA *wpa, const char *cmd)
 	    strcmp(buf, "OK\n")) ? false : true;
 }
 
+static void
+dhcpcd_wpa_update_status(DHCPCD_WPA *wpa, unsigned int status)
+{
+
+	if (wpa->status != status) {
+		wpa->status = status;
+		if (wpa->con->wpa_status_cb)
+			wpa->con->wpa_status_cb(wpa,
+			    wpa->status, dhcpcd_cstates[wpa->status],
+			    wpa->con->wpa_status_context);
+	}
+}
+
 bool
 dhcpcd_wpa_ping(DHCPCD_WPA *wpa)
 {
@@ -844,18 +857,16 @@ dhcpcd_wpa_close(DHCPCD_WPA *wpa)
 
 	assert(wpa);
 
-	if (wpa->command_fd == -1 || !wpa->open)
+	if (wpa->command_fd == -1)
 		return;
 
-	wpa->open = false;
 	dhcpcd_attach_detach(wpa, false);
-	shutdown(wpa->command_fd, SHUT_RDWR);
-	shutdown(wpa->listen_fd, SHUT_RDWR);
 
-	if (wpa->con->wpa_status_cb)
-		wpa->con->wpa_status_cb(wpa,
-		    DHC_DOWN, "down",
-		    wpa->con->wpa_status_context);
+	if (wpa->status != DHC_DOWN) {
+		shutdown(wpa->command_fd, SHUT_RDWR);
+		shutdown(wpa->listen_fd, SHUT_RDWR);
+		dhcpcd_wpa_update_status(wpa, DHC_DOWN);
+	}
 
 	close(wpa->command_fd);
 	wpa->command_fd = -1;
@@ -891,12 +902,13 @@ dhcpcd_wpa_new(DHCPCD_CONNECTION *con, const char *ifname)
 	if (wpa)
 		return wpa;
 
-	wpa = malloc(sizeof(*wpa));
+	wpa = calloc(1, sizeof(*wpa));
 	if (wpa == NULL)
 		return NULL;
 
 	wpa->con = con;
 	strlcpy(wpa->ifname, ifname, sizeof(wpa->ifname));
+	wpa->status = DHC_DOWN;
 	wpa->command_fd = wpa->listen_fd = -1;
 	wpa->command_path = wpa->listen_path = NULL;
 	wpa->next = con->wpa;
@@ -927,11 +939,10 @@ dhcpcd_wpa_open(DHCPCD_WPA *wpa)
 	char *cmd_path = NULL, *list_path = NULL;
 
 	if (wpa->listen_fd != -1) {
-		if (!wpa->open) {
-			errno = EISCONN;
-			return -1;
-		}
-		return wpa->listen_fd;
+		if (wpa->status == DHC_CONNECTED)
+			return wpa->listen_fd;
+		errno = EISCONN;
+		return -1;
 	}
 
 	cmd_fd = wpa_open(wpa->ifname, &cmd_path);
@@ -942,7 +953,7 @@ dhcpcd_wpa_open(DHCPCD_WPA *wpa)
 	if (list_fd == -1)
 		goto fail;
 
-	wpa->open = true;
+	wpa->status = DHC_CONNECTING;
 	wpa->attached = false;
 	wpa->command_fd = cmd_fd;
 	wpa->command_path = cmd_path;
@@ -953,6 +964,7 @@ dhcpcd_wpa_open(DHCPCD_WPA *wpa)
 		return -1;
 	}
 
+	dhcpcd_wpa_update_status(wpa, DHC_CONNECTED);
 	if (wpa->con->wi_scanresults_cb)
 		wpa->con->wi_scanresults_cb(wpa,
 		    wpa->con->wi_scanresults_context);
@@ -972,12 +984,22 @@ fail:
 	return -1;
 }
 
+unsigned int
+dhcpcd_wpa_status(DHCPCD_WPA *wpa, const char **status_msg)
+{
+
+	assert(wpa);
+	if (status_msg)
+		*status_msg = dhcpcd_cstates[wpa->status];
+	return wpa->status;
+}
+
 int
 dhcpcd_wpa_get_fd(DHCPCD_WPA *wpa)
 {
 
 	assert(wpa);
-	return wpa->open ? wpa->listen_fd : -1;
+	return wpa->listen_fd;
 }
 
 void

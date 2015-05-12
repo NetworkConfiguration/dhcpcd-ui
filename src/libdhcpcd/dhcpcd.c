@@ -68,7 +68,7 @@
 #define iswhite(c)	(c == ' ' || c == '\t' || c == '\n')
 #endif
 
-static const char * const dhcpcd_cstates[DHC_MAX] = {
+const char * const dhcpcd_cstates[DHC_MAX] = {
 	"unknown",
 	"down",
 	"opened",
@@ -1105,7 +1105,13 @@ dhcpcd_close(DHCPCD_CONNECTION *con)
 
 	assert(con);
 
-	con->open = false;
+	if (con->open) {
+		if (con->command_fd != -1)
+			shutdown(con->command_fd, SHUT_RDWR);
+		if (con->listen_fd != -1)
+			shutdown(con->listen_fd, SHUT_RDWR);
+		con->open = false;
+	}
 
 	/* Shut down WPA listeners as they aren't much good without dhcpcd.
 	 * They'll be restarted anyway when dhcpcd comes back up. */
@@ -1127,11 +1133,6 @@ dhcpcd_close(DHCPCD_CONNECTION *con)
 		free(con->interfaces);
 		con->interfaces = nif;
 	}
-
-	if (con->command_fd != -1)
-		shutdown(con->command_fd, SHUT_RDWR);
-	if (con->listen_fd != -1)
-		shutdown(con->listen_fd, SHUT_RDWR);
 
 	update_status(con, DHC_DOWN);
 

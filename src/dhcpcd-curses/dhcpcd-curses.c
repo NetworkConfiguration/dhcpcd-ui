@@ -192,14 +192,6 @@ dispatch(void *arg)
 {
 	struct ctx *ctx = arg;
 
-	if (dhcpcd_get_fd(ctx->con) == -1) {
-		warning(ctx, _("dhcpcd connection lost"));
-		eloop_event_delete(ctx->eloop, ctx->fd, 0);
-		eloop_timeout_add_msec(ctx->eloop, DHCPCD_RETRYOPEN,
-		    try_open, ctx);
-		return;
-	}
-
 	dhcpcd_dispatch(ctx->con);
 }
 
@@ -244,8 +236,10 @@ status_cb(DHCPCD_CONNECTION *con,
 	set_status(ctx, status_msg);
 
 	if (status == DHC_DOWN) {
-		eloop_event_delete(ctx->eloop, ctx->fd, 0);
-		ctx->fd = -1;
+		int fd;
+
+		fd = dhcpcd_get_fd(ctx->con);
+		eloop_event_delete(ctx->eloop, fd, 0);
 		ctx->online = ctx->carrier = false;
 		eloop_timeout_delete(ctx->eloop, NULL, ctx);
 		set_summary(ctx, NULL);
@@ -319,8 +313,7 @@ wpa_scan_cb(DHCPCD_WPA *wpa, void *arg)
 		debug(ctx, "%s (%p)", _("no fd for WPA"), wpa);
 		return;
 	}
-	eloop_event_add(ctx->eloop,
-	    dhcpcd_wpa_get_fd(wpa), wpa_dispatch, wpa, NULL, NULL);
+	eloop_event_add(ctx->eloop, fd, wpa_dispatch, wpa, NULL, NULL);
 
 	i = dhcpcd_wpa_if(wpa);
 	if (i == NULL) {
@@ -395,8 +388,6 @@ wpa_scan_cb(DHCPCD_WPA *wpa, void *arg)
 	}
 }
 
-/*
- * XXXX Fixme, ideally in the wpa_dispatch
 static void
 wpa_status_cb(DHCPCD_WPA *wpa,
     unsigned int status, const char *status_msg, void *arg)
@@ -408,7 +399,11 @@ wpa_status_cb(DHCPCD_WPA *wpa,
 	i = dhcpcd_wpa_if(wpa);
 	debug(ctx, _("%s: WPA status %s"), i->ifname, status_msg);
 	if (status == DHC_DOWN) {
-		eloop_event_delete(ctx->eloop, -1, NULL, wpa, 0);
+		int fd;
+
+		fd = dhcpcd_wpa_get_fd(wpa);
+		eloop_event_delete(ctx->eloop, fd, 0);
+		dhcpcd_wpa_close(wpa);
 		TAILQ_FOREACH_SAFE(w, &ctx->wi_scans, next, wn) {
 			if (w->interface == i) {
 				TAILQ_REMOVE(&ctx->wi_scans, w, next);
@@ -418,7 +413,6 @@ wpa_status_cb(DHCPCD_WPA *wpa,
 		}
 	}
 }
-*/
 
 static void
 bg_scan(void *arg)
@@ -464,7 +458,7 @@ signal_cb(int sig, void *arg)
 		debug(ctx, ("SIGHUP caught, ignoring"));
 		break;
 	case SIGPIPE:
-		debug(ctx, ("SIGPIPE caught, ignoring"));
+		/* ignore and don't report */
 		break;
 	}
 }
@@ -539,7 +533,7 @@ main(void)
 	dhcpcd_set_status_callback(ctx.con, status_cb, &ctx);
 	dhcpcd_set_if_callback(ctx.con, if_cb, &ctx);
 	dhcpcd_wpa_set_scan_callback(ctx.con, wpa_scan_cb, &ctx);
-	//dhcpcd_wpa_set_status_callback(ctx.con, wpa_status_cb, &ctx);
+	dhcpcd_wpa_set_status_callback(ctx.con, wpa_status_cb, &ctx);
 
 	eloop_timeout_add_sec(ctx.eloop, 0, try_open, &ctx);
 	eloop_timeout_add_msec(ctx.eloop, DHCPCD_WPA_SCAN_SHORT,

@@ -75,6 +75,7 @@ extern "C" {
 #define DHC_CONNECTING		 5
 #define DHC_CONNECTED		 6
 #define DHC_MAX			 7
+extern const char * const dhcpcd_cstates[];
 
 #define DHT_UNKNOWN		 0
 #define DHT_LINK		 1
@@ -186,7 +187,7 @@ typedef struct dhcpcd_wi_hist {
 typedef struct dhcpcd_wpa {
 	struct dhcpcd_wpa *next;
 	char ifname[IF_NAMESIZE];
-	bool open;
+	unsigned int status;
 	int command_fd;
 	char *command_path;
 	int listen_fd;
@@ -297,6 +298,7 @@ bool dhcpcd_wpa_set_network(DHCPCD_WPA *, int, const char *, const char *);
 int dhcpcd_wpa_find_network_new(DHCPCD_WPA *, const char *);
 bool dhcpcd_wpa_command(DHCPCD_WPA *, const char *);
 bool dhcpcd_wpa_command_arg(DHCPCD_WPA *, const char *, const char *);
+unsigned int dhcpcd_wpa_status(DHCPCD_WPA *, const char **);
 
 bool dhcpcd_wpa_ping(DHCPCD_WPA *);
 bool dhcpcd_wpa_can_background_scan(DHCPCD_WPA *);
