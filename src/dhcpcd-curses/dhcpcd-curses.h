@@ -28,8 +28,6 @@
 #ifndef DHCPCD_CURSES_H
 #define DHCPCD_CURSES_H
 
-#include <event.h>
-
 #ifdef HAS_GETTEXT
 #include <libintl.h>
 #define _ gettext
@@ -41,8 +39,8 @@
 
 #include "config.h"
 #include "dhcpcd.h"
+#include "eloop.h"
 #include "queue.h"
-#include "event-object.h"
 
 #ifndef __printflike
 #ifdef __GNUC__
@@ -52,16 +50,6 @@
 #endif
 #endif
 
-#ifndef __unused
-#ifdef __GNUC__
-#define __unused   __attribute__((__unused__))
-#else
-#define __unused
-#endif
-#endif
-
-#define MSECS_PER_NSEC	1000
-
 typedef struct wi_scan {
 	TAILQ_ENTRY(wi_scan) next;
 	DHCPCD_IF *interface;
@@ -70,8 +58,7 @@ typedef struct wi_scan {
 typedef TAILQ_HEAD(wi_scan_head, wi_scan) WI_SCANS;
 
 struct ctx {
-	struct event_base *evbase;
-	EVENT_OBJECTS *evobjects;
+	ELOOP_CTX *eloop;
 	DHCPCD_CONNECTION *con;
 	int fd;
 	bool online;
@@ -79,10 +66,6 @@ struct ctx {
 	unsigned int last_status;
 	size_t status_len;
 	WI_SCANS wi_scans;
-
-	struct event *sigint;
-	struct event *sigterm;
-	struct event *sigwinch;
 
 	WINDOW *stdscr;
 	WINDOW *win_status;
