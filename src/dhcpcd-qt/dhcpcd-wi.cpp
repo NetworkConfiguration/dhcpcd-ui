@@ -60,39 +60,32 @@ DhcpcdWi::DhcpcdWi(DhcpcdQt *parent, DHCPCD_WPA *wpa)
 DhcpcdWi::~DhcpcdWi()
 {
 
+	close();
 	if (menu) {
 		dhcpcdQt->menuDeleted(menu);
-		menu->setVisible(false);
 		menu->deleteLater();
 		menu = NULL;
 	}
 
 	if (notifier) {
-		notifier->setEnabled(false);
 		notifier->deleteLater();
 		notifier = NULL;
 	}
 
 	if (pingTimer) {
-		pingTimer->stop();
 		pingTimer->deleteLater();
 		pingTimer = NULL;
 	}
 
 	if (ssid) {
-		ssid->reject();
 		ssid->deleteLater();
 		ssid = NULL;
 	}
 
 	if (scanTimer) {
-		scanTimer->stop();
 		scanTimer->deleteLater();
 		scanTimer = NULL;
 	}
-
-	dhcpcd_wi_scans_free(scans);
-	dhcpcd_wpa_close(wpa);
 }
 
 DHCPCD_WPA *DhcpcdWi::getWpa()
@@ -256,6 +249,34 @@ bool DhcpcdWi::open()
 	connect(scanTimer, SIGNAL(timeout()), this, SLOT(scan()));
 	scanTimer->start(DHCPCD_WPA_SCAN_LONG);
 	return true;
+}
+
+void DhcpcdWi::close()
+{
+
+	if (menu)
+		menu->setVisible(false);
+
+	if (notifier)
+		notifier->setEnabled(false);
+
+	if (pingTimer)
+		pingTimer->stop();
+
+	if (ssid)
+		ssid->reject();
+
+	if (scanTimer)
+		scanTimer->stop();
+
+	if (scans) {
+		dhcpcd_wi_scans_free(scans);
+		scans = NULL;
+	}
+	if (wpa) {
+		dhcpcd_wpa_close(wpa);
+		wpa = NULL;
+	}
 }
 
 void DhcpcdWi::dispatch()

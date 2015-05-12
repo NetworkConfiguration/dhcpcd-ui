@@ -50,6 +50,7 @@ public:
 	~DhcpcdWi();
 	DHCPCD_WPA *getWpa();
 	bool open();
+	void close();
 
 	DHCPCD_WI_SCAN *getScans();
 	bool setScans(DHCPCD_WI_SCAN *scans);

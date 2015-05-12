@@ -399,6 +399,7 @@ void DhcpcdQt::scanCallback(DHCPCD_WPA *wpa)
 		qCritical("No fd for WPA");
 		if (wi) {
 			wis->removeOne(wi);
+			wi->close();
 			wi->deleteLater();
 		}
 		return;
@@ -409,6 +410,7 @@ void DhcpcdQt::scanCallback(DHCPCD_WPA *wpa)
 		qCritical("No interface for WPA");
 		if (wi) {
 			wis->removeOne(wi);
+			wi->close();
 			wi->deleteLater();
 		}
 		return;
@@ -421,8 +423,10 @@ void DhcpcdQt::scanCallback(DHCPCD_WPA *wpa)
 		if (wi->open()) {
 			wis->append(wi);
 			wi->setScans(scans);
-		} else
+		} else {
+			wi->close();
 			wi->deleteLater();
+		}
 	} else
 		processScans(wi, scans);
 
@@ -460,6 +464,7 @@ void DhcpcdQt::wpaStatusCallback(DHCPCD_WPA *wpa,
 		DhcpcdWi *wi = findWi(wpa);
 		if (wi) {
 			wis->removeOne(wi);
+			wi->close();
 			wi->deleteLater();
 		}
 	}
