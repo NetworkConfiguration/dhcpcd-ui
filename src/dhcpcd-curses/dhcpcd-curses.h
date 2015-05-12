@@ -60,7 +60,6 @@ typedef TAILQ_HEAD(wi_scan_head, wi_scan) WI_SCANS;
 struct ctx {
 	struct eloop *eloop;
 	DHCPCD_CONNECTION *con;
-	int fd;
 	bool online;
 	bool carrier;
 	unsigned int last_status;

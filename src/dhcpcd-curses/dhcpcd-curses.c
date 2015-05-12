@@ -200,12 +200,13 @@ try_open(void *arg)
 {
 	struct ctx *ctx = arg;
 	static int last_error;
+	int fd;
 
-	ctx->fd = dhcpcd_open(ctx->con, true);
-	if (ctx->fd == -1) {
+	fd = dhcpcd_open(ctx->con, true);
+	if (fd == -1) {
 		if (errno == EACCES || errno == EPERM) {
-			ctx->fd = dhcpcd_open(ctx->con, false);
-			if (ctx->fd != -1)
+			fd = dhcpcd_open(ctx->con, false);
+			if (fd != -1)
 				goto unprived;
 		}
 		if (errno != last_error) {
@@ -223,7 +224,7 @@ unprived:
 	/* Start listening to WPA events */
 	dhcpcd_wpa_start(ctx->con);
 
-	eloop_event_add(ctx->eloop, ctx->fd, dispatch, ctx, NULL, NULL);
+	eloop_event_add(ctx->eloop, fd, dispatch, ctx, NULL, NULL);
 }
 
 static void
@@ -505,7 +506,6 @@ main(void)
 	sigset_t sigmask;
 
 	memset(&ctx, 0, sizeof(ctx));
-	ctx.fd = -1;
 	TAILQ_INIT(&ctx.wi_scans);
 
 	if ((ctx.eloop = eloop_new()) == NULL)
