@@ -58,7 +58,7 @@ typedef struct wi_scan {
 typedef TAILQ_HEAD(wi_scan_head, wi_scan) WI_SCANS;
 
 struct ctx {
-	ELOOP_CTX *eloop;
+	struct eloop *eloop;
 	DHCPCD_CONNECTION *con;
 	int fd;
 	bool online;

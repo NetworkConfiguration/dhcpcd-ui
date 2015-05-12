@@ -42,7 +42,7 @@
 	void _nc_free_and_exit(void);
 #endif
 
-const int handle_sigs[] = {
+const int sigs[] = {
 	SIGHUP,
 	SIGINT,
 	SIGPIPE,
@@ -50,9 +50,6 @@ const int handle_sigs[] = {
 	SIGWINCH,
 	0
 };
-
-/* Handling signals needs *some* context */
-static struct ctx *_ctx;
 
 static void try_open(void *);
 
@@ -197,7 +194,7 @@ dispatch(void *arg)
 
 	if (dhcpcd_get_fd(ctx->con) == -1) {
 		warning(ctx, _("dhcpcd connection lost"));
-		eloop_event_delete(ctx->eloop, -1, NULL, ctx->con, 0);
+		eloop_event_delete(ctx->eloop, ctx->fd, 0);
 		eloop_timeout_add_msec(ctx->eloop, DHCPCD_RETRYOPEN,
 		    try_open, ctx);
 		return;
@@ -229,6 +226,8 @@ try_open(void *arg)
 	}
 
 unprived:
+	last_error = 0;
+
 	/* Start listening to WPA events */
 	dhcpcd_wpa_start(ctx->con);
 
@@ -245,7 +244,7 @@ status_cb(DHCPCD_CONNECTION *con,
 	set_status(ctx, status_msg);
 
 	if (status == DHC_DOWN) {
-		eloop_event_delete(ctx->eloop, ctx->fd, NULL, NULL, 0);
+		eloop_event_delete(ctx->eloop, ctx->fd, 0);
 		ctx->fd = -1;
 		ctx->online = ctx->carrier = false;
 		eloop_timeout_delete(ctx->eloop, NULL, ctx);
@@ -305,7 +304,6 @@ wpa_dispatch(void *arg)
 
 	dhcpcd_wpa_dispatch(wpa);
 }
-
 
 static void
 wpa_scan_cb(DHCPCD_WPA *wpa, void *arg)
@@ -397,6 +395,8 @@ wpa_scan_cb(DHCPCD_WPA *wpa, void *arg)
 	}
 }
 
+/*
+ * XXXX Fixme, ideally in the wpa_dispatch
 static void
 wpa_status_cb(DHCPCD_WPA *wpa,
     unsigned int status, const char *status_msg, void *arg)
@@ -418,6 +418,7 @@ wpa_status_cb(DHCPCD_WPA *wpa,
 		}
 	}
 }
+*/
 
 static void
 bg_scan(void *arg)
@@ -441,8 +442,9 @@ bg_scan(void *arg)
 }
 
 static void
-signal_handler(int sig)
+signal_cb(int sig, void *arg)
 {
+	struct ctx *ctx = arg;
 	struct winsize ws;
 
 	switch(sig) {
@@ -451,36 +453,20 @@ signal_handler(int sig)
 			resizeterm(ws.ws_row, ws.ws_col);
 		break;
 	case SIGINT:
-		debug(_ctx, _("SIGINT caught, exiting"));
-		eloop_exit(_ctx->eloop, EXIT_FAILURE);
+		debug(ctx, _("SIGINT caught, exiting"));
+		eloop_exit(ctx->eloop, EXIT_FAILURE);
 		break;
 	case SIGTERM:
-		debug(_ctx, _("SIGTERM caught, exiting"));
-		eloop_exit(_ctx->eloop, EXIT_FAILURE);
+		debug(ctx, _("SIGTERM caught, exiting"));
+		eloop_exit(ctx->eloop, EXIT_FAILURE);
 		break;
 	case SIGHUP:
-		debug(_ctx, _("SIGHUP caught, ignoring"));
+		debug(ctx, ("SIGHUP caught, ignoring"));
 		break;
 	case SIGPIPE:
-		debug(_ctx, _("SIGPIPE caught, ignoring"));
+		debug(ctx, ("SIGPIPE caught, ignoring"));
 		break;
 	}
-}
-
-static int
-setup_signals()
-{
-	struct sigaction sa;
-	int i;
-
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = signal_handler;
-
-	for (i = 0; handle_sigs[i]; i++) {
-		if (sigaction(handle_sigs[i], &sa, NULL) == -1)
-			return -1;
-	}
-	return 0;
 }
 
 static int
@@ -522,20 +508,21 @@ main(void)
 {
 	struct ctx ctx;
 	WI_SCAN *wi;
+	sigset_t sigmask;
 
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.fd = -1;
 	TAILQ_INIT(&ctx.wi_scans);
-	_ctx = &ctx;
 
-	if (setup_signals() == -1)
-		err(EXIT_FAILURE, "setup_signals");
+	if ((ctx.eloop = eloop_new()) == NULL)
+		err(EXIT_FAILURE, "eloop_new");
+	if (eloop_signal_set_cb(ctx.eloop, sigs, signal_cb, &ctx) == -1)
+		err(EXIT_FAILURE, "eloop_signal_set_cb");
+	if (eloop_signal_mask(ctx.eloop, &sigmask) == -1)
+		err(EXIT_FAILURE, "eloop_signal_mask");
 
 	if ((ctx.con = dhcpcd_new()) == NULL)
 		err(EXIT_FAILURE, "dhcpcd_new");
-
-	if ((ctx.eloop = eloop_init()) == NULL)
-		err(EXIT_FAILURE, "malloc");
 
 	if ((ctx.stdscr = initscr()) == NULL)
 		err(EXIT_FAILURE, "initscr");
@@ -552,12 +539,12 @@ main(void)
 	dhcpcd_set_status_callback(ctx.con, status_cb, &ctx);
 	dhcpcd_set_if_callback(ctx.con, if_cb, &ctx);
 	dhcpcd_wpa_set_scan_callback(ctx.con, wpa_scan_cb, &ctx);
-	dhcpcd_wpa_set_status_callback(ctx.con, wpa_status_cb, &ctx);
+	//dhcpcd_wpa_set_status_callback(ctx.con, wpa_status_cb, &ctx);
 
 	eloop_timeout_add_sec(ctx.eloop, 0, try_open, &ctx);
 	eloop_timeout_add_msec(ctx.eloop, DHCPCD_WPA_SCAN_SHORT,
 	    bg_scan, &ctx);
-	eloop_start(ctx.eloop);
+	eloop_start(ctx.eloop, &sigmask);
 
 	/* Un-resgister the callbacks to avoid spam on close */
 	dhcpcd_set_status_callback(ctx.con, NULL, NULL);
