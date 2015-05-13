@@ -42,14 +42,17 @@
 	void _nc_free_and_exit(void);
 #endif
 
-const int sigs[] = {
+static const int sigs[] = {
 	SIGHUP,
 	SIGINT,
 	SIGPIPE,
 	SIGTERM,
-	SIGWINCH,
-	0
+	SIGWINCH
 };
+
+#ifndef __arraycount
+#define __arraycount(__x)       (sizeof(__x) / sizeof(__x[0]))
+#endif
 
 static void try_open(void *);
 
@@ -510,7 +513,8 @@ main(void)
 
 	if ((ctx.eloop = eloop_new()) == NULL)
 		err(EXIT_FAILURE, "eloop_new");
-	if (eloop_signal_set_cb(ctx.eloop, sigs, signal_cb, &ctx) == -1)
+	if (eloop_signal_set_cb(ctx.eloop, sigs, __arraycount(sigs),
+	    signal_cb, &ctx) == -1)
 		err(EXIT_FAILURE, "eloop_signal_set_cb");
 	if (eloop_signal_mask(ctx.eloop, &sigmask) == -1)
 		err(EXIT_FAILURE, "eloop_signal_mask");
