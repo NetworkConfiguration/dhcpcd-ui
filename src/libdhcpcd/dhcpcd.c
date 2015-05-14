@@ -1188,6 +1188,7 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 	assert(i);
 	/* Don't report non SLAAC configurations */
 	if (i->type == DHT_RA && i->up &&
+	    dhcpcd_get_value(i, "nd1_addr1") == NULL &&
 	    dhcpcd_get_value(i, "ra1_prefix") == NULL)
 		return NULL;
 
@@ -1254,6 +1255,8 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 	pfx = i->up ? "new_" : "old_";
 	if ((ip = dhcpcd_get_prefix_value(i, pfx, "ip_address")))
 		iplen = dhcpcd_get_prefix_value(i, pfx, "subnet_cidr");
+	else if ((ip = dhcpcd_get_value(i, "nd1_addr1")))
+		iplen = NULL;
 	else if ((ip = dhcpcd_get_value(i, "ra1_addr")))
 		iplen = NULL;
 	else if ((ip = dhcpcd_get_value(i, "ra1_prefix")))
