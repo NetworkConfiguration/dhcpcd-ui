@@ -243,7 +243,7 @@ status_cb(DHCPCD_CONNECTION *con,
 		int fd;
 
 		fd = dhcpcd_get_fd(ctx->con);
-		eloop_event_delete(ctx->eloop, fd, 0);
+		eloop_event_delete(ctx->eloop, fd);
 		ctx->online = ctx->carrier = false;
 		eloop_timeout_delete(ctx->eloop, NULL, ctx);
 		set_summary(ctx, NULL);
@@ -406,7 +406,7 @@ wpa_status_cb(DHCPCD_WPA *wpa,
 		int fd;
 
 		fd = dhcpcd_wpa_get_fd(wpa);
-		eloop_event_delete(ctx->eloop, fd, 0);
+		eloop_event_delete(ctx->eloop, fd);
 		dhcpcd_wpa_close(wpa);
 		TAILQ_FOREACH_SAFE(w, &ctx->wi_scans, next, wn) {
 			if (w->interface == i) {
