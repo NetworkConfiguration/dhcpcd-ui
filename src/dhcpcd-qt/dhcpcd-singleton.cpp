@@ -55,17 +55,18 @@ bool DhcpcdSingleton::lock()
 	string file;
 	const char *display;
 
-	if (mkdir(DHCPCD_TMP_DIR, DHCPCD_TMP_DIR_PERM) == -1 &&
+	file = DHCPCD_TMP_DIR;
+	file += "-";
+	file += getlogin();
+	if (mkdir(file.c_str(), DHCPCD_TMP_DIR_PERM) == -1 &&
 	    errno != EEXIST)
 	{
-		cerr << "dhcpcd-qt: " << "mkdir: " << DHCPCD_TMP_DIR << ": "
+		cerr << "dhcpcd-qt: " << "mkdir: " << file << ": "
 		    << strerror(errno) << endl;
 		return false;
 	}
 
-	file = DHCPCD_TMP_DIR;
-	file += "/dhcpcd-qt-";
-	file += getlogin();
+	file += "/dhcpcd-qt";
 	display = getenv("DISPLAY");
 	if (display && *display != '\0' && strchr(display, '/') == NULL) {
 		file += '.';
