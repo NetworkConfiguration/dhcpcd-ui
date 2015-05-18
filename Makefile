@@ -27,6 +27,7 @@ dist:
 	rm -rf /tmp/${DISTPREFIX}
 	tar -xzpf /tmp/${DISTFILEGZ} -C /tmp
 	(cd /tmp/${DISTPREFIX}; make icons)
+	rm -rf /tmp/${DISTPREFIX}/doc
 	tar -cvJpf ${DISTFILE} -C /tmp ${DISTPREFIX}
 	rm -rf /tmp/${DISTPREFIX} /tmp/${DISTFILEGZ}
 	ls -l ${DISTFILE}
