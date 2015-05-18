@@ -407,9 +407,11 @@ dhcpcd_wpa_scans_read(DHCPCD_WPA *wpa)
 			w->flags = WSF_WEP | WSF_PSK | WSF_SECURE;
 
 		w->strength.value = w->level.value;
+#ifdef __linux__
 		if (w->strength.value > 110 && w->strength.value < 256)
 			/* Convert WEXT level to dBm */
 			w->strength.value -= 256;
+#endif
 
 		if (w->strength.value < 0) {
 			/* Assume dBm */
