@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#define _GNU_SOURCE /* for asprintf */
+
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -57,38 +59,46 @@ wpa_open(const char *ifname, char **path)
 	int fd;
 	socklen_t len;
 	struct sockaddr_un sun;
+	char *tmpdir;
 
-	if (mkdir(DHCPCD_TMP_DIR, DHCPCD_TMP_DIR_PERM) == -1 && errno != EEXIST)
+	if (asprintf(&tmpdir, "%s-%s", DHCPCD_TMP_DIR, getlogin()) == -1)
 		return -1;
+
+	if (mkdir(tmpdir, DHCPCD_TMP_DIR_PERM) == -1 && errno != EEXIST) {
+		free(tmpdir);
+		return -1;
+	}
 
 	if ((fd = socket(AF_UNIX,
 	    SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0)) == -1)
+	{
+		free(tmpdir);
 		return -1;
+	}
 	memset(&sun, 0, sizeof(sun));
 	sun.sun_family = AF_UNIX;
 	snprintf(sun.sun_path, sizeof(sun.sun_path),
-	    DHCPCD_TMP_DIR "/libdhcpcd-wpa-%d.%d", getpid(), counter++);
+	    "%s/libdhcpcd-wpa-%d.%d", tmpdir, getpid(), counter++);
 	*path = strdup(sun.sun_path);
 	len = (socklen_t)SUN_LEN(&sun);
-	if (bind(fd, (struct sockaddr *)&sun, len) == -1) {
-		close(fd);
-		unlink(*path);
-		free(*path);
-		*path = NULL;
-		return -1;
-	}
+	if (bind(fd, (struct sockaddr *)&sun, len) == -1)
+		goto failure;
 	snprintf(sun.sun_path, sizeof(sun.sun_path),
 	    WPA_CTRL_DIR "/%s", ifname);
 	len = (socklen_t)SUN_LEN(&sun);
-	if (connect(fd, (struct sockaddr *)&sun, len) == -1) {
-		close(fd);
-		unlink(*path);
-		free(*path);
-		*path = NULL;
-		return -1;
-	}
+	if (connect(fd, (struct sockaddr *)&sun, len) == -1)
+		goto failure;
 
+	free(tmpdir);
 	return fd;
+
+failure:
+	free(tmpdir);
+	close(fd);
+	unlink(*path);
+	free(*path);
+	*path = NULL;
+	return -1;
 }
 
 static ssize_t
