@@ -71,6 +71,11 @@
 	} while (/* CONSTCOND */ 0)
 #endif
 
+/* Incase we need to pass anything else in context to status cb */
+struct ctx {
+	struct pollfd pollfd;
+};
+
 static void __dead
 do_exit(DHCPCD_CONNECTION *con, int code)
 {
@@ -84,20 +89,19 @@ do_exit(DHCPCD_CONNECTION *con, int code)
 }
 
 static void
-do_status_cb(DHCPCD_CONNECTION *con,
+status_cb(DHCPCD_CONNECTION *con,
     unsigned int status, const char *status_msg, void *arg)
 {
-	struct pollfd *pfd;
+	struct ctx *ctx;
 
 	syslog(LOG_INFO, "%s", status_msg);
-	switch (status)
-	{
+	switch (status) {
 	case DHC_CONNECTED:
 		do_exit(con, EXIT_SUCCESS);
-		break;
+		/* NOT REACHED */
 	case DHC_DOWN:
-		pfd = arg;
-		pfd->fd = -1;
+		ctx = arg;
+		ctx->pollfd.fd = -1;
 		break;
 	}
 }
@@ -108,7 +112,7 @@ main(int argc, char **argv)
 	DHCPCD_CONNECTION *con;
 	bool xflag;
 	struct timespec now, end, t;
-	struct pollfd pfd;
+	struct ctx ctx;
 	int timeout, n, lerrno;
 	long lnum;
 	char *lend;
@@ -117,6 +121,9 @@ main(int argc, char **argv)
 	timeout = 30;
 
 	xflag = false;
+	ctx.pollfd.fd = -1;
+	ctx.pollfd.events = POLLIN;
+	ctx.pollfd.revents = 0;
 
 	openlog("dhcpcd-online", LOG_PERROR, 0);
 	setlogmask(LOG_UPTO(LOG_INFO));
@@ -152,18 +159,15 @@ main(int argc, char **argv)
 		syslog(LOG_ERR, "dhcpcd_new: %m");
 		return EXIT_FAILURE;
 	}
+	dhcpcd_set_status_callback(con, status_cb, &ctx);
 
-	dhcpcd_set_status_callback(con, do_status_cb, &pfd);
-
-	if ((pfd.fd = dhcpcd_open(con, false)) == -1) {
+	if ((ctx.pollfd.fd = dhcpcd_open(con, false)) == -1) {
 		lerrno = errno;
 		syslog(LOG_WARNING, "dhcpcd_open: %m");
 		if (xflag)
 			do_exit(con, EXIT_FAILURE);
 	} else
 		lerrno = 0;
-	pfd.events = POLLIN;
-	pfd.revents = 0;
 
 	/* Work out our timeout time */
 	if (clock_gettime(CLOCK_MONOTONIC, &end) == -1) {
@@ -181,7 +185,7 @@ main(int argc, char **argv)
 			syslog(LOG_ERR, "timed out");
 			do_exit(con, EXIT_FAILURE);
 		}
-		if (pfd.fd == -1) {
+		if (ctx.pollfd.fd == -1) {
 			n = poll(NULL, 0, DHCPCD_RETRYOPEN);
 		} else {
 			/* poll(2) should really take a timespec */
@@ -193,21 +197,21 @@ main(int argc, char **argv)
 			else
 				timeout = (int)(t.tv_sec * 1000 +
 				    (t.tv_nsec + 999999) / 1000000);
-			n = poll(&pfd, 1, timeout);
+			n = poll(&ctx.pollfd, 1, timeout);
 		}
 		if (n == -1) {
 			syslog(LOG_ERR, "poll: %m");
 			do_exit(con, EXIT_FAILURE);
 		}
-		if (pfd.fd == -1) {
-			if ((pfd.fd = dhcpcd_open(con, false)) == -1) {
+		if (ctx.pollfd.fd == -1) {
+			if ((ctx.pollfd.fd = dhcpcd_open(con, false)) == -1) {
 				if (lerrno != errno) {
 					lerrno = errno;
 					syslog(LOG_WARNING, "dhcpcd_open: %m");
 				}
 			}
 		} else {
-			if (n > 0 && pfd.revents)
+			if (n > 0 && ctx.pollfd.revents)
 				dhcpcd_dispatch(con);
 		}
 	}
