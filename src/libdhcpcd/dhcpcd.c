@@ -75,7 +75,8 @@ const char * const dhcpcd_cstates[DHC_MAX] = {
 	"initialised",
 	"disconnected",
 	"connecting",
-	"connected"
+	"waiting",
+	"connected",
 };
 
 struct dhcpcd_vs {
@@ -517,10 +518,16 @@ get_status(DHCPCD_CONNECTION *con)
 	for (i = con->interfaces; i; i = i->next) {
 		if (i->up) {
 			if (i->type == DHT_LINK) {
-				status = DHC_CONNECTED;
-				break;
-			} else
-				status = DHC_CONNECTING;
+				if (status == DHC_DISCONNECTED)
+					status = DHC_CONNECTING;
+			} else {
+				if (con->af_waiting)
+					status = DHC_AF_WAITING;
+				else {
+					status = DHC_CONNECTED;
+					break;
+				}
+			}
 		}
 	}
 	return status;
@@ -819,6 +826,12 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 	if (i->ssid == NULL && i->wireless)
 		i->ssid = dhcpcd_get_value(i, i->up ? "new_ssid" : "old_ssid");
 
+	/* Work out if we're waiting for any other addresses */
+	if (dhcpcd_get_value(i, "af_waiting") == NULL)
+		con->af_waiting = false;
+	else
+		con->af_waiting = true;
+
        /* Sort! */
 	n = nl = NULL;
 	p = orderdup;
@@ -932,6 +945,7 @@ dhcpcd_new(void)
 	con->command_fd = con->listen_fd = -1;
 	con->open = false;
 	con->progname = "libdhcpcd";
+	con->af_waiting = false;
 	return con;
 }
 
@@ -1057,6 +1071,14 @@ dhcpcd_status(DHCPCD_CONNECTION *con, const char **status)
 	if (status)
 		*status = dhcpcd_cstates[con->status];
 	return con->status;
+}
+
+bool
+dhcpcd_af_waiting(const DHCPCD_CONNECTION *con)
+{
+
+	assert(con);
+	return con->af_waiting;
 }
 
 const char *

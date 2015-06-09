@@ -73,8 +73,9 @@ extern "C" {
 #define DHC_INITIALISED		 3
 #define DHC_DISCONNECTED	 4
 #define DHC_CONNECTING		 5
-#define DHC_CONNECTED		 6
-#define DHC_MAX			 7
+#define DHC_AF_WAITING		 6
+#define DHC_CONNECTED		 7
+#define DHC_MAX			 8
 extern const char * const dhcpcd_cstates[];
 
 #define DHT_UNKNOWN		 0
@@ -228,6 +229,7 @@ typedef struct dhcpcd_connection {
 	int err;
 	int errors;
 	unsigned int status;
+	bool af_waiting;
 
 	char *cffile;
 } DHCPCD_CONNECTION;
@@ -243,6 +245,7 @@ const char * dhcpcd_version(DHCPCD_CONNECTION *);
 void dhcpcd_set_progname(DHCPCD_CONNECTION *, const char *);
 const char * dhcpcd_get_progname(const DHCPCD_CONNECTION *);
 unsigned int dhcpcd_status(DHCPCD_CONNECTION *, const char **);
+bool dhcpcd_af_waiting(const DHCPCD_CONNECTION *);
 const char * dhcpcd_cffile(DHCPCD_CONNECTION *);
 bool dhcpcd_realloc(DHCPCD_CONNECTION *, size_t);
 int dhcpcd_open(DHCPCD_CONNECTION *, bool priv);
