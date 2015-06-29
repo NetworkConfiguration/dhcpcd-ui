@@ -693,6 +693,9 @@ dhcpcd_reason_to_statetype(const char *reason,
 	case DHS_ROUTERADVERT:
 		*type =  DHT_RA;
 		return;
+	case DHS_IPV4LL:
+		*type = DHT_IPV4LL;
+		return;
 	}
 
 	if (isdhcp6)
@@ -1270,6 +1273,8 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 				reason = _("Configured");
 		} else if (i->type == DHT_RA)
 			reason = "Expired RA";
+		else if (i->type == DHT_IPV4LL)
+			reason = "Expired IPv4LL";
 		else
 			reason = i->reason;
 	}

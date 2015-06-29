@@ -82,9 +82,10 @@ extern const char * const dhcpcd_cstates[];
 #define DHT_LINK		 1
 #define DHT_DHCP		 2
 #define DHT_IPV4		 2
-#define DHT_RA			 3
-#define DHT_DHCP6		 4
-#define DHT_MAX			 5
+#define DHT_IPV4LL		 3
+#define DHT_RA			 4
+#define DHT_DHCP6		 5
+#define DHT_MAX			 6
 
 #define DHS_UNKNOWN		 0
 #define DHS_DUMP		 1
