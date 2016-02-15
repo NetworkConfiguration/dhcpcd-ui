@@ -696,6 +696,11 @@ dhcpcd_reason_to_statetype(const char *reason,
 	case DHS_IPV4LL:
 		*type = DHT_IPV4LL;
 		return;
+	case DHS_STATIC:
+		if (isdhcp6) {
+			*type = DHT_IPV6;
+			return;
+		}
 	}
 
 	if (isdhcp6)
@@ -931,6 +936,7 @@ dhcpcd_dispatch(DHCPCD_CONNECTION *con)
 
 	assert(con);
 	i = dhcpcd_read_if(con, con->listen_fd);
+
 	if (i)
 		dhcpcd_dispatchif(i);
 
@@ -1293,6 +1299,8 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 		iplen = "128";
 	else if ((ip = dhcpcd_get_prefix_value(i, pfx,
 	    "delegated_dhcp6_prefix")))
+		iplen = NULL;
+	else if ((ip = dhcpcd_get_prefix_value(i, pfx, "ip6_address")))
 		iplen = NULL;
 	else {
 		ip = NULL;
