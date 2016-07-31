@@ -54,6 +54,7 @@ QWidget *DhcpcdSsidMenu::createWidget(QWidget *parent)
 	ssidWidget = new DhcpcdSsidMenuWidget(parent, wi, scan);
 	connect(ssidWidget, SIGNAL(hovered()), this, SLOT(hover()));
 	connect(ssidWidget, SIGNAL(triggered()), this, SLOT(trigger()));
+	setEnabled(false);
 	return ssidWidget;
 }
 

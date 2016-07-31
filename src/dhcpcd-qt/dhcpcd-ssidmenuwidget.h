@@ -44,6 +44,8 @@ public:
 	DHCPCD_WI_SCAN *getScan();
 	void setScan(DHCPCD_WI_SCAN *scan);
 	bool isAssociated();
+	bool isActive();
+	void setActive(bool active);
 
 signals:
 	void triggered();
@@ -60,6 +62,7 @@ private:
 	DhcpcdWi *wi;
 	DHCPCD_WI_SCAN *scan;
 	bool associated;
+	bool active;
 
 	QLabel *selicon;
 	QLabel *ssid;

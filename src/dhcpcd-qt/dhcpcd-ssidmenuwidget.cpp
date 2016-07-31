@@ -46,6 +46,7 @@ DhcpcdSsidMenuWidget::DhcpcdSsidMenuWidget(QWidget *parent,
 
 	this->wi = wi;
 	this->scan = scan;
+	this->active = true;
 
 	QHBoxLayout *layout = new QHBoxLayout(this);
 	layout->setContentsMargins(1, 1, 1, 1);
@@ -88,12 +89,28 @@ bool DhcpcdSsidMenuWidget::isAssociated()
 	return associated;
 }
 
+bool DhcpcdSsidMenuWidget::isActive()
+{
+
+	return active;
+}
+
+void DhcpcdSsidMenuWidget::setActive(bool active)
+{
+
+	if (this->active != active) {
+		this->ssid->setEnabled(active);
+		this->active = active;
+	}
+}
+
 void DhcpcdSsidMenuWidget::setScan(DHCPCD_WI_SCAN *scan)
 {
 	DHCPCD_WPA *wpa;
 	DHCPCD_IF *i;
 	QIcon icon;
 	QPixmap picon;
+	bool active;
 
 	this->scan = scan;
 	wpa = wi->getWpa();
@@ -119,10 +136,17 @@ void DhcpcdSsidMenuWidget::setScan(DHCPCD_WI_SCAN *scan)
 		ssid->setStyleSheet(NULL);
 	}
 	ssid->setText(scan->ssid);
-	if (scan->flags & WSF_SECURE)
-		icon = DhcpcdQt::getIcon("status",
-		    "network-wireless-encrypted");
-	else
+	active = true;
+	if (scan->flags & WSF_SECURE) {
+		if (scan->flags & WSF_PSK)
+			icon = DhcpcdQt::getIcon("status",
+			    "network-wireless-encrypted");
+		else {
+			icon = DhcpcdQt::getIcon("status",
+			    "network-error");
+			active = false;
+		}
+	} else
 		icon = DhcpcdQt::getIcon("status", "dialog-warning");
 	picon = icon.pixmap(ICON_SIZE);
 	if (picon.height() != ICON_SIZE)
@@ -135,18 +159,25 @@ void DhcpcdSsidMenuWidget::setScan(DHCPCD_WI_SCAN *scan)
 	if (picon.height() != ICON_SIZE)
 		picon = picon.scaledToHeight(ICON_SIZE, Qt::SmoothTransformation);
 	stricon->setPixmap(picon);
+
+	setActive(active);
 }
 
 bool DhcpcdSsidMenuWidget::eventFilter(QObject *, QEvent *event)
 {
 
-	if (event->type() == QEvent::MouseButtonPress)
-		emit triggered();
+	if (event->type() == QEvent::MouseButtonPress) {
+		if (active)
+			emit triggered();
+	}
 	return false;
 }
 
 void DhcpcdSsidMenuWidget::enterEvent(QEvent *)
 {
+
+	if (!active)
+		return;
 
 	if (associated)
 		ssid->setStyleSheet("color:palette(highlighted-text); font:bold;");
@@ -157,6 +188,9 @@ void DhcpcdSsidMenuWidget::enterEvent(QEvent *)
 
 void DhcpcdSsidMenuWidget::leaveEvent(QEvent *)
 {
+
+	if (!active)
+		return;
 
 	if (associated)
 		ssid->setStyleSheet("color:palette(text); font:bold;");

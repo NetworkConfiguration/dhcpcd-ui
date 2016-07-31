@@ -100,11 +100,30 @@ is_associated(WI_SCAN *wi, DHCPCD_WI_SCAN *scan)
 	return dhcpcd_wi_associated(wi->interface, scan);
 }
 
+static bool
+get_security_icon(int flags, const char **icon)
+{
+	bool active;
+
+	active = true;
+	if (flags & WSF_SECURE) {
+		if (flags & WSF_PSK)
+			*icon = "network-wireless-encrypted";
+		else {
+			*icon = "network-error";	
+			active = false;
+		}
+	} else
+		*icon = "dialog-warning";
+	return active;
+}
+
 static void
 update_item(WI_SCAN *wi, WI_MENU *m, DHCPCD_WI_SCAN *scan)
 {
 	const char *icon;
 	GtkWidget *sel;
+	bool active;
 
 	m->scan = scan;
 
@@ -128,12 +147,12 @@ update_item(WI_SCAN *wi, WI_MENU *m, DHCPCD_WI_SCAN *scan)
 		g_free(lbl);
 	} else
 		gtk_label_set_text(GTK_LABEL(m->ssid), scan->ssid);
-	if (scan->flags & WSF_SECURE)
-		icon = "network-wireless-encrypted";
-	else
-		icon = "dialog-warning";
+	
+	active = get_security_icon(scan->flags, &icon);
 	m->icon = gtk_image_new_from_icon_name(icon,
 	    GTK_ICON_SIZE_MENU);
+	if (gtk_widget_get_sensitive(GTK_WIDGET(m->menu)) != active)
+		gtk_widget_set_sensitive(GTK_WIDGET(m->menu), active);
 
 	icon = get_strength_icon_name(scan->strength.value);
 	m->strength = gtk_image_new_from_icon_name(icon,
@@ -170,10 +189,7 @@ create_menu(WI_SCAN *wis, DHCPCD_WI_SCAN *scan)
 	gtk_misc_set_alignment(GTK_MISC(wim->ssid), 0.0, 0.5);
 	gtk_box_pack_start(GTK_BOX(box), wim->ssid, TRUE, TRUE, 0);
 
-	if (scan->flags & WSF_SECURE)
-		icon = "network-wireless-encrypted";
-	else
-		icon = "dialog-warning";
+	get_security_icon(scan->flags, &icon);
 	wim->icon = gtk_image_new_from_icon_name(icon,
 	    GTK_ICON_SIZE_MENU);
 	gtk_box_pack_start(GTK_BOX(box), wim->icon, FALSE, FALSE, 0);
