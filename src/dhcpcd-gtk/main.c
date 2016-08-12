@@ -215,7 +215,7 @@ update_online(DHCPCD_CONNECTION *con, bool showif)
 			g_message("%s: %s", i->ifname, i->reason);
 	}
 
-	if (online != ison || carrier != iscarrier) {
+	if (online != ison || carrier != iscarrier || (!online && !carrier)) {
 		online = ison;
 		carrier = iscarrier;
 		if (ani_timer != 0) {
