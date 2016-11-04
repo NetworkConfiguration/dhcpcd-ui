@@ -146,6 +146,14 @@ echo "/* $OS */" >$CONFIG_H
 VERSION=$($SED -ne 's/VERSION=	//p' Makefile)
 echo "#define VERSION		\"$VERSION\"" >>$CONFIG_H
 
+case "$OS" in
+linux*)
+	# cksum does't support -a and netpgp is rare
+	echo "CKSUM=		sha256sum --tag" >>$CONFIG_MK
+	echo "PGP=		gpg2" >>$CONFIG_MK
+	;;
+esac
+
 for x in PREFIX SYSCONFDIR BINDIR; do
 	eval v=\$$x
 	# Make files look nice for import

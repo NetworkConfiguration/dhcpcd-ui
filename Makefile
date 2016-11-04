@@ -13,8 +13,12 @@ FOSSILID?=	current
 DISTPREFIX?=	${PROG}-${VERSION}
 DISTFILEGZ?=	${DISTPREFIX}.tar.gz
 DISTFILE?=	${DISTPREFIX}.tar.xz
+DISTINFO=	${DISTFILE}.distinfo
+DISTINFOSIGN=	${DISTINFO}.asc
+CKSUM?=		cksum -a SHA256
+PGP?=		netpgp
 
-CLEANFILES+=	*.tar.xz
+CLEANFILES+=	${DISTFILE} ${DISTINFO} ${DISTINFOSIGN}
 
 _SNAP_SH=	date -u +%Y%m%d%H%M
 _SNAP!=		${_SNAP_SH}
@@ -30,7 +34,13 @@ dist:
 	rm -rf /tmp/${DISTPREFIX}/doc
 	tar -cvJpf ${DISTFILE} -C /tmp ${DISTPREFIX}
 	rm -rf /tmp/${DISTPREFIX} /tmp/${DISTFILEGZ}
-	ls -l ${DISTFILE}
+
+distinfo: dist
+	${CKSUM} ${DISTFILE} >${DISTINFO}
+	#printf "SIZE (${DISTFILE}) = %s\n" $$(wc -c <${DISTFILE}) >>${DISTINFO}
+	${PGP} --sign --detach --armor --output=${DISTINFOSIGN} ${DISTINFO}
+	chmod 644 ${DISTINFOSIGN}
+	ls -l ${DISTFILE} ${DISTINFO} ${DISTINFOSIGN}
 
 distclean:
 	(cd src; make clean)
