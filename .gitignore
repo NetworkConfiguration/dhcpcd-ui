@@ -1,0 +1,9 @@
+.depend
+config.h
+config.log
+config.mk
+*.a
+*.o
+*.So
+*.so
+*.so.*
