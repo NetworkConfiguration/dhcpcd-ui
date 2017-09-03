@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <poll.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,25 +57,33 @@ static int
 wpa_open(const char *ifname, char **path)
 {
 	static int counter;
-	int fd;
+	size_t pwdbufsize;
+	char *pwdbuf;
+	struct passwd pwd, *tpwd;
+	int fd, r;
 	socklen_t len;
 	struct sockaddr_un sun;
 	char *tmpdir;
 
-	if (asprintf(&tmpdir, "%s-%s", DHCPCD_TMP_DIR, getlogin()) == -1)
-		return -1;
+	tmpdir = NULL;
+	fd = r = -1;
+	*path = NULL;
 
-	if (mkdir(tmpdir, DHCPCD_TMP_DIR_PERM) == -1 && errno != EEXIST) {
-		free(tmpdir);
-		return -1;
-	}
+	pwdbufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
+	pwdbuf = malloc(pwdbufsize);
+	if (pwdbuf == NULL)
+		goto out;
+	if (getpwuid_r(geteuid(), &pwd, pwdbuf, pwdbufsize, &tpwd) != 0)
+		goto out;
+	if (asprintf(&tmpdir, "%s-%s", DHCPCD_TMP_DIR, pwd.pw_name) == -1)
+		goto out;
+
+	if (mkdir(tmpdir, DHCPCD_TMP_DIR_PERM) == -1 && errno != EEXIST)
+		goto out;
 
 	if ((fd = socket(AF_UNIX,
 	    SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0)) == -1)
-	{
-		free(tmpdir);
-		return -1;
-	}
+		goto out;
 	memset(&sun, 0, sizeof(sun));
 	sun.sun_family = AF_UNIX;
 	snprintf(sun.sun_path, sizeof(sun.sun_path),
@@ -82,23 +91,27 @@ wpa_open(const char *ifname, char **path)
 	*path = strdup(sun.sun_path);
 	len = (socklen_t)SUN_LEN(&sun);
 	if (bind(fd, (struct sockaddr *)&sun, len) == -1)
-		goto failure;
+		goto out;
 	snprintf(sun.sun_path, sizeof(sun.sun_path),
 	    WPA_CTRL_DIR "/%s", ifname);
 	len = (socklen_t)SUN_LEN(&sun);
 	if (connect(fd, (struct sockaddr *)&sun, len) == -1)
-		goto failure;
+		goto out;
 
-	free(tmpdir);
-	return fd;
+	/* Success! */
+	r = 0;
 
-failure:
+out:
+	free(pwdbuf);
 	free(tmpdir);
-	close(fd);
-	unlink(*path);
-	free(*path);
-	*path = NULL;
-	return -1;
+	if (fd != -1)
+		close(fd);
+	if (r != 0 && *path != NULL) {
+		unlink(*path);
+		free(*path);
+		*path = NULL;
+	}
+	return r;
 }
 
 static ssize_t
