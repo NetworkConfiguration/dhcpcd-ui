@@ -104,9 +104,11 @@ wpa_open(const char *ifname, char **path)
 out:
 	free(pwdbuf);
 	free(tmpdir);
+	if (r == 0)
+		return fd;
 	if (fd != -1)
 		close(fd);
-	if (r != 0 && *path != NULL) {
+	if (*path != NULL) {
 		unlink(*path);
 		free(*path);
 		*path = NULL;
