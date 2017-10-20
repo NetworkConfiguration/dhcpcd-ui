@@ -224,9 +224,9 @@ void DhcpcdQt::updateOnline(bool showIf)
 			if (showIf)
 				qDebug() << msg;
 			if (msgs.isEmpty())
-				msgs = QString::fromAscii(msg);
+				msgs = QString::fromLatin1(msg);
 			else
-				msgs += '\n' + QString::fromAscii(msg);
+				msgs += '\n' + QString::fromLatin1(msg);
 			free(msg);
 		} else if (showIf)
 			qDebug() << i->ifname << i->reason;
@@ -540,6 +540,9 @@ void DhcpcdQt::notify(QString &title, QString &msg,
 	n->setText(msg);
 	n->sendEvent();
 #else
+    Q_UNUSED(title)
+    Q_UNUSED(msg)
+    Q_UNUSED(icon)
 	//trayIcon->showMessage(title, msg, icon);
 #endif
 }

@@ -314,7 +314,7 @@ void DhcpcdWi::connectSsid(DHCPCD_WI_SCAN *scan)
 		if (pwd.isNull() || pwd.isEmpty())
 			err = dhcpcd_wpa_select(wpa, &s);
 		else
-			err = dhcpcd_wpa_configure(wpa, &s, pwd.toAscii());
+			err = dhcpcd_wpa_configure(wpa, &s, pwd.toLatin1());
 	} else
 		err = dhcpcd_wpa_configure(wpa, &s, NULL);
 

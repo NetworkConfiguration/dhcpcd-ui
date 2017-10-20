@@ -132,7 +132,7 @@ void DhcpcdSsidMenuWidget::setScan(DHCPCD_WI_SCAN *scan)
 		selicon->setPixmap(picon);
 		ssid->setStyleSheet("font:bold;");
 	} else {
-		selicon->setPixmap(NULL);
+		selicon->setPixmap(QPixmap());
 		ssid->setStyleSheet(NULL);
 	}
 	ssid->setText(scan->ssid);

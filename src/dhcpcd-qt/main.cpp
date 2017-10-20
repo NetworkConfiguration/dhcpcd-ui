@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-#include <QtGui>
+#include <QApplication>
 
 #include "dhcpcd-qt.h"
 #include "dhcpcd-singleton.h"

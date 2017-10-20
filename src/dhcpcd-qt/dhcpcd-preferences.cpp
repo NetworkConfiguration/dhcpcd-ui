@@ -182,10 +182,10 @@ void DhcpcdPreferences::listBlocks(const QString &txt)
 	blocks->disconnect(this);
 
 	free(eWhat);
-	eWhat = strdup(txt.toLower().toAscii());
+	eWhat = strdup(txt.toLower().toLatin1());
 
 	list = dhcpcd_config_blocks(parent->getConnection(),
-	    txt.toLower().toAscii());
+	    txt.toLower().toLatin1());
 
 	if (txt == "interface") {
 		char **ifaces, **i;
@@ -294,7 +294,7 @@ const char *DhcpcdPreferences::getString(QLineEdit *le)
 {
 	if (le->text().isEmpty())
 		return NULL;
-	return le->text().trimmed().toAscii();
+	return le->text().trimmed().toLatin1();
 }
 
 bool DhcpcdPreferences::setOption(const char *opt, const char *val, bool *ret)
@@ -405,7 +405,7 @@ void DhcpcdPreferences::showBlock(const QString &txt)
 	if (txt.isEmpty())
 		eBlock = NULL;
 	else
-		eBlock = strdup(txt.toAscii());
+		eBlock = strdup(txt.toLatin1());
 
 	dhcpcd_config_free(config);
 	iface = NULL;
