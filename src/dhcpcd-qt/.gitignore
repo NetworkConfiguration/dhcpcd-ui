@@ -1,4 +1,5 @@
 Makefile
 dhcpcd-qt
 
+.qmake.stash
 moc_*
