@@ -1,13 +1,14 @@
 [Unit]
 Description=dhcpcd Wait Online
+Documentation=man:dhcpcd-online(8)
 Requisite=dhcpcd.service
 After=dhcpcd.service
-Wants=network.target
-Before=network.target network-online.target
+Before=network-online.target
 
 [Service]
 Type=oneshot
 ExecStart=@BINDIR@/dhcpcd-online -q
+RemainAfterExit=yes
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=network-online.target
