@@ -6,8 +6,10 @@ dhcpcd-ui is the graphical interface to
 It has a helper library in C to try and minimize any toolkit
 specific parts.
 
-There are GTK+-2 (works with GTK+-3) and Qt-4 front ends.
-an EFL (e17) front end is planned.
+There are GTK+-2 (works with GTK+-3) and Qt (works with Qt-4 and Qt-5)
+front ends.
+dhcpcd-curses is very much a work in progress and is only informative
+at this stage.
 
 dhcpcd-online can report on network availability from dhcpcd
 (requires dhcpcd-6.4.4)
