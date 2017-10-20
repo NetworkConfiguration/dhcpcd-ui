@@ -8,4 +8,5 @@ Type=Application
 Categories=Qt;System;TrayIcon;
 X-KDE-autostart-after=panel
 X-KDE-StartupNotify=false
-OnlyShowIn=KDE;LXQT;Razor;TDE;
+X-LXQt-Need-Tray=true
+OnlyShowIn=KDE;LXQt;Razor;TDE;
