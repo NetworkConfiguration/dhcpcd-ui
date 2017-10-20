@@ -1,5 +1,5 @@
 CONFIG+=		qt c++11 debug
-QT       += gui core widgets
+QT+=			gui core widgets
 QMAKE_CXXFLAGS+=	-std=c++11 -O2
 
 HEADERS=		dhcpcd-qt.h dhcpcd-about.h dhcpcd-preferences.h \

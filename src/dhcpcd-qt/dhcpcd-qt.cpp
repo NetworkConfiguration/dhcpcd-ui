@@ -540,9 +540,9 @@ void DhcpcdQt::notify(QString &title, QString &msg,
 	n->setText(msg);
 	n->sendEvent();
 #else
-    Q_UNUSED(title)
-    Q_UNUSED(msg)
-    Q_UNUSED(icon)
+	Q_UNUSED(title);
+	Q_UNUSED(msg);
+	Q_UNUSED(icon);
 	//trayIcon->showMessage(title, msg, icon);
 #endif
 }
