@@ -506,7 +506,7 @@ gtk_separator_new(GtkOrientation o)
 void
 prefs_show(DHCPCD_CONNECTION *con)
 {
-	GtkWidget *dialog_vbox, *hbox, *vbox, *table, *w;
+	GtkWidget *dialog_vbox, *hbox, *vbox, *table, *w, *close;
 	GtkListStore *store;
 	GtkTreeIter iter;
 	GtkCellRenderer *rend;
@@ -629,11 +629,16 @@ prefs_show(DHCPCD_CONNECTION *con)
 
 	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
 	gtk_box_pack_start(GTK_BOX(dialog_vbox), hbox, true, true, 3);
-	clear = gtk_button_new_from_stock(GTK_STOCK_CLEAR);
+
+	clear = gtk_button_new_with_mnemonic(_("_Clear"));
 	gtk_widget_set_sensitive(clear, false);
+	w = gtk_image_new_from_icon_name("edit-clear",
+	    GTK_ICON_SIZE_BUTTON);
+	gtk_button_set_image(GTK_BUTTON(clear), w);
 	gtk_box_pack_start(GTK_BOX(hbox), clear, true, true, 0);
 	g_signal_connect(G_OBJECT(clear), "clicked",
 	    G_CALLBACK(on_clear), con);
+
 	rebind = gtk_button_new_with_mnemonic(_("_Rebind"));
 	gtk_widget_set_sensitive(rebind, false);
 	w = gtk_image_new_from_icon_name("application-x-executable",
@@ -642,9 +647,13 @@ prefs_show(DHCPCD_CONNECTION *con)
 	gtk_box_pack_start(GTK_BOX(hbox), rebind, true, true, 0);
 	g_signal_connect(G_OBJECT(rebind), "clicked",
 	    G_CALLBACK(on_rebind), con);
-	w = gtk_button_new_from_stock(GTK_STOCK_CLOSE);
-	gtk_box_pack_end(GTK_BOX(hbox), w, true, true, 0);
-	g_signal_connect(G_OBJECT(w), "clicked",
+
+	close = gtk_button_new_with_mnemonic(_("_Close"));
+	w = gtk_image_new_from_icon_name("window-close",
+	    GTK_ICON_SIZE_BUTTON);
+	gtk_button_set_image(GTK_BUTTON(close), w);
+	gtk_box_pack_end(GTK_BOX(hbox), close, true, true, 0);
+	g_signal_connect(G_OBJECT(close), "clicked",
 	    G_CALLBACK(prefs_close), NULL);
 
 	blocks_on_change(blocks, con);
