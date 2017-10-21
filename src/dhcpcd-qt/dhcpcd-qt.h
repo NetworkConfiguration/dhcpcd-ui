@@ -126,8 +126,8 @@ private:
 	QMenu *ssidMenu;
 	QPoint ssidMenuPos;
 
-	void notify(QString &title, QString &msg,
-	    QSystemTrayIcon::MessageIcon icon = QSystemTrayIcon::Information);
+	void notify(const QString &title, const QString &msg,
+	    const QString &icon);
 };
 
 #endif

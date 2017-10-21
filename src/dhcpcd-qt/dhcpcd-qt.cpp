@@ -318,11 +318,16 @@ void DhcpcdQt::ifCallback(DHCPCD_IF *i)
 		if (msg) {
 			qDebug("%s", msg);
 			if (new_msg) {
-				QSystemTrayIcon::MessageIcon icon =
-				    i->up ? QSystemTrayIcon::Information :
-				    QSystemTrayIcon::Warning;
 				QString t = tr("Network Event");
 				QString m = msg;
+				QString icon;
+
+				if (i->up)
+					icon = "network-transmit-receive";
+				//else
+				//	icon = "network-transmit";
+				if (!i->up)
+					icon = "network-offline";
 				notify(t, m, icon);
 			}
 			free(msg);
@@ -382,7 +387,7 @@ void DhcpcdQt::processScans(DhcpcdWi *wi, DHCPCD_WI_SCAN *scans)
 	}
 	if (!txt.isEmpty() &&
 	    (ssidMenu == NULL || !ssidMenu->isVisible()))
-		notify(title, txt);
+		notify(title, txt, "network-wireless");
 
 	if (wi->setScans(scans) && ssidMenu && ssidMenu->isVisible())
 		ssidMenu->popup(ssidMenuPos);
@@ -525,13 +530,8 @@ void DhcpcdQt::dispatch()
 	dhcpcd_dispatch(con);
 }
 
-void DhcpcdQt::notify(QString &title, QString &msg,
-#ifdef NOTIFY
-    QSystemTrayIcon::MessageIcon
-#else
-    QSystemTrayIcon::MessageIcon icon
-#endif
-    )
+void DhcpcdQt::notify(const QString &title, const QString &msg,
+    const QString &icon)
 {
 
 #ifdef NOTIFY
@@ -540,10 +540,15 @@ void DhcpcdQt::notify(QString &title, QString &msg,
 	n->setText(msg);
 	n->sendEvent();
 #else
-	Q_UNUSED(title);
-	Q_UNUSED(msg);
-	Q_UNUSED(icon);
-	//trayIcon->showMessage(title, msg, icon);
+#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
+	const QIcon i = getIcon("status", icon);
+#else
+	QSystemTrayIcon::MessageIcon i = QSystemTrayIcon::Information;
+
+	if (icon.compare("network-offline") == 0)
+		i = QSystemTrayIcon::Warning;
+#endif
+	trayIcon->showMessage(title, msg, i);
 #endif
 }
 
