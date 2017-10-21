@@ -26,12 +26,12 @@
 
 #include <sys/stat.h>
 #include <sys/file.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
-#include <cerrno>
-#include <iostream>
 #include <string>
 
 #include "dhcpcd.h"
@@ -61,8 +61,8 @@ bool DhcpcdSingleton::lock()
 	if (mkdir(file.c_str(), DHCPCD_TMP_DIR_PERM) == -1 &&
 	    errno != EEXIST)
 	{
-		cerr << "dhcpcd-qt: " << "mkdir: " << file << ": "
-		    << strerror(errno) << endl;
+		fprintf(stderr, "dhcpcd-qt: mkdir: %s: %s\n",
+		    file.c_str(), strerror(errno));
 		return false;
 	}
 
@@ -75,14 +75,16 @@ bool DhcpcdSingleton::lock()
 	file += ".lock";
 	fd = open(file.c_str(), O_WRONLY | O_CREAT | O_NONBLOCK, 0664);
 	if (fd == -1) {
-		cerr << "dhcpcd-qt: " << "open: " << file << ": "
-		    << strerror(errno) << endl;
+		fprintf(stderr, "dhcpcd-qt: open: %s: %s\n",
+		    file.c_str(), strerror(errno));
 		return false;
 	}
 	if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
-		if (errno != EAGAIN)
-			cerr << "dhcpcd-qt: " << "flock: " << file << ": "
-			    << strerror(errno) << endl;
+		if (errno == EAGAIN)
+			fprintf(stderr, "dhcpcd-qt: already running\n");
+		else
+			fprintf(stderr, "dhcpcd-qt: flock: %s: %s\n",
+			    file.c_str(), strerror(errno));
 		return false;
 	}
 	return true;

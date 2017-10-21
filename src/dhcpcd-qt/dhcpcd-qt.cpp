@@ -222,14 +222,14 @@ void DhcpcdQt::updateOnline(bool showIf)
 		msg = dhcpcd_if_message(i, NULL);
 		if (msg) {
 			if (showIf)
-				qDebug() << msg;
+				qDebug("%s", msg);
 			if (msgs.isEmpty())
 				msgs = QString::fromLatin1(msg);
 			else
 				msgs += '\n' + QString::fromLatin1(msg);
 			free(msg);
 		} else if (showIf)
-			qDebug() << i->ifname << i->reason;
+			qDebug("%s: %s", i->ifname, i->reason);
 	}
 
 	if (onLine != isOn || carrier != isCarrier) {
