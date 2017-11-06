@@ -392,7 +392,7 @@ void DhcpcdQt::processScans(DhcpcdWi *wi, DHCPCD_WI_SCAN *scans)
 			}
 		}
 		if (!txt.isEmpty() &&
-				(ssidMenu == NULL || !ssidMenu->isVisible()))
+		    (ssidMenu == NULL || !ssidMenu->isVisible()))
 			notify(title, txt, "network-wireless");
 	}
 
