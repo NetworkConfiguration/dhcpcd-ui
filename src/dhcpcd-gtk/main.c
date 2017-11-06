@@ -584,9 +584,8 @@ dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, _unused void *data)
 	DHCPCD_IF *i;
 	WI_SCAN *w;
 	DHCPCD_WI_SCAN *scans, *s1, *s2;
-	char *txt, *t;
-	int lerrno, fd;
 	const char *msg;
+	int lerrno, fd;
 
 	/* This could be a new WPA so watch it */
 	fd = dhcpcd_wpa_get_fd(wpa);
@@ -621,27 +620,31 @@ dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, _unused void *data)
 		TAILQ_INIT(&w->menus);
 		TAILQ_INSERT_TAIL(&wi_scans, w, next);
 	} else {
-		txt = NULL;
-		msg = N_("New Access Point");
-		for (s1 = scans; s1; s1 = s1->next) {
-			for (s2 = w->scans; s2; s2 = s2->next)
-				if (g_strcmp0(s1->ssid, s2->ssid) == 0)
-					break;
-			if (s2 == NULL) {
-				if (txt == NULL)
-					txt = g_strdup(s1->ssid);
-				else {
-					msg = N_("New Access Points");
-					t = g_strconcat(txt, "\n",
-					    s1->ssid, NULL);
-					g_free(txt);
-					txt = t;
+		if (!i->up) {
+			char *txt, *t;
+
+			txt = NULL;
+			msg = N_("New Access Point");
+			for (s1 = scans; s1; s1 = s1->next) {
+				for (s2 = w->scans; s2; s2 = s2->next)
+					if (g_strcmp0(s1->ssid, s2->ssid) == 0)
+						break;
+				if (s2 == NULL) {
+					if (txt == NULL)
+						txt = g_strdup(s1->ssid);
+					else {
+						msg = N_("New Access Points");
+						t = g_strconcat(txt, "\n",
+								s1->ssid, NULL);
+						g_free(txt);
+						txt = t;
+					}
 				}
 			}
-		}
-		if (txt) {
-			notify(msg, txt, "network-wireless");
-			g_free(txt);
+			if (txt) {
+				notify(msg, txt, "network-wireless");
+				g_free(txt);
+			}
 		}
 		menu_update_scans(w, scans);
 	}

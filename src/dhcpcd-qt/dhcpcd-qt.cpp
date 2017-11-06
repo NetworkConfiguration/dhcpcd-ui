@@ -368,26 +368,33 @@ DhcpcdWi *DhcpcdQt::findWi(DHCPCD_WPA *wpa)
 
 void DhcpcdQt::processScans(DhcpcdWi *wi, DHCPCD_WI_SCAN *scans)
 {
-	DHCPCD_WI_SCAN *s1, *s2;
+	DHCPCD_IF *i;
 
-	QString title = tr("New Access Point");
-	QString txt;
-	for (s1 = scans; s1; s1 = s1->next) {
-		for (s2 = wi->getScans(); s2; s2 = s2->next) {
-			if (strcmp(s1->ssid, s2->ssid) == 0)
-				break;
-		}
-		if (s2 == NULL) {
-			if (!txt.isEmpty()) {
-				title = tr("New Access Points");
-				txt += '\n';
+	/* Don't spam the user if we're already connected. */
+	i = dhcpcd_wpa_if(wi->getWpa());
+
+	if (!i->up) {
+		QString title = tr("New Access Point");
+		QString txt;
+		DHCPCD_WI_SCAN *s1, *s2;
+
+		for (s1 = scans; s1; s1 = s1->next) {
+			for (s2 = wi->getScans(); s2; s2 = s2->next) {
+				if (strcmp(s1->ssid, s2->ssid) == 0)
+					break;
 			}
-			txt += s1->ssid;
+			if (s2 == NULL) {
+				if (!txt.isEmpty()) {
+					title = tr("New Access Points");
+					txt += '\n';
+				}
+				txt += s1->ssid;
+			}
 		}
+		if (!txt.isEmpty() &&
+				(ssidMenu == NULL || !ssidMenu->isVisible()))
+			notify(title, txt, "network-wireless");
 	}
-	if (!txt.isEmpty() &&
-	    (ssidMenu == NULL || !ssidMenu->isVisible()))
-		notify(title, txt, "network-wireless");
 
 	if (wi->setScans(scans) && ssidMenu && ssidMenu->isVisible())
 		ssidMenu->popup(ssidMenuPos);
