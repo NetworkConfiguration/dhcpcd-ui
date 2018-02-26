@@ -233,8 +233,8 @@ for x in $INCLUDEDIR; do
 	echo "CPPFLAGS+=	-I$x" >>$CONFIG_MK
 done
 
-if [ -z "$DEBUG" -a -f .fslckout ]; then
-	printf "Found fossil checkout ... "
+if [ -z "$DEBUG" -a -d .git ]; then
+	printf "Found git checkout ... "
 	DEBUG=yes
 else
 	DEBUG=no
