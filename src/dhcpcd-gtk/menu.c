@@ -101,7 +101,7 @@ is_associated(WI_SCAN *wi, DHCPCD_WI_SCAN *scan)
 }
 
 static bool
-get_security_icon(int flags, const char **icon)
+get_security_icon(unsigned int flags, const char **icon)
 {
 	bool active;
 
@@ -124,6 +124,9 @@ update_item(WI_SCAN *wi, WI_MENU *m, DHCPCD_WI_SCAN *scan)
 	const char *icon;
 	GtkWidget *sel;
 	bool active;
+#if 0
+	char tip[256];
+#endif
 
 	m->scan = scan;
 
@@ -159,14 +162,8 @@ update_item(WI_SCAN *wi, WI_MENU *m, DHCPCD_WI_SCAN *scan)
 		GTK_ICON_SIZE_MENU);
 
 #if 0
-	if (scan->wpa_flags[0] == '\0')
-		gtk_widget_set_tooltip_text(m->menu, scan->bssid);
-	else {
-		char *tip = g_strconcat(scan->bssid, " ", scan->wpa_flags,
-		    NULL);
-		gtk_widget_set_tooltip_text(m->menu, tip);
-		g_free(tip);
-	}
+	dhcpcd_wi_print_tooltip(tip, sizeof(tip), scan, 0);
+	gtk_widget_set_tooltip_text(m->menu, tip);
 #endif
 
 	g_object_set_data(G_OBJECT(m->menu), "dhcpcd_wi_scan", scan);

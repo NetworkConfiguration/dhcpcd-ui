@@ -67,6 +67,9 @@ extern "C" {
 #define TYPESIZE		8
 #define REASONSIZE		16
 
+#define WPA_FREQ_IS_2G(f)	((f) >= 2402 && (f) <= 2472)
+#define WPA_FREQ_IS_5G(f)	((f) >= 5170 && (f) <= 5835)
+
 #define DHC_UNKNOWN		 0
 #define DHC_DOWN		 1
 #define DHC_OPENED		 2
@@ -121,11 +124,13 @@ typedef struct dhcpcd_wi_avs {
 typedef struct dhcpcd_wi_scan {
 	struct dhcpcd_wi_scan *next;
 	char bssid[IF_BSSIDSIZE];
-	int flags;
-#define WSF_SECURE		0x01
-#define WSF_PSK			0x02
-#define WSF_WEP			0x10
-#define WSF_WPA			0x20
+	unsigned int flags;
+#define WSF_SECURE		0x001
+#define WSF_PSK			0x002
+#define WSF_WEP			0x010
+#define WSF_WPA			0x020
+#define WSF_2G			0x100
+#define WSF_5G			0x200
 	int frequency;
 	DHCPCD_WI_AV quality;
 	DHCPCD_WI_AV noise;
@@ -147,6 +152,7 @@ typedef struct dhcpcd_if {
 	bool up;
 	bool wireless;
 	const char *ssid;
+	int freq;
 
 	char *data;
 	size_t data_len;
@@ -167,6 +173,7 @@ typedef struct dhcpcd_if {
 	bool up;
 	bool wireless;
 	const char *ssid;
+	int freq;
 } DHCPCD_IF;
 #endif
 
@@ -304,6 +311,11 @@ int dhcpcd_wpa_find_network_new(DHCPCD_WPA *, const char *);
 bool dhcpcd_wpa_command(DHCPCD_WPA *, const char *);
 bool dhcpcd_wpa_command_arg(DHCPCD_WPA *, const char *, const char *);
 unsigned int dhcpcd_wpa_status(DHCPCD_WPA *, const char **);
+int dhcpcd_wpa_freq(DHCPCD_WPA *);
+#define WST_BSSID	0x01
+#define WST_FLAGS	0x02
+#define WST_FREQ	0x03
+int dhcpcd_wi_print_tooltip(char *, size_t, DHCPCD_WI_SCAN *, unsigned int);
 
 bool dhcpcd_wpa_ping(DHCPCD_WPA *);
 bool dhcpcd_wpa_can_background_scan(DHCPCD_WPA *);

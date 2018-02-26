@@ -401,6 +401,7 @@ dhcpcd_decode_string_escape(char *dst, size_t dlen, const char *src)
 				}
 				if (dst)
 					*dst++ = (char)oct;
+				break;
 			default:
 				errno = EINVAL;
 				return -1;
@@ -831,6 +832,7 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 		i->up = strtobool(dhcpcd_get_value(i, "if_up"));
 	i->wireless = strtobool(dhcpcd_get_value(i, "ifwireless"));
 	i->ssid = dhcpcd_get_value(i, "ifssid");
+	i->freq = 0; /* wpa_supplicant will set this when opened */
 	if (i->ssid == NULL && i->wireless)
 		i->ssid = dhcpcd_get_value(i, i->up ? "new_ssid" : "old_ssid");
 
