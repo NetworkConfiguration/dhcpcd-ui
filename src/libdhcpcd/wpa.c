@@ -1142,8 +1142,11 @@ dhcpcd_wpa_if_event(DHCPCD_IF *i)
 				dhcpcd_wpa_close(wpa);
 		} else if (i->wireless && i->con->wpa_started) {
 			wpa = dhcpcd_wpa_new(i->con, i->ifname);
-			if (wpa && wpa->listen_fd == -1)
-				dhcpcd_wpa_open(wpa);
+			if (wpa) {
+				if (wpa->listen_fd == -1)
+					dhcpcd_wpa_open(wpa);
+				i->freq = dhcpcd_wpa_freq(wpa);
+			}
 		}
 	}
 }
