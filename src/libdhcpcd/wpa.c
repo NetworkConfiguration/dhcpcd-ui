@@ -1113,15 +1113,19 @@ dhcpcd_wpa_dispatch(DHCPCD_WPA *wpa)
 		}
 	}
 
-	if (strcmp(p, "CTRL-EVENT-SCAN-RESULTS") == 0 &&
+#define	CE_SCAN_RESULTS		"CTRL-EVENT-SCAN-RESULTS"
+#define	CE_CONNECTED		"CTRL-EVENT-CONNECTED"
+#define	CE_DISCONNECTED		"CTRL-EVENT-DISCONNECTED"
+#define	CE_TERMINATING		"CTRL-EVENT-TERMINATING"
+	if (strncmp(p, CE_SCAN_RESULTS, strlen(CE_SCAN_RESULTS)) == 0 &&
 	    wpa->con->wi_scanresults_cb)
 		wpa->con->wi_scanresults_cb(wpa,
 		    wpa->con->wi_scanresults_context);
-	else if (strcmp(p, "CTRL-EVENT-CONNECTED") == 0)
+	else if (strncmp(p, CE_CONNECTED, strlen(CE_CONNECTED)) == 0)
 		dhcpcd_wpa_if_freq(wpa);
-	else if (strcmp(p, "CTRL-EVENT-DISCONNECTED") == 0)
+	else if (strncmp(p, CE_DISCONNECTED, strlen(CE_DISCONNECTED)) == 0)
 		dhcpcd_wpa_if_freq_zero(wpa);
-	else if (strcmp(p, "CTRL-EVENT-TERMINATING") == 0)
+	else if (strncmp(p, CE_TERMINATING, strlen(CE_TERMINATING)) == 0)
 		dhcpcd_wpa_close(wpa);
 }
 
