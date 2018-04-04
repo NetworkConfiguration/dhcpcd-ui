@@ -328,11 +328,13 @@ dhcpcd_wpa_decode_ssid(char *dst, size_t dlen, const char *src)
 				}
 				if ((xb = dhcpcd_wpa_hex2byte(src)) == -1)
 					return -1;
-				*dst++ = (char)xb;
+				if (xb != 0)
+					*dst++ = (char)xb;
 				src += 2;
 				break;
 			default: errno = EINVAL; return -1;
 			}
+			break;
 		default: *dst++ = c; break;
 		}
 	}
