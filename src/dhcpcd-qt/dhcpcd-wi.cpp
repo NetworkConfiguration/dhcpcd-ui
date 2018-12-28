@@ -295,13 +295,23 @@ void DhcpcdWi::ping()
 void DhcpcdWi::connectSsid(DHCPCD_WI_SCAN *scan)
 {
 	DHCPCD_WI_SCAN s;
+	DHCPCD_IF *i;
 	int err;
 
 	/* Take a copy of scan incase it's destroyed by a scan update */
 	memcpy(&s, scan, sizeof(s));
 	s.next = NULL;
 
-	if (s.flags & WSF_PSK) {
+	i = dhcpcd_wpa_if(wpa);
+	if (i == NULL)
+		err = DHCPCD_WPA_ERR;
+	else if (dhcpcd_wi_associated(i, &s)) {
+		/* Disconnect if same interface selected */
+		if (!dhcpcd_wpa_disconnect(wpa))
+			err = DHCPCD_WPA_ERR_DISCONN;
+		else
+			err = DHCPCD_WPA_SUCCESS;
+	} else if (s.flags & WSF_PSK) {
 		bool ok;
 		QString pwd;
 
@@ -322,11 +332,14 @@ void DhcpcdWi::connectSsid(DHCPCD_WI_SCAN *scan)
 	switch (err) {
 	case DHCPCD_WPA_SUCCESS:
 		return;
+	case DHCPCD_WPA_ERR:
+		errt = tr("Failed.");
+		break;
 	case DHCPCD_WPA_ERR_DISCONN:
 		errt = tr("Failed to disconnect.");
 		break;
 	case DHCPCD_WPA_ERR_RECONF:
-		errt = tr("Faile to reconfigure.");
+		errt = tr("Failed to reconfigure.");
 		break;
 	case DHCPCD_WPA_ERR_SET:
 		errt = tr("Failed to set key management.");
