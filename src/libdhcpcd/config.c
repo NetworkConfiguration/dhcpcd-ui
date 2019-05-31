@@ -267,7 +267,9 @@ config(DHCPCD_CONNECTION *con, int action, const char *block, const char *name,
 		} else {
 			/* Start of a block, skip if not ours */
 			if (strcmp(option, "interface") == 0 ||
-			    strcmp(option, "ssid") == 0)
+			    strcmp(option, "ssid") == 0 ||
+			    strcmp(option, "profile") == 0 ||
+			    strcmp(option, "fallback") == 0)
 			{
 				if (block && name && line &&
 				    strcmp(option, block) == 0 &&
