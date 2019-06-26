@@ -9,10 +9,10 @@ include ${MKDIR}/subdir.mk
 
 SUBDIR=		src ${MKICONS}
 
-FOSSILID?=	current
+GITREF?=	HEAD
 DISTPREFIX?=	${PROG}-${VERSION}
-DISTFILEGZ?=	${DISTPREFIX}.tar.gz
-DISTFILE?=	${DISTPREFIX}.tar.xz
+DISTFILETAR?=	${DISTPREFIX}.tar
+DISTFILE?=	${DISTFILETAR}.xz
 DISTINFO=	${DISTFILE}.distinfo
 DISTINFOSIGN=	${DISTINFO}.asc
 CKSUM?=		cksum -a SHA256
@@ -27,13 +27,12 @@ SNAPDIR=	${DISTPREFIX}-${SNAP}
 SNAPFILE=	${SNAPDIR}.tar.xz
 
 dist:
-	fossil tarball --name ${DISTPREFIX} ${FOSSILID} /tmp/${DISTFILEGZ}
-	rm -rf /tmp/${DISTPREFIX}
-	tar -xzpf /tmp/${DISTFILEGZ} -C /tmp
+	git archive --prefix=${DISTPREFIX}/ -o /tmp/${DISTFILETAR} ${GITREF}
+	tar -xpf /tmp/${DISTFILETAR} -C /tmp
 	(cd /tmp/${DISTPREFIX}; make icons)
 	rm -rf /tmp/${DISTPREFIX}/doc
 	tar -cvJpf ${DISTFILE} -C /tmp ${DISTPREFIX}
-	rm -rf /tmp/${DISTPREFIX} /tmp/${DISTFILEGZ}
+	rm -rf /tmp/${DISTPREFIX} /tmp/${DISTFILETAR}
 
 distinfo: dist
 	rm -f ${DISTINFO} ${DISTINFOSIGN}
