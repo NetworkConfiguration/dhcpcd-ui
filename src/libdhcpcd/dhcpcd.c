@@ -379,8 +379,12 @@ dhcpcd_decode_string_escape(char *dst, size_t dlen, const char *src)
 			esc = *src++;
 			switch (esc) {
 			case '\\':
+				if (dst)
+					*dst++ = esc;
+				break;
 			case '0':
 			case '1':
+			case '2':
 			case '3':
 			case '4':
 			case '5':
