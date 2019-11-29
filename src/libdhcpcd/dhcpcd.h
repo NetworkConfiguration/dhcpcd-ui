@@ -37,10 +37,16 @@ extern "C" {
 #endif
 
 #ifndef DHCPCD_SOCKET
-#define DHCPCD_SOCKET		"/var/run/dhcpcd.sock"
+#define DHCPCD_SOCKET		"/var/run/dhcpcd/sock"
 #endif
 #ifndef DHCPCD_UNPRIV_SOCKET
-#define DHCPCD_UNPRIV_SOCKET	"/var/run/dhcpcd.unpriv.sock"
+#define DHCPCD_UNPRIV_SOCKET	"/var/run/dhcpcd/unpriv.sock"
+#endif
+#ifndef DHCPCD_OSOCKET
+#define DHCPCD_OSOCKET		"/var/run/dhcpcd.sock"
+#endif
+#ifndef DHCPCD_UNPRIV_OSOCKET
+#define DHCPCD_UNPRIV_OSOCKET	"/var/run/dhcpcd.unpriv.sock"
 #endif
 
 #ifndef WPA_CTRL_DIR

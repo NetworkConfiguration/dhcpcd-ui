@@ -1020,10 +1020,18 @@ dhcpcd_open(DHCPCD_CONNECTION *con, bool privileged)
 		errno = EISCONN;
 		return -1;
 	}
+
 	/* We need to block the command fd */
 	con->command_fd = dhcpcd_connect(path, 0);
-	if (con->command_fd == -1)
-		goto err_exit;
+	if (con->command_fd == -1) {
+		if (errno == ENOENT) {
+			path = privileged ?
+			    DHCPCD_OSOCKET : DHCPCD_UNPRIV_OSOCKET;
+			con->command_fd = dhcpcd_connect(path, 0);
+		}
+		if (con->command_fd == -1)
+			goto err_exit;
+	}
 
 	con->terminate_commands = false;
 	if (dhcpcd_ctrl_command(con, "--version", &con->version) <= 0)
