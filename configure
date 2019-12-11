@@ -431,7 +431,7 @@ if [ -z "$WITH_QT" -o "$WITH_QT" != no ]; then
 		QMAKE_CONFIG="$QMAKE_CONFIG SYSCONFDIR=$SYSCONFDIR"
 		QMAKE_CONFIG="$QMAKE_CONFIG MANDIR=$MANDIR"
 		if (cd src/dhcpcd-qt; $QMAKE $QMAKE_CONFIG dhcpcd-qt.pro); then
-			UI="$UI${UI+ }dhcpcd-qt"
+			UI="$UI${UI:+ }dhcpcd-qt"
 		else
 			echo "Failed to configure dhcpcd-qt" >&2
 			[ -n "$WITH_QT" ] && exit 1

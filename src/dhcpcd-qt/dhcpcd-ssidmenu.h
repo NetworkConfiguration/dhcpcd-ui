@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifndef DHCPCD_SSIDMENU
+#define	DHCPCD_SSIDMENU
+
 #include <QWidgetAction>
 
 #include "dhcpcd.h"
@@ -61,3 +64,5 @@ private:
 	DHCPCD_WI_SCAN *scan;
 	DhcpcdSsidMenuWidget *ssidWidget;
 };
+
+#endif

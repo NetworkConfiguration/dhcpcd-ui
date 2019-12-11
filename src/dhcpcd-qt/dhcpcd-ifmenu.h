@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifndef DHCPCD_IFMENU
+#define	DHCPCD_IFMENU
+
 #include <QMenu>
 
 #include "dhcpcd.h"
@@ -39,3 +42,5 @@ public:
 private:
 	DHCPCD_IF *ifp;
 };
+
+#endif

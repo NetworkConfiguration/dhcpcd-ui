@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifndef DHCPCD_SSIDMENUWIDGET
+#define	DHCPCD_SSIDMENUWIDGET
+
 #include <QFrame>
 
 #include "dhcpcd.h"
@@ -69,3 +72,5 @@ private:
 	QLabel *encicon;
 	QLabel *stricon;
 };
+
+#endif
