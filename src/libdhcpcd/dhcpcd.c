@@ -903,6 +903,11 @@ dhcpcd_read_if(DHCPCD_CONNECTION *con, int fd)
 		return NULL;
 	}
 	memcpy(&len, sbuf, sizeof(len));
+	if (len >= SSIZE_MAX) {
+		/* Even this is probably too big! */
+		errno = ENOBUFS;
+		return NULL;
+	}
 	rbuf = malloc(len + 1);
 	if (rbuf == NULL)
 		return NULL;
