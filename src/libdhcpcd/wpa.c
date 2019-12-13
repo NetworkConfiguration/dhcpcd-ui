@@ -561,7 +561,8 @@ dhcpcd_wi_scans_sort(DHCPCD_WI_SCAN *list)
 			 * and q has too */
 			p = q;
 		}
-		tail->next = NULL;
+		if(tail)
+			tail->next = NULL;
 
 		/* If we have done only one merge, we're finished. */
 		if (nmerges <= 1)   /* allow for nmerges==0, the empty list */
