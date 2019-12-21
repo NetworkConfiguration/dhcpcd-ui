@@ -97,7 +97,7 @@ debug(struct ctx *ctx, const char *fmt, ...)
 		return 0;
 	waddch(ctx->win_debug, '\n');
 	va_start(args, fmt);
-	r = vwprintw(ctx->win_debug, fmt, args);
+	r = vw_printw(ctx->win_debug, fmt, args);
 	va_end(args);
 	wrefresh(ctx->win_debug);
 	return r;
@@ -113,7 +113,7 @@ warning(struct ctx *ctx, const char *fmt, ...)
 		return 0;
 	waddch(ctx->win_debug, '\n');
 	va_start(args, fmt);
-	r = vwprintw(ctx->win_debug, fmt, args);
+	r = vw_printw(ctx->win_debug, fmt, args);
 	va_end(args);
 	wrefresh(ctx->win_debug);
 	return r;
@@ -129,7 +129,7 @@ notify(struct ctx *ctx, const char *fmt, ...)
 		return 0;
 	waddch(ctx->win_debug, '\n');
 	va_start(args, fmt);
-	r = vwprintw(ctx->win_debug, fmt, args);
+	r = vw_printw(ctx->win_debug, fmt, args);
 	va_end(args);
 	wrefresh(ctx->win_debug);
 	return r;
