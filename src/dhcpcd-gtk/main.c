@@ -620,7 +620,9 @@ dhcpcd_wpa_scan_cb(DHCPCD_WPA *wpa, _unused void *data)
 		TAILQ_INIT(&w->menus);
 		TAILQ_INSERT_TAIL(&wi_scans, w, next);
 	} else {
-		if (!i->up) {
+		DHCPCD_CONNECTION *con = dhcpcd_if_connection(i);
+
+		if (dhcpcd_status(con, NULL) != DHC_CONNECTED) {
 			char *txt, *t;
 
 			txt = NULL;

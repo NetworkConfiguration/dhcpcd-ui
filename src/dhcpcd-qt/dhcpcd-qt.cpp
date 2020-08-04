@@ -368,12 +368,9 @@ DhcpcdWi *DhcpcdQt::findWi(DHCPCD_WPA *wpa)
 
 void DhcpcdQt::processScans(DhcpcdWi *wi, DHCPCD_WI_SCAN *scans)
 {
-	DHCPCD_IF *i;
 
 	/* Don't spam the user if we're already connected. */
-	i = dhcpcd_wpa_if(wi->getWpa());
-
-	if (!i->up) {
+	if (lastStatus != DHC_CONNECTED) {
 		QString title = tr("New Access Point");
 		QString txt;
 		DHCPCD_WI_SCAN *s1, *s2;
