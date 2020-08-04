@@ -155,6 +155,7 @@ dhcpcd_command_fd(DHCPCD_CONNECTION *con,
 		buf[len - 1] = '\0';
 	} else
 		buf[len - 1] = '\0';
+
 	if (write(fd, buf, len) == -1)
 		return -1;
 	if (buffer == NULL)
@@ -892,17 +893,16 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 static DHCPCD_IF *
 dhcpcd_read_if(DHCPCD_CONNECTION *con, int fd)
 {
-	char sbuf[sizeof(size_t)], *rbuf;
+	char *rbuf, *rbufp;
 	size_t len;
 	ssize_t bytes;
 	DHCPCD_IF *i;
 
-	bytes = read(fd, sbuf, sizeof(sbuf));
+	bytes = read(fd, &len, sizeof(len));
 	if (bytes == 0 || bytes == -1) {
 		dhcpcd_close(con);
 		return NULL;
 	}
-	memcpy(&len, sbuf, sizeof(len));
 	if (len >= SSIZE_MAX) {
 		/* Even this is probably too big! */
 		errno = ENOBUFS;
@@ -911,20 +911,27 @@ dhcpcd_read_if(DHCPCD_CONNECTION *con, int fd)
 	rbuf = malloc(len + 1);
 	if (rbuf == NULL)
 		return NULL;
-	bytes = read(fd, rbuf, len);
+	rbufp = rbuf;
+again:
+	bytes = read(fd, rbufp, len);
 	if (bytes == 0 || bytes == -1) {
 		free(rbuf);
 		dhcpcd_close(con);
 		return NULL;
+	}
+	if ((size_t)bytes < len) {
+		rbufp += bytes;
+		len -= (size_t)bytes;
+		goto again;
 	}
 	if ((size_t)bytes != len) {
 		free(rbuf);
 		errno = EINVAL;
 		return NULL;
 	}
-	rbuf[bytes] = '\0';
+	rbufp[bytes] = '\0';
 
-	i = dhcpcd_new_if(con, rbuf, len);
+	i = dhcpcd_new_if(con, rbuf, (size_t)((rbufp - rbuf) + bytes));
 	if (i == NULL)
 		free(rbuf);
 	return i;
@@ -1063,8 +1070,10 @@ dhcpcd_open(DHCPCD_CONNECTION *con, bool privileged)
 	memcpy(&nifs, cmd, sizeof(nifs));
 	/* We don't dispatch each interface here as that
 	 * causes too much notification spam when the GUI starts */
-	for (n = 0; n < nifs; n++)
-		dhcpcd_read_if(con, con->command_fd);
+	for (n = 0; n < nifs; n++) {
+		if (dhcpcd_read_if(con, con->command_fd) == NULL)
+			goto err_exit;
+	}
 
 	update_status(con, DHC_UNKNOWN);
 

@@ -17,6 +17,8 @@ CLEANFILES+=	${FILES}
 
 .SUFFIXES:	.in
 
+.PHONY:		dhcpcd-online
+
 .in:
 	${SED} -e 's:@BINDIR@:${BINDIR}:g' $< > $@
 
