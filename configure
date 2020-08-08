@@ -389,8 +389,9 @@ if [ -n "$WITH_GTK" -a "$WITH_GTK" != no ]; then
 		if ! pkg-config --cflags libnotify >/dev/null 2>&3; then
 			echo "libnotify not found" >&2
 			[ "$NOTIFY" = yes -a -n "$_WITH_GTK" ] && exit 1
+		else
+			NOTIFY=yes
 		fi
-		NOTIFY=yes
 	fi
 	if [ "$NOTIFY" = yes ]; then
 		PKG="$PKG${PKG:+ }libnotify"
