@@ -427,28 +427,35 @@ if [ -z "$WITH_QT" -o "$WITH_QT" != no ]; then
 			exit 1
 		fi
 	fi
-	if $DHCPCD_QT; then
-		QMAKE_CONFIG="$QMAKE_CONFIG PREFIX=$PREFIX"
-		QMAKE_CONFIG="$QMAKE_CONFIG SYSCONFDIR=$SYSCONFDIR"
-		QMAKE_CONFIG="$QMAKE_CONFIG MANDIR=$MANDIR"
-		if (cd src/dhcpcd-qt; $QMAKE $QMAKE_CONFIG dhcpcd-qt.pro); then
-			UI="$UI${UI:+ }dhcpcd-qt"
-		else
-			echo "Failed to configure dhcpcd-qt" >&2
-			[ -n "$WITH_QT" ] && exit 1
-			DHCPCD_QT=false
-		fi
-	fi
 fi
 
 NOTIFY="$_NOTIFY"
+if $DHCPCD_QT; then
+	QMAKE_CONFIG="$QMAKE_CONFIG PREFIX=$PREFIX"
+	QMAKE_CONFIG="$QMAKE_CONFIG SYSCONFDIR=$SYSCONFDIR"
+	QMAKE_CONFIG="$QMAKE_CONFIG MANDIR=$MANDIR"
+fi
 if $DHCPCD_QT && [ -z "$NOTIFY" -o "$NOTIFY" = yes ]; then
-	if kde4-config --path lib --locate libkdeui.so >/dev/null 2>&3; then
-		QMAKE_CONFIG="$QMAKE_CONFIG CONFIG+=has_libkdeui"
-		echo "Building dhcpcd-qt with notification support"
-	elif [ "$NOTIFY" = yes ]; then
-		echo "$0: knotify4 not found" >&2
-		exit 1
+	printf "Looking for KDE Notification support ... "
+	QT_KNOTE="QT+=KNotifications"
+	if (cd src/dhcpcd-qt; $QMAKE $QMAKE_CONFIG $QT_KNOTE dhcpcd-qt.pro) 2>>config.log; then
+		QMAKE_CONFIG="$QMAKE_CONFIG $QT_KNOTE DEFINES+=KNOTIFY5"
+		echo "KDE5"
+	elif kde4-config --path lib --locate libkdeui.so >/dev/null 2>&3; then
+		QMAKE_CONFIG="$QMAKE_CONFIG CONFIG+=has_libkdeui DEFINES+=KNOTIFY4"
+		echo "KDE4"
+	else
+		echo "none found"
+		[ "$NOTIFY" = yes ] && exit 1
+	fi
+fi
+if $DHCPCD_QT; then
+	if (cd src/dhcpcd-qt; $QMAKE $QMAKE_CONFIG dhcpcd-qt.pro); then
+		UI="$UI${UI:+ }dhcpcd-qt"
+	else
+		echo "Failed to configure dhcpcd-qt" >&2
+		[ -n "$WITH_QT" ] && exit 1
+		DHCPCD_QT=false
 	fi
 fi
 

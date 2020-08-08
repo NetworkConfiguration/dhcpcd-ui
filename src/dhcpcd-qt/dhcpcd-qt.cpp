@@ -40,7 +40,10 @@
 #include "dhcpcd-ifmenu.h"
 #include "dhcpcd-ssidmenu.h"
 
-#ifdef NOTIFY
+
+#if defined(KNOTIFY5)
+#include <KNotification>
+#elif defined(KNOTIFY4)
 #include <knotification.h>
 #endif
 
@@ -538,8 +541,9 @@ void DhcpcdQt::notify(const QString &title, const QString &msg,
     const QString &icon)
 {
 
-#ifdef NOTIFY
+#if defined(KNOTIFY4) || defined(KNOTIFY5)
 	KNotification *n = new KNotification("event", this);
+	n->setIconName(icon);
 	n->setTitle(title);
 	n->setText(msg);
 	n->sendEvent();
