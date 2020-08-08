@@ -40,7 +40,6 @@
 #include "dhcpcd-ifmenu.h"
 #include "dhcpcd-ssidmenu.h"
 
-
 #if defined(KNOTIFY5)
 #include <KNotification>
 #elif defined(KNOTIFY4)
