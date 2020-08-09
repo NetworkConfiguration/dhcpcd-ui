@@ -27,3 +27,9 @@ Switches to control building of various parts:
 For each `--with` there is a `--without` and for each `--enable` a `--disable`.
 If each part is not specified then the configure will test the system
 for the needed libraries to build and install it.
+
+### Notifications
+
+Notifications are dependant on the chosen platform.
+GTK+ will get them if libnotify is present.
+Qt will get them by default.

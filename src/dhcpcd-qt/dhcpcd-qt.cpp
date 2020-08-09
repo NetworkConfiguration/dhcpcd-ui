@@ -40,12 +40,6 @@
 #include "dhcpcd-ifmenu.h"
 #include "dhcpcd-ssidmenu.h"
 
-#if defined(KNOTIFY5)
-#include <KNotification>
-#elif defined(KNOTIFY4)
-#include <knotification.h>
-#endif
-
 DhcpcdQt::DhcpcdQt()
 {
 
@@ -539,14 +533,6 @@ void DhcpcdQt::dispatch()
 void DhcpcdQt::notify(const QString &title, const QString &msg,
     const QString &icon)
 {
-
-#if defined(KNOTIFY4) || defined(KNOTIFY5)
-	KNotification *n = new KNotification("event", this);
-	n->setIconName(icon);
-	n->setTitle(title);
-	n->setText(msg);
-	n->sendEvent();
-#else
 #if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
 	const QIcon i = getIcon("status", icon);
 #else
@@ -556,7 +542,6 @@ void DhcpcdQt::notify(const QString &title, const QString &msg,
 		i = QSystemTrayIcon::Warning;
 #endif
 	trayIcon->showMessage(title, msg, i);
-#endif
 }
 
 void DhcpcdQt::closeEvent(QCloseEvent *event)
