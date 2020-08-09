@@ -574,8 +574,12 @@ QIcon DhcpcdQt::getIcon(QString category, QString name)
 
 	if (QIcon::hasThemeIcon(name))
 		icon = QIcon::fromTheme(name);
-	else
-		icon = QIcon(ICONDIR "/hicolor/scalable/" + category + "/" + name + ".svg");
+	else {
+		/* For some reason, SVG no longer displays ... */
+		QString file = QString("%1/hicolor/22x22/%2/%3.png")
+		    .arg(ICONDIR, category, name);
+		icon = QIcon(file);
+	}
 
 	return icon;
 }
