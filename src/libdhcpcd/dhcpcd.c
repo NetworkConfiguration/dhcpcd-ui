@@ -1071,8 +1071,9 @@ dhcpcd_open(DHCPCD_CONNECTION *con, bool privileged)
 	/* We don't dispatch each interface here as that
 	 * causes too much notification spam when the GUI starts */
 	for (n = 0; n < nifs; n++) {
-		if (dhcpcd_read_if(con, con->command_fd) == NULL)
-			goto err_exit;
+		/* Some interface states we do not create an interface for
+		 * such as DHS_INFORM. */
+		dhcpcd_read_if(con, con->command_fd);
 	}
 
 	update_status(con, DHC_UNKNOWN);
