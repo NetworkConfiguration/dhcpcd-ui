@@ -27,9 +27,13 @@ SNAPDIR=	${DISTPREFIX}-${SNAP}
 SNAPFILE=	${SNAPDIR}.tar.xz
 
 dist:
+	[ -e config.mk ] || ./configure
 	git archive --prefix=${DISTPREFIX}/ -o /tmp/${DISTFILETAR} ${GITREF}
 	tar -xpf /tmp/${DISTFILETAR} -C /tmp
+	# We need config.mk to build the icons - remove it once done
+	cp config.mk /tmp/${DISTPREFIX}
 	(cd /tmp/${DISTPREFIX}; make icons)
+	rm /tmp/${DISTPREFIX}/config.mk
 	rm -rf /tmp/${DISTPREFIX}/doc
 	tar -cvJpf ${DISTFILE} -C /tmp ${DISTPREFIX}
 	rm -rf /tmp/${DISTPREFIX} /tmp/${DISTFILETAR}
