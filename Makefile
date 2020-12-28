@@ -1,5 +1,5 @@
 PROG=		dhcpcd-ui
-VERSION=	0.7.7
+VERSION=	0.7.8
 
 TOPDIR=		.
 include ${TOPDIR}/iconfig.mk
