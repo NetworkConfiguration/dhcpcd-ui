@@ -120,7 +120,8 @@ extern const char * const dhcpcd_cstates[];
 #define	DHS_REBOOT		20
 #define DHS_ROUTERADVERT	21
 #define DHS_DELEGATED		22
-#define DHR_MAX			23
+#define DHS_NOCARRIER_ROAMING	23
+#define DHR_MAX			24
 
 typedef struct dhcpcd_wi_avs {
 	int value;

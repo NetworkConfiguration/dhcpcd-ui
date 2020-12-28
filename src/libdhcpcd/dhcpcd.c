@@ -85,29 +85,30 @@ struct dhcpcd_vs {
 };
 
 static const struct dhcpcd_vs dhcpcd_states[] = {
-    { DHS_DUMP,		"DUMP" },
-    { DHS_TEST,		"TEST" },
-    { DHS_STOPPED,	"STOPPED" },
-    { DHS_FAIL,		"FAIL" },
-    { DHS_STOP,		"STOP" },
-    { DHS_PREINIT,	"PREINIT" },
-    { DHS_DEPARTED,	"DEPARTED" },
-    { DHS_NOCARRIER,	"NOCARRIER" },
-    { DHS_NAK,		"NAK" },
-    { DHS_EXPIRE,	"EXPIRE" },
-    { DHS_RECONFIGURE,	"RECONFIGURE" },
-    { DHS_CARRIER,	"CARRIER" },
-    { DHS_STATIC,	"STATIC" },
-    { DHS_3RDPARTY,	"3RDPARTY" },
-    { DHS_IPV4LL,	"IPV4LL" },
-    { DHS_INFORM,	"INFORM" },
-    { DHS_BOUND,	"BOUND" },
-    { DHS_RENEW,	"RENEW" },
-    { DHS_REBIND,	"REBIND" },
-    { DHS_REBOOT,	"REBOOT" },
-    { DHS_ROUTERADVERT,	"ROUTERADVERT" },
-    { DHS_BOUND,	"DELEGATED" },
-    { DHS_UNKNOWN,	NULL    }
+    { DHS_DUMP,			"DUMP" },
+    { DHS_TEST,			"TEST" },
+    { DHS_STOPPED,		"STOPPED" },
+    { DHS_FAIL,			"FAIL" },
+    { DHS_STOP,			"STOP" },
+    { DHS_PREINIT,		"PREINIT" },
+    { DHS_DEPARTED,		"DEPARTED" },
+    { DHS_NOCARRIER,		"NOCARRIER" },
+    { DHS_NOCARRIER_ROAMING,	"NOCARRIER_ROAMING " },
+    { DHS_NAK,			"NAK" },
+    { DHS_EXPIRE,		"EXPIRE" },
+    { DHS_RECONFIGURE,		"RECONFIGURE" },
+    { DHS_CARRIER,		"CARRIER" },
+    { DHS_STATIC,		"STATIC" },
+    { DHS_3RDPARTY,		"3RDPARTY" },
+    { DHS_IPV4LL,		"IPV4LL" },
+    { DHS_INFORM,		"INFORM" },
+    { DHS_BOUND,		"BOUND" },
+    { DHS_RENEW,		"RENEW" },
+    { DHS_REBIND,		"REBIND" },
+    { DHS_REBOOT,		"REBOOT" },
+    { DHS_ROUTERADVERT,		"ROUTERADVERT" },
+    { DHS_BOUND,		"DELEGATED" },
+    { DHS_UNKNOWN,		NULL    }
 };
 
 static ssize_t
@@ -692,6 +693,7 @@ dhcpcd_reason_to_statetype(const char *reason,
 	case DHS_PREINIT:
 	case DHS_CARRIER:
 	case DHS_NOCARRIER:
+	case DHS_NOCARRIER_ROAMING:
 	case DHS_DEPARTED:
 	case DHS_STOPPED:
 		*type = DHT_LINK;
@@ -1285,6 +1287,9 @@ dhcpcd_if_message(DHCPCD_IF *i, bool *new_msg)
 				reason = _("Not associated");
 		} else
 			reason = _("Link is down");
+		break;
+	case DHS_NOCARRIER_ROAMING:
+		reason = _("Link is down, roaming");
 		break;
 	case DHS_DEPARTED:
 		reason = _("Departed");
