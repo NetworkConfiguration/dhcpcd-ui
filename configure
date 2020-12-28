@@ -366,6 +366,23 @@ echo "LIB_DHCPCD=	$x" >>$CONFIG_MK
 # what we actually need.
 echo "LDADD+=		-Wl,--as-needed" >>$CONFIG_MK
 
+# If building icons (we need this to make the distfile) then we need to
+# convert the SVG icons to PNG.
+# We use cairosvg for this, but the binary name is based on python version
+printf "Finding cairosvg ... "
+for _CAIROSVG in cairosvg cairosvg-py3 cairosvg3.9 cairosvg3.8; do
+	CAIROSVG=$(_which "$_CAIROSVG")
+	if [ -x "$CAIROSVG" ]; then
+		break
+	fi
+done
+if [ -x "$CAIROSVG" ]; then
+	echo "$CAIROSVG"
+	echo "CAIROSVG=	$CAIROSVG" >>$CONFIG_MK
+else
+	echo "not found!"
+fi
+
 _NOTIFY="$NOTIFY"
 _WITH_GTK="$WITH_GTK"
 if [ "$WITH_GTK" = yes -o -z "$WITH_GTK" ]; then

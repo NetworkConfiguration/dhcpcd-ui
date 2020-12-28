@@ -4,7 +4,7 @@ SIZEDIR?=	${SIZE}x${SIZE}
 ICONDIR?=	${PREFIX}/share/dhcpcd/icons
 IDIR=		${ICONDIR}/hicolor/${SIZEDIR}/${CATEGORY}
 
-RSVG_CONVERT?=	rsvg-convert
+CAIROSVG?=	cairosvg
 
 ICONS+=		${SRCS:.svg=.png}
 CLEANFILES+=	${SRCS:.svg=.png}
@@ -14,7 +14,7 @@ CLEANFILES+=	${SRCS:.svg=.png}
 all: ${ICONS}
 
 .svg.png:
-	${RSVG_CONVERT} -h ${SIZE} -w ${SIZE} $< >$@
+	${CAIROSVG} -f png -H ${SIZE} -W ${SIZE} $< >$@
 
 _iconinstall: ${ICONS}
 	${INSTALL} -d ${DESTDIR}${IDIR}
