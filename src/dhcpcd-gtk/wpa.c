@@ -108,6 +108,7 @@ bool
 wpa_configure(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *scan)
 {
 	DHCPCD_WI_SCAN s;
+	DHCPCD_IF *i;
 	GtkWidget *label, *psk, *vbox, *hbox;
 	const char *var;
 	int result;
@@ -116,6 +117,14 @@ wpa_configure(DHCPCD_WPA *wpa, DHCPCD_WI_SCAN *scan)
 	/* Take a copy of scan incase it's destroyed by a scan update */
 	memcpy(&s, scan, sizeof(s));
 	s.next = NULL;
+
+	i = dhcpcd_wpa_if(wpa);
+	if (i == NULL)
+		return false;
+
+	/* Disconnect if same interface selected */
+	if (dhcpcd_wi_associated(i, &s))
+		return dhcpcd_wpa_disconnect(wpa);
 
 	if (!(s.flags & WSF_PSK))
 		return wpa_conf(dhcpcd_wpa_configure(wpa, &s, NULL));
