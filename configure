@@ -264,6 +264,7 @@ fi
 # Add CPPFLAGS and CFLAGS to CC for testing features
 XCC="$CC `$SED -n -e 's/CPPLAGS+=*\(.*\)/\1/p' $CONFIG_MK`"
 XCC="$XCC `$SED -n -e 's/CFLAGS+=*\(.*\)/\1/p' $CONFIG_MK`"
+XCC="$XCC `$SED -n -e 's/LDFLAGS+=*\(.*\)/\1/p' $CONFIG_MK`"
 
 if [ -z "$GETTEXT" ]; then
 	printf "Testing for gettext ... "
