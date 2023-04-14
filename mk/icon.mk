@@ -14,7 +14,7 @@ CLEANFILES+=	${SRCS:.svg=.png}
 all: ${ICONS}
 
 .svg.png:
-	${CAIROSVG} -f png -H ${SIZE} -W ${SIZE} $< >$@
+	${CAIROSVG} -f png --output-height ${SIZE} --output-width ${SIZE} $< >$@
 
 _iconinstall: ${ICONS}
 	${INSTALL} -d ${DESTDIR}${IDIR}
