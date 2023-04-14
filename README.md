@@ -28,7 +28,7 @@ For each `--with` there is a `--without` and for each `--enable` a `--disable`.
 If each part is not specified then the configure will test the system
 for the needed libraries to build and install it.
 
-(cariosvg)[https://cairosvg.org/) is used to build the icons from the svg source.
+[cariosvg](https://cairosvg.org/) is used to build the icons from the svg source.
 It's not a runtime dependency.
 
 ### Notifications
