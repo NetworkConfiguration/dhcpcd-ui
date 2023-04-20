@@ -7,3 +7,4 @@ config.mk
 *.So
 *.so
 *.so.*
+dhcpcd-ui-*

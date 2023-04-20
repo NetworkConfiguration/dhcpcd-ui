@@ -1,4 +1,5 @@
 PROG=		dhcpcd-ui
+PACKAGE=	${PROG}
 VERSION=	0.7.8
 
 TOPDIR=		.
@@ -9,14 +10,14 @@ include ${MKDIR}/subdir.mk
 
 SUBDIR=		src ${MKICONS}
 
-GITREF?=	HEAD
-DISTPREFIX?=	${PROG}-${VERSION}
+DIST!=		if test -d .git; then echo "dist-git"; \
+		else echo "dist-inst"; fi
+DISTPREFIX?=	${PACKAGE}-${VERSION}
 DISTFILETAR?=	${DISTPREFIX}.tar
 DISTFILE?=	${DISTFILETAR}.xz
 DISTINFO=	${DISTFILE}.distinfo
-DISTINFOSIGN=	${DISTINFO}.asc
-CKSUM?=		cksum -a SHA256
-PGP?=		netpgp
+DISTINFOMD=	${DISTINFO}.md
+DISTSIGN=	${DISTFILE}.asc
 
 CLEANFILES+=	${DISTFILE} ${DISTINFO} ${DISTINFOSIGN}
 
@@ -26,25 +27,38 @@ SNAP=		${_SNAP}$(shell ${_SNAP_SH})
 SNAPDIR=	${DISTPREFIX}-${SNAP}
 SNAPFILE=	${SNAPDIR}.tar.xz
 
-dist:
-	[ -e config.mk ] || ./configure
-	git archive --prefix=${DISTPREFIX}/ -o /tmp/${DISTFILETAR} ${GITREF}
-	tar -xpf /tmp/${DISTFILETAR} -C /tmp
-	# We need config.mk to build the icons - remove it once done
-	cp config.mk /tmp/${DISTPREFIX}
-	(cd /tmp/${DISTPREFIX}; make icons)
-	rm /tmp/${DISTPREFIX}/config.mk
-	rm -rf /tmp/${DISTPREFIX}/doc
+SHA256?=	sha256
+PGP?=		gpg
+
+dist-git:
+	git archive --prefix=${DISTPREFIX}/ v${VERSION} | xz >${DISTFILE}
+
+dist-inst:
+	mkdir /tmp/${DISTPREFIX}
+	cp -RPp * /tmp/${DISTPREFIX}
+	(cd /tmp/${DISTPREFIX}; make clean)
 	tar -cvJpf ${DISTFILE} -C /tmp ${DISTPREFIX}
-	rm -rf /tmp/${DISTPREFIX} /tmp/${DISTFILETAR}
+	rm -rf /tmp/${DISTPREFIX}
+
+dist: ${DIST}
 
 distinfo: dist
-	rm -f ${DISTINFO} ${DISTINFOSIGN}
-	${CKSUM} ${DISTFILE} >${DISTINFO}
-	#printf "SIZE (${DISTFILE}) = %s\n" $$(wc -c <${DISTFILE}) >>${DISTINFO}
-	${PGP} --clearsign --output=${DISTINFOSIGN} ${DISTINFO}
-	chmod 644 ${DISTINFOSIGN}
-	ls -l ${DISTFILE} ${DISTINFO} ${DISTINFOSIGN}
+	rm -f ${DISTINFO} ${DISTSIGN}
+	${SHA256} ${DISTFILE} >${DISTINFO}
+	${PGP} --armour --detach-sign ${DISTFILE}
+	chmod 644 ${DISTSIGN}
+	ls -l ${DISTFILE} ${DISTINFO} ${DISTSIGN}
+
+${DISTINFOMD}: ${DISTINFO}
+	echo '```' >${DISTINFOMD}
+	cat ${DISTINFO} >>${DISTINFOMD}
+	echo '```' >>${DISTINFOMD}
+
+release: distinfo ${DISTINFOMD}
+	gh release create v${VERSION} \
+		--title "${PACKAGE} ${VERSION}" --draft --generate-notes \
+		--notes-file ${DISTINFOMD} \
+		${DISTFILE} ${DISTSIGN}
 
 distclean:
 	(cd src; make clean)
