@@ -56,6 +56,7 @@ for x; do
 	QTDIR) QTDIR=$var;;
 	--with-icons) WITH_ICONS=${var:-yes};;
 	--without-icons) WITH_ICONS=no;;
+	CAIROSVG) CAIROSVG=$var;;
 	--enable-notification) NOTIFY=yes;;
 	--disable-notification) NOTIFY=no;;
 	--help) echo "See the README file for available options"; exit 0;;
@@ -90,14 +91,16 @@ _which()
 		echo "$x"
 		return 0
 	fi
-	for x in /sbin/"$1" /usr/sbin/"$1" \
-		/usr/pkg/sbin/"$1" /usr/local/sbin/"$1"
-	do
-		if [ -e "$x" ]; then
-			echo "$x"
-			return 0
-		fi
+
+	# poor mans which with shell expansion
+	for path in $(echo "$PATH" | tr ':' ' '); do
+		for file in "$path"/*; do
+			case "$file" in
+			*$1) echo "$file"; return 0;;
+			esac
+		done
 	done
+
 	return 1
 }
 
@@ -371,12 +374,14 @@ echo "LDADD+=		-Wl,--as-needed" >>$CONFIG_MK
 # convert the SVG icons to PNG.
 # We use cairosvg for this, but the binary name is based on python version
 printf "Finding cairosvg ... "
-for _CAIROSVG in cairosvg cairosvg-py3 cairosvg3.9 cairosvg3.8; do
-	CAIROSVG=$(_which "$_CAIROSVG")
-	if [ -x "$CAIROSVG" ]; then
-		break
-	fi
-done
+if [ -z "$CAIROSVG" ]; then
+	for _CAIROSVG in cairosvg cairosvg-py3 cairosvg-[3-9]*.[0-9]*; do
+		CAIROSVG=$(_which "$_CAIROSVG")
+		if [ -x "$CAIROSVG" ]; then
+			break
+		fi
+	done
+fi
 if [ -x "$CAIROSVG" ]; then
 	echo "$CAIROSVG"
 	echo "CAIROSVG=	$CAIROSVG" >>$CONFIG_MK
