@@ -255,16 +255,19 @@ dhcpcd_wi_scans_free(DHCPCD_WI_SCAN *wis)
 	}
 }
 
-static void
+static int
 dhcpcd_strtoi(int *val, const char *s)
 {
 	long l;
 
 	l = strtol(s, NULL, 0);
-	if (l >= INT_MIN && l <= INT_MAX)
-		*val = (int)l;
-	else
+	if (l < INT_MIN || l > INT_MAX) {
 		errno = ERANGE;
+		return -1;
+	}
+
+	*val = (int)l;
+	return 0;
 }
 
 static int
@@ -1303,7 +1306,8 @@ dhcpcd_wpa_freq(DHCPCD_WPA *wpa)
 		if (*s == '\0')
 			continue;
 		if (strncmp(s, "freq=", 5) == 0) {
-			dhcpcd_strtoi(&freq, s + 5);
+			if (dhcpcd_strtoi(&freq, s + 5) == -1)
+				return 0;
 			return freq;
 		}
 	}
