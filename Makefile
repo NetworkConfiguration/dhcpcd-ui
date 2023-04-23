@@ -64,7 +64,8 @@ release: distinfo ${DISTINFOMD}
 
 distclean:
 	(cd src; make clean)
-	rm -f config.h config.mk config.log
+	rm -f config.h config.mk config.log \
+		dhcpcd-ui-*.tar.xz*
 
 snapshot: icons
 	mkdir /tmp/${SNAPDIR}
