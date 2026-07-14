@@ -457,12 +457,8 @@ dhcpcd_try_open(gpointer data)
 	static int last_error;
 
 	con = (DHCPCD_CONNECTION *)data;
-	fd = dhcpcd_open(con, true);
+	fd = dhcpcd_open(con);
 	if (fd == -1) {
-		if (errno == EACCES || errno == EPERM) {
-			if ((fd = dhcpcd_open(con, false)) != -1)
-				goto unprived;
-		}
 		if (errno != last_error) {
 			g_critical("dhcpcd_open: %s", strerror(errno));
 			last_error = errno;
@@ -470,7 +466,6 @@ dhcpcd_try_open(gpointer data)
 		return TRUE;
 	}
 
-unprived:
 	if (!dhcpcd_watch(fd, dhcpcd_cb, con)) {
 		dhcpcd_close(con);
 		return TRUE;

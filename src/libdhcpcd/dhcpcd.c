@@ -1020,12 +1020,14 @@ strverscmp(const char *s1, const char *s2)
 #endif
 
 int
-dhcpcd_open(DHCPCD_CONNECTION *con, bool privileged)
+dhcpcd_open(DHCPCD_CONNECTION *con)
 {
-	const char *path = privileged ? DHCPCD_SOCKET : DHCPCD_UNPRIV_SOCKET;
+	bool privileged = false;
+	const char *path;
 	char cmd[128];
 	ssize_t bytes;
 	size_t nifs, n;
+	int fd;
 
 	assert(con);
 	if (con->open) {
@@ -1036,16 +1038,28 @@ dhcpcd_open(DHCPCD_CONNECTION *con, bool privileged)
 	}
 
 	/* We need to block the command fd */
-	con->command_fd = dhcpcd_connect(path, 0);
-	if (con->command_fd == -1) {
-		if (errno == ENOENT) {
-			path = privileged ?
-			    DHCPCD_OSOCKET : DHCPCD_UNPRIV_OSOCKET;
-			con->command_fd = dhcpcd_connect(path, 0);
+	path = DHCPCD_SOCKET;
+	fd = dhcpcd_connect(path, 0);
+	if (fd == -1) {
+		if (errno == EACCES || errno == EPERM) {
+			path = DHCPCD_UNPRIV_SOCKET;
+			fd = dhcpcd_connect(path, 0);
+		} else if (errno == ENOENT) {
+			path = DHCPCD_OSOCKET;
+			fd = dhcpcd_connect(path, 0);
+			if (fd == -1) {
+				if (errno == EACCES || EPERM) {
+					path = DHCPCD_UNPRIV_OSOCKET;
+					fd = dhcpcd_connect(path, 0);
+				}
+			} else
+				privileged = true;
 		}
-		if (con->command_fd == -1)
-			goto err_exit;
-	}
+	} else
+		privileged = true;
+	if (fd == -1)
+		goto err_exit;
+	con->command_fd = fd;
 
 	con->terminate_commands = false;
 	if (dhcpcd_ctrl_command(con, "--version", &con->version) <= 0)
@@ -1058,6 +1072,18 @@ dhcpcd_open(DHCPCD_CONNECTION *con, bool privileged)
 
 	con->open = true;
 	con->privileged = privileged;
+
+	/* Newer dhcpcd versions only have the one socket, so
+	 * work out if we are a privileged user. */
+	if (privileged && strverscmp(con->version, "10.5.0") >= 0) {
+		char *priv = NULL;
+
+		if (dhcpcd_ctrl_command(con, "--isprivileged", &priv) <= 0)
+			goto err_exit;
+		con->privileged = strcmp(priv, "true") == 0 ? true : false;
+		free(priv);
+	}
+
 	update_status(con, DHC_UNKNOWN);
 
 	con->listen_fd = dhcpcd_connect(path, SOCK_NONBLOCK);

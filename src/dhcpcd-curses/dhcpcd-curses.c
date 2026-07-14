@@ -205,13 +205,8 @@ try_open(void *arg)
 	static int last_error;
 	int fd;
 
-	fd = dhcpcd_open(ctx->con, true);
+	fd = dhcpcd_open(ctx->con);
 	if (fd == -1) {
-		if (errno == EACCES || errno == EPERM) {
-			fd = dhcpcd_open(ctx->con, false);
-			if (fd != -1)
-				goto unprived;
-		}
 		if (errno != last_error) {
 			last_error = errno;
 			set_status(ctx, strerror(errno));
@@ -221,7 +216,6 @@ try_open(void *arg)
 		return;
 	}
 
-unprived:
 	last_error = 0;
 
 	/* Start listening to WPA events */

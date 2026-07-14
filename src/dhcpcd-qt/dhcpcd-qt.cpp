@@ -484,14 +484,10 @@ void DhcpcdQt::dhcpcd_wpa_status_cb(DHCPCD_WPA *wpa,
 }
 
 void DhcpcdQt::tryOpen() {
-	int fd = dhcpcd_open(con, true);
+	int fd = dhcpcd_open(con);
 	static int last_error;
 
 	if (fd == -1) {
-		if (errno == EACCES || errno == EPERM) {
-			if ((fd = dhcpcd_open(con, false)) != -1)
-				goto unprived;
-		}
 		if (errno != last_error) {
 		        last_error = errno;
 			const char *errt = strerror(errno);
@@ -508,7 +504,6 @@ void DhcpcdQt::tryOpen() {
 		return;
 	}
 
-unprived:
 	/* Start listening to WPA events */
 	dhcpcd_wpa_start(con);
 

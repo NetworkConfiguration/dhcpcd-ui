@@ -264,7 +264,7 @@ unsigned int dhcpcd_status(DHCPCD_CONNECTION *, const char **);
 bool dhcpcd_af_waiting(const DHCPCD_CONNECTION *);
 const char * dhcpcd_cffile(DHCPCD_CONNECTION *);
 bool dhcpcd_realloc(DHCPCD_CONNECTION *, size_t);
-int dhcpcd_open(DHCPCD_CONNECTION *, bool priv);
+int dhcpcd_open(DHCPCD_CONNECTION *);
 void dhcpcd_close(DHCPCD_CONNECTION *);
 void dhcpcd_free(DHCPCD_CONNECTION *);
 void dhcpcd_set_if_callback(DHCPCD_CONNECTION *,
