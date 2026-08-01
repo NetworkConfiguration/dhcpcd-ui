@@ -239,14 +239,13 @@ dhcpcd_command_arg(DHCPCD_CONNECTION *con, const char *cmd, const char *arg,
 
 
 static int
-dhcpcd_connect(const char *path, int opts)
+dhcpcd_connect(const char *path)
 {
 	int fd;
 	socklen_t len;
 	struct sockaddr_un sun;
 
-	assert(path);
-	fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | opts, 0);
+	fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (fd == -1)
 		return -1;
 
@@ -515,7 +514,7 @@ get_status(DHCPCD_CONNECTION *con)
 	if (con->command_fd == -1)
 		return DHC_DOWN;
 
-	if (con->listen_fd == -1)
+	if (con->listen_fd == -1 || con->error != 0)
 		return DHC_OPENED;
 
 	if (con->interfaces == NULL)
@@ -739,6 +738,7 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 		errno = ESRCH;
 		return NULL;
 	}
+
 	reason = get_value(data, len, "reason");
 	if (reason == NULL || *reason == '\0') {
 		errno = ESRCH;
@@ -756,6 +756,7 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 		errno = ENOTSUP;
 		return NULL;
 	}
+
 	order = get_value(data, len, "interface_order");
 	if (order == NULL || *order == '\0') {
 		errno = ESRCH;
@@ -905,6 +906,10 @@ dhcpcd_read_if(DHCPCD_CONNECTION *con, int fd)
 		dhcpcd_close(con);
 		return NULL;
 	}
+	if (bytes != sizeof(len)) {
+		errno = EINVAL;
+		return NULL;
+	}
 	if (len >= SSIZE_MAX) {
 		/* Even this is probably too big! */
 		errno = ENOBUFS;
@@ -1024,10 +1029,9 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 {
 	bool privileged = false;
 	const char *path;
-	char cmd[128];
 	ssize_t bytes;
 	size_t nifs, n;
-	int fd;
+	int fd, flags;
 
 	assert(con);
 	if (con->open) {
@@ -1039,18 +1043,18 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 
 	/* We need to block the command fd */
 	path = DHCPCD_SOCKET;
-	fd = dhcpcd_connect(path, 0);
+	fd = dhcpcd_connect(path);
 	if (fd == -1) {
 		if (errno == EACCES || errno == EPERM) {
 			path = DHCPCD_UNPRIV_SOCKET;
-			fd = dhcpcd_connect(path, 0);
+			fd = dhcpcd_connect(path);
 		} else if (errno == ENOENT) {
 			path = DHCPCD_OSOCKET;
-			fd = dhcpcd_connect(path, 0);
+			fd = dhcpcd_connect(path);
 			if (fd == -1) {
 				if (errno == EACCES || EPERM) {
 					path = DHCPCD_UNPRIV_OSOCKET;
-					fd = dhcpcd_connect(path, 0);
+					fd = dhcpcd_connect(path);
 				}
 			} else
 				privileged = true;
@@ -1060,6 +1064,7 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 	if (fd == -1)
 		goto err_exit;
 	con->command_fd = fd;
+	con->error = 0;
 
 	con->terminate_commands = false;
 	if (dhcpcd_ctrl_command(con, "--version", &con->version) <= 0)
@@ -1086,16 +1091,37 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 
 	update_status(con, DHC_UNKNOWN);
 
-	con->listen_fd = dhcpcd_connect(path, SOCK_NONBLOCK);
+	con->listen_fd = dhcpcd_connect(path);
 	if (con->listen_fd == -1)
 		goto err_exit;
 
 	dhcpcd_command_fd(con, con->listen_fd, false, "--listen", NULL);
+	if (strverscmp(con->version, "10.5.0") >= 0) {
+		bytes = read(con->listen_fd, &con->error, sizeof(con->error));
+		if (bytes != sizeof(con->error))
+			goto err_exit;
+		if (con->error != 0)
+			goto out;
+	}
+	flags = fcntl(con->listen_fd, F_GETFD, 0);
+	if (flags == -1)
+		goto err_exit;
+	flags |= O_NONBLOCK;
+	if (fcntl(con->listen_fd, F_SETFD, flags) == -1)
+		goto err_exit;
+
 	dhcpcd_command_fd(con, con->command_fd, false, "--getinterfaces", NULL);
-	bytes = read(con->command_fd, cmd, sizeof(nifs));
+	if (strverscmp(con->version, "10.5.0") >= 0) {
+		bytes = read(con->command_fd, &con->error, sizeof(con->error));
+		if (bytes != sizeof(con->error))
+			goto err_exit;
+		if (con->error != 0)
+			goto out;
+	}
+
+	bytes = read(con->command_fd, &nifs, sizeof(nifs));
 	if (bytes != sizeof(nifs))
 		goto err_exit;
-	memcpy(&nifs, cmd, sizeof(nifs));
 	/* We don't dispatch each interface here as that
 	 * causes too much notification spam when the GUI starts */
 	for (n = 0; n < nifs; n++) {
@@ -1104,7 +1130,8 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 		dhcpcd_read_if(con, con->command_fd);
 	}
 
-	update_status(con, DHC_UNKNOWN);
+out:
+	update_status(con, con->error == 0 ? DHC_UNKNOWN: DHC_OPENED);
 
 	return con->listen_fd;
 
@@ -1161,6 +1188,14 @@ dhcpcd_cffile(DHCPCD_CONNECTION *con)
 
 	assert(con);
 	return con->cffile;
+}
+
+int
+dhcpcd_error(DHCPCD_CONNECTION *con)
+{
+
+	assert(con);
+	return con->error;
 }
 
 void

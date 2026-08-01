@@ -113,7 +113,7 @@ main(int argc, char **argv)
 	bool xflag;
 	struct timespec now, end, t;
 	struct ctx ctx;
-	int timeout, n, lerrno;
+	int timeout, n, error, lerrno;
 	long lnum;
 	char *lend;
 
@@ -166,8 +166,17 @@ main(int argc, char **argv)
 		syslog(LOG_WARNING, "dhcpcd_open: %m");
 		if (xflag)
 			do_exit(con, EXIT_FAILURE);
-	} else
-		lerrno = 0;
+	} else {
+		error = dhcpcd_error(con);
+		if (error != 0) {
+			lerrno = errno = error;
+			syslog(LOG_WARNING, "dhcpcd_error: %m");
+			if (xflag)
+				do_exit(con, EXIT_FAILURE);
+			/* dhcpcd will need to be restarted */
+		} else
+			lerrno = 0;
+	}
 
 	/* Work out our timeout time */
 	if (clock_gettime(CLOCK_MONOTONIC, &end) == -1) {
@@ -208,6 +217,12 @@ main(int argc, char **argv)
 				if (lerrno != errno) {
 					lerrno = errno;
 					syslog(LOG_WARNING, "dhcpcd_open: %m");
+				}
+			} else {
+				error = dhcpcd_error(con);
+				if (error != 0 && lerrno != errno) {
+					lerrno = errno;
+					syslog(LOG_WARNING, "dhcpcd_error: %m");
 				}
 			}
 		} else {

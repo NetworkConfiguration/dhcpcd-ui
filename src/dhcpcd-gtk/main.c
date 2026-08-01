@@ -453,7 +453,7 @@ static gboolean
 dhcpcd_try_open(gpointer data)
 {
 	DHCPCD_CONNECTION *con;
-	int fd;
+	int fd, error;
 	static int last_error;
 
 	con = (DHCPCD_CONNECTION *)data;
@@ -471,9 +471,17 @@ dhcpcd_try_open(gpointer data)
 		return TRUE;
 	}
 
+	error = dhcpcd_error(con);
+	if (error != 0) {
+		g_critical("dhcpcd_command: %s", strerror(error));
+		/* dhcpcd will need to be restarted */
+		goto out;
+	}
+
 	/* Start listening to WPA events */
 	dhcpcd_wpa_start(con);
 
+out:
 	return FALSE;
 }
 

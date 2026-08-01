@@ -61,6 +61,7 @@ extern "C" {
 #endif
 
 #define DHCPCD_RETRYOPEN	100	/* milliseconds */
+#define DHCPCD_RETRYOPEN_EPERM	1000 * 60	/* milliseconds */
 #define DHCPCD_WPA_PING		500	/* milliseconds */
 #define DHCPCD_WPA_SCAN_LONG	60000	/* milliseconds */
 #define DHCPCD_WPA_SCAN_SHORT	5000	/* milliseconds */
@@ -217,9 +218,11 @@ typedef struct dhcpcd_connection {
 	struct dhcpcd_connection *next;
 	bool open;
 	bool privileged;
+
+	const char *progname;
 	int command_fd;
 	int listen_fd;
-	const char *progname;
+	int error;
 
 	DHCPCD_IF *interfaces;
 	DHCPCD_WPA *wpa;
@@ -241,9 +244,6 @@ typedef struct dhcpcd_connection {
 
 	char *version;
 	bool terminate_commands;
-	char *error;
-	int err;
-	int errors;
 	unsigned int status;
 	bool af_waiting;
 
@@ -260,6 +260,7 @@ DHCPCD_CONNECTION * dhcpcd_new(void);
 const char * dhcpcd_version(DHCPCD_CONNECTION *);
 void dhcpcd_set_progname(DHCPCD_CONNECTION *, const char *);
 const char * dhcpcd_get_progname(const DHCPCD_CONNECTION *);
+int dhcpcd_error(DHCPCD_CONNECTION *);
 unsigned int dhcpcd_status(DHCPCD_CONNECTION *, const char **);
 bool dhcpcd_af_waiting(const DHCPCD_CONNECTION *);
 const char * dhcpcd_cffile(DHCPCD_CONNECTION *);

@@ -484,13 +484,14 @@ void DhcpcdQt::dhcpcd_wpa_status_cb(DHCPCD_WPA *wpa,
 }
 
 void DhcpcdQt::tryOpen() {
-	int fd = dhcpcd_open(con);
+	int fd = dhcpcd_open(con), error;
 	static int last_error;
+	const char *errt;
 
 	if (fd == -1) {
 		if (errno != last_error) {
 		        last_error = errno;
-			const char *errt = strerror(errno);
+			errt = strerror(errno);
 			qCritical("dhcpcd_open: %s", errt);
 			trayIcon->setToolTip(
 			    tr("Error connecting to dhcpcd: %1").arg(errt));
@@ -504,19 +505,32 @@ void DhcpcdQt::tryOpen() {
 		return;
 	}
 
-	/* Start listening to WPA events */
-	dhcpcd_wpa_start(con);
+	notifier = new QSocketNotifier(fd, QSocketNotifier::Read);
+	connect(notifier, SIGNAL(activated(int)), this, SLOT(dispatch()));
 
-	if (retryOpenTimer) {
+	preferencesAction->setEnabled(dhcpcd_privileged(con));
+
+	if (retryOpenTimer != NULL) {
 		retryOpenTimer->stop();
 		retryOpenTimer->deleteLater();
 		retryOpenTimer = NULL;
 	}
 
-	notifier = new QSocketNotifier(fd, QSocketNotifier::Read);
-	connect(notifier, SIGNAL(activated(int)), this, SLOT(dispatch()));
+	error = dhcpcd_error(con);
+	if (error != 0) {
+		if (error != last_error) {
+			last_error = error;
+			errt = strerror(error);
+			qCritical("dhcpcd_error: %s", errt);
+			trayIcon->setToolTip(
+			    tr("Error communicating with dhcpcd: %1").arg(errt));
+		}
+		/* dhcpcd will need to be restarted */
+		return;
+	}
 
-	preferencesAction->setEnabled(dhcpcd_privileged(con));
+	/* Start listening to WPA events */
+	dhcpcd_wpa_start(con);
 }
 
 void DhcpcdQt::dispatch()
