@@ -244,6 +244,7 @@ typedef struct dhcpcd_connection {
 
 	char *version;
 	bool terminate_commands;
+	bool read_error;
 	unsigned int status;
 	bool af_waiting;
 

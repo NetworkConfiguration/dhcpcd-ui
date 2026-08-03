@@ -159,6 +159,22 @@ dhcpcd_command_fd(DHCPCD_CONNECTION *con,
 
 	if (write(fd, buf, len) == -1)
 		return -1;
+
+	if (con->read_error) {
+		int error;
+
+		bytes = read(fd, &error, sizeof(error));
+		if (bytes != sizeof(error)) {
+			errno = EINVAL;
+			return -1;
+		}
+		con->error = error;
+		if (error != 0) {
+			errno = error;
+			return -1;
+		}
+	}
+
 	if (buffer == NULL)
 		return 0;
 
@@ -1027,7 +1043,7 @@ strverscmp(const char *s1, const char *s2)
 int
 dhcpcd_open(DHCPCD_CONNECTION *con)
 {
-	bool privileged = false;
+	bool privileged = false, read_error = false;
 	const char *path;
 	ssize_t bytes;
 	size_t nifs, n;
@@ -1071,6 +1087,8 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 		goto err_exit;
 	con->terminate_commands =
 	    strverscmp(con->version, "6.4.1") >= 0 ? true : false;
+	read_error =
+	    strverscmp(con->version, "10.5.0") >= 0 ? true : false;
 
 	if (dhcpcd_ctrl_command(con, "--getconfigfile", &con->cffile) <= 0)
 		goto err_exit;
@@ -1080,7 +1098,7 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 
 	/* Newer dhcpcd versions only have the one socket, so
 	 * work out if we are a privileged user. */
-	if (privileged && strverscmp(con->version, "10.5.0") >= 0) {
+	if (privileged && read_error) {
 		char *priv = NULL;
 
 		if (dhcpcd_ctrl_command(con, "--isprivileged", &priv) <= 0)
@@ -1095,14 +1113,11 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 	if (con->listen_fd == -1)
 		goto err_exit;
 
-	dhcpcd_command_fd(con, con->listen_fd, false, "--listen", NULL);
-	if (strverscmp(con->version, "10.5.0") >= 0) {
-		bytes = read(con->listen_fd, &con->error, sizeof(con->error));
-		if (bytes != sizeof(con->error))
-			goto err_exit;
-		if (con->error != 0)
-			goto out;
-	}
+	/* We are now reading errors */
+	con->read_error = read_error;
+	bytes = dhcpcd_command_fd(con, con->listen_fd, false, "--listen", NULL);
+	if (bytes == -1)
+		goto out;
 	flags = fcntl(con->listen_fd, F_GETFD, 0);
 	if (flags == -1)
 		goto err_exit;
@@ -1110,18 +1125,14 @@ dhcpcd_open(DHCPCD_CONNECTION *con)
 	if (fcntl(con->listen_fd, F_SETFD, flags) == -1)
 		goto err_exit;
 
-	dhcpcd_command_fd(con, con->command_fd, false, "--getinterfaces", NULL);
-	if (strverscmp(con->version, "10.5.0") >= 0) {
-		bytes = read(con->command_fd, &con->error, sizeof(con->error));
-		if (bytes != sizeof(con->error))
-			goto err_exit;
-		if (con->error != 0)
-			goto out;
-	}
+	bytes = dhcpcd_command_fd(con, con->command_fd, false, "--getinterfaces", NULL);
+	if (bytes == -1)
+		goto out;
 
 	bytes = read(con->command_fd, &nifs, sizeof(nifs));
 	if (bytes != sizeof(nifs))
 		goto err_exit;
+
 	/* We don't dispatch each interface here as that
 	 * causes too much notification spam when the GUI starts */
 	for (n = 0; n < nifs; n++) {
