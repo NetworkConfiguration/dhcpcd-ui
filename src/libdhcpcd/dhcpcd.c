@@ -752,13 +752,13 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 	ifname = get_value(data, len, "interface");
 	if (ifname == NULL || *ifname == '\0') {
 		errno = ESRCH;
-		return NULL;
+		goto err_exit;
 	}
 
 	reason = get_value(data, len, "reason");
 	if (reason == NULL || *reason == '\0') {
 		errno = ESRCH;
-		return NULL;
+		goto err_exit;
 	}
 	dhcpcd_reason_to_statetype(reason, &state, &type);
 
@@ -766,17 +766,17 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 	/* Skip pseudo interfaces */
 	if (ifclass && *ifclass != '\0') {
 		errno = ENOTSUP;
-		return NULL;
+		goto err_exit;
 	}
 	if (state == DHS_RECONFIGURE || state == DHS_INFORM) {
 		errno = ENOTSUP;
-		return NULL;
+		goto err_exit;
 	}
 
 	order = get_value(data, len, "interface_order");
 	if (order == NULL || *order == '\0') {
 		errno = ESRCH;
-		return NULL;
+		goto err_exit;
 	}
 
 	i = NULL;
@@ -804,12 +804,12 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 		/* If link is down, ignore it */
 		e = dhcpcd_get_if(con, ifname, DHT_LINK);
 		if (e && !e->up)
-			return NULL;
+			goto err_exit;
 	}
 
 	orderdup = strdup(order);
 	if (orderdup == NULL)
-		return NULL;
+		goto err_exit;
 
 	/* Find our pointer */
         if (i == NULL) {
@@ -826,7 +826,7 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
 		i = malloc(sizeof(*i));
 		if (i == NULL) {
 			free(orderdup);
-			return NULL;
+			goto err_exit;
 		}
 		if (l)
 			l->next = i;
@@ -907,6 +907,11 @@ dhcpcd_new_if(DHCPCD_CONNECTION *con, char *data, size_t len)
         con->interfaces = n;
 
 	return addedi ? i : NULL;
+
+err_exit:
+	/* We own data; once adopted it lives and dies with i. */
+	free(data);
+	return NULL;
 }
 
 static DHCPCD_IF *
@@ -915,7 +920,6 @@ dhcpcd_read_if(DHCPCD_CONNECTION *con, int fd)
 	char *rbuf, *rbufp;
 	size_t len;
 	ssize_t bytes;
-	DHCPCD_IF *i;
 
 	bytes = read(fd, &len, sizeof(len));
 	if (bytes == 0 || bytes == -1) {
@@ -954,10 +958,8 @@ again:
 	}
 	rbufp[bytes] = '\0';
 
-	i = dhcpcd_new_if(con, rbuf, (size_t)((rbufp - rbuf) + bytes));
-	if (i == NULL)
-		free(rbuf);
-	return i;
+	/* dhcpcd_new_if takes ownership of rbuf, even when it returns NULL */
+	return dhcpcd_new_if(con, rbuf, (size_t)((rbufp - rbuf) + bytes));
 }
 
 static void
