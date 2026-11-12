@@ -637,7 +637,7 @@ dhcpcd_wi_scans(DHCPCD_IF *i)
 
 		for (h = wpa->con->wi_history; h; h = h->next) {
 			if (strcmp(h->ifname, i->ifname) == 0 &&
-			    strcmp(h->bssid, wis->bssid) == 0)
+			    strcmp(h->bssid, w->bssid) == 0)
 			{
 				w->quality.average += h->quality;
 				w->noise.average += h->noise;
